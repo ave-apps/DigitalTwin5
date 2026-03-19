@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>Digital Twin — Gebouw 5B</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
+#canvas { display:block; }
+#ui {
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  display:flex; gap:8px; z-index:30;
+}
+.btn {
+  background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25);
+  color:white; padding:9px 16px; border-radius:8px; cursor:pointer;
+  font-size:13px; backdrop-filter:blur(8px); transition:background 0.2s; user-select:none;
+}
+.btn:hover { background:rgba(255,255,255,0.22); }
+.btn.active { background:rgba(100,180,255,0.35); border-color:#64b4ff; }
+#floorUI {
+  position:fixed; bottom:68px; left:50%; transform:translateX(-50%);
+  display:flex; gap:8px; z-index:30;
+}
+.fbtn {
+  background:rgba(255,200,80,0.15); border:1px solid rgba(255,200,80,0.4);
+  color:#ffd060; padding:8px 22px; border-radius:8px; cursor:pointer;
+  font-size:14px; font-weight:600; backdrop-filter:blur(8px);
+  transition:all 0.2s; user-select:none;
+}
+.fbtn:hover { background:rgba(255,200,80,0.28); }
+.fbtn.active { background:rgba(255,200,80,0.45); border-color:#ffd060; color:#fff; }
+#info {
+  position:fixed; top:56px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,0.55); color:#cde; padding:8px 20px;
+  border-radius:20px; font-size:13px; backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.15); pointer-events:none; white-space:nowrap;
+}
+#tooltip {
+  position:fixed; background:rgba(10,14,30,0.95); color:#fff;
+  padding:10px 14px; border-radius:10px; font-size:13px;
+  pointer-events:none; display:none; z-index:50;
+  border:1px solid rgba(255,255,255,0.15);
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);
+  min-width:160px; line-height:1.6;
+}
+#legend {
+  position:fixed; top:56px; right:16px; background:rgba(0,0,0,0.5);
+  color:#ccc; padding:12px 16px; border-radius:10px; font-size:12px;
+  backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,0.1); line-height:2;
+}
+.leg { display:flex; align-items:center; gap:8px; }
+.dot { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+
+/* ── Zijpaneel ─────────────────────────────────────────────────────────── */
+#sidepanel {
+  position:fixed; top:0; right:-360px; width:340px; height:100vh;
+  background:rgba(10,14,30,0.96); backdrop-filter:blur(12px);
+  border-left:1px solid rgba(255,255,255,0.12); z-index:25;
+  transition:right 0.3s ease; overflow-y:auto; padding:70px 20px 20px; display:flex; flex-direction:column;
+  font-family:'Segoe UI',sans-serif;
+}
+#sidepanel.open { right:0; }
+#sidepanel h2 { color:#ffe066; font-size:18px; margin-bottom:4px; }
+#sidepanel .sub { color:#ccc; font-size:16px; font-weight:600; margin-bottom:16px; }
+#sp-close {
+  position:absolute; top:16px; right:16px; background:none; border:none;
+  color:#888; font-size:20px; cursor:pointer; line-height:1;
+}
+#sp-close:hover { color:#fff; }
+#sp-meter-wrap { margin-bottom:16px; }
+#sp-meter-label { display:flex; justify-content:space-between; margin-bottom:6px; }
+#sp-meter-label span { font-size:13px; }
+#sp-meter-label .sp-ml { color:#64d8a0; font-size:20px; font-weight:700; }
+#sp-meter-label .sp-doel { color:#888; font-size:13px; }
+#sp-bar-bg {
+  width:100%; height:14px; border-radius:7px;
+  background:rgba(255,255,255,0.1); overflow:hidden; margin-bottom:6px;
+}
+#sp-bar { height:100%; border-radius:7px; transition:width 0.5s, background 0.5s; }
+#sp-schema { color:#aaa; font-size:12px; margin-bottom:16px; }
+#sp-list { list-style:none; }
+#sp-list li {
+  display:flex; align-items:center; gap:10px; padding:7px 0;
+  border-bottom:1px solid rgba(255,255,255,0.07); font-size:13px; color:#ccc;
+}
+#sp-list li .sp-icon { font-size:18px; width:24px; text-align:center; }
+#sp-list li .sp-time { color:#888; font-size:11px; margin-left:auto; white-space:nowrap; }
+#sp-list li .sp-amt { color:#64d8a0; font-weight:600; white-space:nowrap; }
+
+/* ── Alarm banner ──────────────────────────────────────────────────────── */
+#alarm-banner {
+  position:fixed; top:0; left:0; right:0; z-index:50;
+  background:rgba(200,30,30,0.95); color:#fff; padding:12px 20px;
+  display:none; align-items:center; justify-content:space-between;
+  font-family:'Segoe UI',sans-serif; font-size:14px; font-weight:600;
+  border-bottom:2px solid #ff6666;
+}
+#alarm-banner .alarm-msg { flex:1; }
+#alarm-banner button {
+  background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4);
+  color:#fff; padding:6px 14px; border-radius:6px; cursor:pointer;
+  font-size:13px; margin-left:12px;
+}
+#alarm-banner button:hover { background:rgba(255,255,255,0.35); }
+
+/* ── Vocht-indicator badges op labels ─────────────────────────────────── */
+.vocht-badge {
+  display:inline-block; width:10px; height:10px; border-radius:50%;
+  margin-left:5px; vertical-align:middle; flex-shrink:0;
+}
+/* ── Dashboard overzicht ───────────────────────────────────────────────── */
+#dashboard {
+  display:none; position:fixed; inset:0; z-index:45;
+  background:rgba(8,12,28,0.97); backdrop-filter:blur(16px);
+  overflow-y:auto; padding:70px 24px 40px;
+  font-family:'Segoe UI',sans-serif;
+}
+#dashboard.open { display:block; }
+#dashboard h1 {
+  color:#fff; font-size:18px; font-weight:700; margin-bottom:20px;
+  display:flex; align-items:center; gap:10px;
+}
+#dashboard h1 button {
+  background:none; border:1px solid rgba(255,255,255,0.2); color:#888;
+  border-radius:6px; padding:4px 12px; cursor:pointer; font-size:12px;
+  margin-left:auto;
+}
+#dashboard h1 button:hover { color:#fff; border-color:#fff; }
+.dash-floor {
+  margin-bottom:32px;
+}
+.dash-floor-title {
+  color:#ffd060; font-size:13px; font-weight:700; letter-spacing:1px;
+  text-transform:uppercase; margin-bottom:12px;
+  border-bottom:1px solid rgba(255,208,96,0.2); padding-bottom:6px;
+}
+.dash-wings {
+  display:grid; grid-template-columns:1fr 1fr; gap:16px;
+}
+.dash-wing-title {
+  color:#888; font-size:10px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.8px; margin-bottom:8px;
+}
+.dash-rooms {
+  display:grid; grid-template-columns:1fr 1fr; gap:6px;
+}
+.dash-room {
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:8px; padding:8px 10px; cursor:pointer;
+  transition:background .15s;
+}
+.dash-room:hover { background:rgba(255,255,255,0.09); }
+.dash-room.has-data { border-color:rgba(255,255,255,0.2); }
+.dash-room.no-data { opacity:0.4; cursor:default; }
+.dash-room-nr {
+  font-size:12px; font-weight:700; color:#fff; margin-bottom:4px;
+  display:flex; align-items:center; gap:6px;
+}
+.dash-room-nr.no-data { color:#666; }
+.dash-bar-bg {
+  width:100%; height:4px; background:rgba(255,255,255,0.08);
+  border-radius:2px; overflow:hidden; margin-bottom:4px;
+}
+.dash-bar-fill { height:100%; border-radius:2px; transition:width .4s; }
+.dash-meta {
+  font-size:10px; color:#666; display:flex; justify-content:space-between;
+}
+.dash-meta .dash-ml { font-weight:600; }
+.dash-trend { font-size:10px; }
+.dash-trend.up   { color:#4cdd8a; }
+.dash-trend.down { color:#ff6644; }
+.dash-trend.flat { color:#888; }
+.dash-last { font-size:10px; color:#555; margin-top:2px; }
+</style>
+</head>
+<body>
+<canvas id="canvas" style="position:fixed;top:0;left:0;z-index:0"></canvas>
+<div id="info">🖱️ Slepen = draaien &nbsp;|&nbsp; Scroll = zoom &nbsp;|&nbsp; Etageknop = bovenaanzicht &nbsp;|&nbsp; Klik kamernummer = info</div>
+<div id="sync-status" style="position:fixed;top:100px;left:16px;z-index:30;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.1);cursor:pointer" onclick="fetchVV()" title="Klik om te vernieuwen">
+  <span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;flex-shrink:0"></span>
+  <span id="sync-label" style="color:#aaa">Verbinden…</span>
+</div>
+<div id="tooltip"></div>
+<div id="floorUI">
+  <button class="fbtn active" onclick="selectFloor(0,this)">BG &nbsp;0.</button>
+  <button class="fbtn" onclick="selectFloor(1,this)">1e &nbsp;1.</button>
+  <button class="fbtn" onclick="selectFloor(2,this)">2e &nbsp;2.</button>
+  <button class="fbtn" onclick="selectFloor(3,this)">3e &nbsp;3.</button>
+  <button class="fbtn" id="overview-btn" onclick="toggleOverview()" style="background:rgba(100,180,255,0.15);border-color:rgba(100,180,255,0.4);color:#64b4ff;margin-left:12px">📊 Overzicht</button>
+</div>
+<div id="ui">
+  <button class="btn" onclick="setView('iso',this)">Isometrisch</button>
+  <button class="btn active" onclick="setView('top',this)">Bovenaanzicht</button>
+  <button class="btn" onclick="setView('corridor',this)">Gang</button>
+  <button class="btn" onclick="setView('left',this)">Links</button>
+  <button class="btn" onclick="setView('right',this)">Rechts</button>
+</div>
+<div id="legend">
+  <div class="leg"><div class="dot" style="background:#dfd0a8"></div> Kamers</div>
+  <div class="leg"><div class="dot" style="background:#d6c9a8"></div> Gang</div>
+  <div class="leg"><div class="dot" style="background:#9ab0c4"></div> Noodtrap</div>
+  <div class="leg"><div class="dot" style="background:#c8d0b0"></div> Entree/diensten</div>
+</div>
+
+<div id="dashboard" style="display:none">
+  <h1>📊 Vocht overzicht
+    <button onclick="toggleOverview()">✕ Sluiten</button>
+  </h1>
+  <div id="dash-content"></div>
+</div>
+
+<div id="alarm-banner">
+  <span class="alarm-msg" id="alarm-msg">⚠️ Vochtachterstand: kamer 0.07</span>
+  <button onclick="snoozeAlarm(30)">Wegklikken (30 min)</button>
+  <button onclick="snoozeAlarm(0)">Actie ondernomen</button>
+</div>
+
+<div id="sidepanel">
+  <button id="sp-close" onclick="closeSidePanel()">✕</button>
+  <h2 id="sp-kamer">—</h2>
+  <div class="sub" id="sp-naam">—</div>
+  <div id="sp-meter-wrap">
+    <div id="sp-meter-label">
+      <span class="sp-ml" id="sp-ml">0 ml</span>
+      <span class="sp-doel" id="sp-doel">doel: — ml</span>
+    </div>
+    <div id="sp-bar-bg"><div id="sp-bar" style="width:0%;background:#64d8a0"></div></div>
+    <div id="sp-schema">Op schema: —</div>
+  </div>
+  <ul id="sp-list"></ul>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// Globale state — vroeg declareren zodat label-divs er al bij kunnen
+let vvData={};
+let alarmState={}, alarmTimers={};
+let audioCtx=null;
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+scene.fog = new THREE.Fog(0x1a1a2e, 160, 380);
+const camera = new THREE.PerspectiveCamera(45,1,0.1,900);
+function resize(){
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+}
+resize(); window.addEventListener('resize',resize);
+
+// ── Lights ─────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xffffff,0.45));
+const sun=new THREE.DirectionalLight(0xfff8e8,1.0);
+sun.position.set(40,80,50); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-160,right:160,top:120,bottom:-120,far:350});
+scene.add(sun);
+const fill=new THREE.DirectionalLight(0xc8e0ff,0.3);
+fill.position.set(-30,30,-40); scene.add(fill);
+const corrLight=new THREE.PointLight(0xffffee,0.5,70);
+corrLight.position.set(0,5,0); scene.add(corrLight);
+
+// ── Laminaat texture ───────────────────────────────────────────────────────
+function makeLaminaat(){
+  const s=256,cv=document.createElement('canvas');
+  cv.width=cv.height=s; const c=cv.getContext('2d');
+  c.fillStyle='#dfd0a8'; c.fillRect(0,0,s,s);
+  for(let x=0;x<s;x+=42){c.fillStyle='rgba(0,0,0,0.07)';c.fillRect(x,0,1.5,s);}
+  c.strokeStyle='#b8925a'; c.lineWidth=0.6;
+  for(let i=0;i<80;i++){
+    const y=Math.random()*s,x0=Math.random()*s,l=20+Math.random()*100;
+    c.globalAlpha=0.12+Math.random()*0.18;
+    c.beginPath(); c.moveTo(x0,y);
+    c.bezierCurveTo(x0+l/3,y+(Math.random()-.5)*5,x0+2*l/3,y+(Math.random()-.5)*5,x0+l,y+(Math.random()-.5)*4);
+    c.stroke();
+  }
+  c.globalAlpha=1;
+  const t=new THREE.CanvasTexture(cv);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,3); return t;
+}
+
+// ── Dimensions ─────────────────────────────────────────────────────────────
+const K=8, WALL_H=4.5, WALL_T=0.4, FH=0.25, FLOOR_GAP=WALL_H+0.8;
+const xM1=-12,xM2=12,xL1=-20,xL2=-28,xL3=-36,xL4=-44,xL5=-52;
+const xR1=20,xR2=28,xR3=36,xR4=44,xR5=52;
+const zGZ=2,zGN=-2,zVZ=11,zAN=-11;
+const zVc=(zGZ+zVZ)/2,zAc=(zGN+zAN)/2,KD=zVZ-zGZ;
+
+// ── Build floor ────────────────────────────────────────────────────────────
+const floorMeshes = [[],[],[],[]];
+
+function buildFloor(f){
+  const Y=f*FLOOR_GAP, FY=Y+FH/2, WY=Y+WALL_H/2;
+  const wallCol=[0xddd8cf,0xd4d0c8,0xcccac4,0xc4c2bc][f];
+  const matW=new THREE.MeshLambertMaterial({color:wallCol});
+  const matR=new THREE.MeshLambertMaterial({map:makeLaminaat()});
+
+  function add(m){ floorMeshes[f].push(m); return m; }
+  function fl(x,z,w,d,col){
+    const mat=typeof col==='number'?new THREE.MeshLambertMaterial({color:col}):col;
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,FH,d),mat);
+    m.position.set(x,FY,z); m.castShadow=true; m.receiveShadow=true;
+    scene.add(m); return add(m);
+  }
+  function wl(x,z,w,d){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,WALL_H,d),matW);
+    m.position.set(x,WY,z); m.castShadow=true; m.receiveShadow=true;
+    scene.add(m); return add(m);
+  }
+  function bx(w,h,d,mat,x,y,z){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+    m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
+    scene.add(m); return add(m);
+  }
+
+  const C={
+    corr:0xd6c9a8, nt:0x9ab0c4, ent:0xc8d0b0,
+    door:0x8B6914, win:null
+  };
+  const matNT=new THREE.MeshLambertMaterial({color:C.nt});
+  const matENT=new THREE.MeshLambertMaterial({color:C.ent});
+  const matCorr=new THREE.MeshLambertMaterial({color:C.corr});
+  const matDoor=new THREE.MeshLambertMaterial({color:C.door});
+  const matWin=new THREE.MeshLambertMaterial({color:0x88ccff,transparent:true,opacity:0.35});
+  const matStair=new THREE.MeshLambertMaterial({color:0x8ab4d4});
+
+  // Gang
+  fl(0,0,2*xR5,4,matCorr);
+
+  // Voorzijde vloeren
+  fl(-6,zVc,K,KD,matENT); fl(6,zVc,K,KD,matENT);
+  fl((xL1+xM1)/2,zVc,K,KD,matNT); // noodtrap links voorzijde
+  fl((xL2+xL1)/2,zVc,K,KD,matR);
+  fl((xL3+xL2)/2,zVc,K,KD,matR);
+  fl((xL4+xL3)/2,zVc,K,KD,matR);
+  fl((xL5+xL4)/2,zVc,K,KD,matR);
+  fl((xM2+xR1)/2,zVc,K,KD,matR); // 27
+  fl((xR1+xR2)/2,zVc,K,KD,matR);
+  fl((xR2+xR3)/2,zVc,K,KD,matR);
+  fl((xR3+xR4)/2,zVc,K,KD,matR);
+  fl((xR4+xR5)/2,zVc,K,KD,matNT); // noodtrap rechts buiten
+
+  // Achterzijde vloeren
+  fl((xL5+xL4)/2,zAc,K,KD,matR); // 11
+  fl((xL4+xL3)/2,zAc,K,KD,matR); // 12
+  fl((xL1+xM1)/2,zAc,K,KD,matNT);
+  fl((xM2+xR1)/2,zAc,K,KD,matNT);
+  fl((xR3+xR4)/2,zAc,K,KD,matR); // 31
+  fl((xR4+xR5)/2,zAc,K,KD,matR); // 32
+
+  // Muren
+  wl(0,zGZ,2*xR5,WALL_T); wl(0,zGN,2*xR5,WALL_T);
+  wl(0,zVZ,2*xR5,WALL_T);
+  wl((xL5+xL3)/2,zAN,xL3-xL5,WALL_T);
+  wl((xR3+xR5)/2,zAN,xR5-xR3,WALL_T);
+  wl(0,zAN,xR3-xL3,WALL_T);
+  wl((xL3+xM1)/2,zGN,xL3-xM1,WALL_T);
+  wl((xM2+xR3)/2,zGN,xR3-xM2,WALL_T);
+  wl(xL5,(zVZ+zAN)/2,WALL_T,zVZ-zAN);
+  wl(xR5,(zVZ+zAN)/2,WALL_T,zVZ-zAN);
+  [xL4,xL3,xL2,xL1].forEach(x=>wl(x,zVc,WALL_T,KD));
+  [xR1,xR2,xR3,xR4].forEach(x=>wl(x,zVc,WALL_T,KD));
+  [xM1,xL3,xL4].forEach(x=>wl(x,zAc,WALL_T,KD));
+  [xM2,xR3,xR4].forEach(x=>wl(x,zAc,WALL_T,KD));
+
+  // Deuropeningen
+  [xM1,xM2].forEach(x=>{
+    const dB=1.8,dH=2.6,zMid=zGZ+KD/2,zDo=zMid-dB/2,zDc=zMid+dB/2;
+    bx(WALL_T,WALL_H,zDo-zGZ,matW,x,WY,zGZ+(zDo-zGZ)/2);
+    bx(WALL_T,WALL_H,zVZ-zDc,matW,x,WY,zDc+(zVZ-zDc)/2);
+    bx(WALL_T,WALL_H-dH,dB,matW,x,Y+dH+(WALL_H-dH)/2,zMid);
+    const r=x<0?-1:1;
+    bx(0.07,dH,dB,matDoor,x+r*(0.07+WALL_T/2),Y+dH/2,zGZ+dB/2+0.15);
+  });
+
+  // Trap & lift
+  for(let i=0;i<6;i++) bx(K-0.5,0.2+i*0.1,0.7,matStair,6,Y+0.1+i*0.1,zGZ+0.5+i*0.75);
+  bx(3,2.4,0.1,matStair,0,Y+1.2,zGN+0.06);
+
+  // Ramen voorzijde
+  [(xL5+xL4)/2,(xL4+xL3)/2,(xL3+xL2)/2,(xL2+xL1)/2,(xL1+xM1)/2,
+   -6,6,(xM2+xR1)/2,(xR1+xR2)/2,(xR2+xR3)/2,(xR3+xR4)/2,(xR4+xR5)/2].forEach(x=>
+    bx(5,2,0.12,matWin,x,Y+2.5,zVZ));
+  // Ramen achterzijde
+  [(xL5+xL4)/2,(xL4+xL3)/2,(xR3+xR4)/2,(xR4+xR5)/2,-28,-16,-4,4,16,28].forEach(x=>
+    bx(5,2,0.12,matWin,x,Y+2.5,zAN));
+
+  // Kamerdeur-indicaties
+  [(xL5+xL4)/2,(xL4+xL3)/2,(xL3+xL2)/2,(xL2+xL1)/2,
+   (xM2+xR1)/2,(xR1+xR2)/2,(xR2+xR3)/2,(xR3+xR4)/2].forEach(x=>
+    bx(1.8,2.6,0.5,matDoor,x,Y+1.3,zGZ));
+  [(xL5+xL4)/2,(xL4+xL3)/2,(xR3+xR4)/2,(xR4+xR5)/2].forEach(x=>
+    bx(1.8,2.6,0.5,matDoor,x,Y+1.3,zGN));
+
+  // Gangverlichting
+  for(let x=-45;x<=45;x+=12){
+    const lamp=new THREE.PointLight(0xfff5d0,0.22,20);
+    lamp.position.set(x,Y+3.8,0); scene.add(lamp);
+    floorMeshes[f].push(lamp);
+  }
+}
+
+for(let f=0;f<4;f++) buildFloor(f);
+
+// Vloerplaat tussen etages (zichtbare dakplaat per etage)
+for(let f=0;f<4;f++){
+  const Y=f*FLOOR_GAP;
+  const slab=new THREE.Mesh(
+    new THREE.BoxGeometry(2*xR5+1,0.3,zVZ-zAN+1),
+    new THREE.MeshLambertMaterial({color:0x555566,transparent:true,opacity:0.5})
+  );
+  slab.position.set(0,Y-0.15,(zVZ+zAN)/2);
+  scene.add(slab); floorMeshes[f].push(slab);
+}
+
+// Grid
+const grid=new THREE.GridHelper(160,80,0x334455,0x223344);
+grid.position.y=0.01; scene.add(grid);
+
+// ── Labels per verdieping ──────────────────────────────────────────────────
+function makeLabels(f){
+  const p=String(f);
+  const loggia=f===0?'loggia / linnen':'zonkamer / linnen';
+  const Y=f*FLOOR_GAP;
+  const s=K*(3-f)/3; // BG=K, 1e=2K/3, 2e=K/3, 3e=0
+  return[
+    {text:`${p}.11`,x:(xL5+xL4)/2-s,z:zAc,col:'#ffe066',room:true},
+    {text:`${p}.12`,x:(xL4+xL3)/2-s,z:zAc,col:'#ffe066',room:true},
+    {text:`${p}.31`,x:(xR4+xR5)/2+s,z:zAc,col:'#ffe066',room:true},
+    {text:`${p}.32`,x:(xR3+xR4)/2+s,z:zAc,col:'#ffe066',room:true},
+    {text:`${p}.10`,x:(xL4+xL3)/2-s,z:zVc,col:'#ffe066',room:true},
+    {text:`${p}.09`,x:(xL3+xL2)/2-s,z:zVc,col:'#ffe066',room:true},
+    {text:`${p}.08`,x:(xL2+xL1)/2-s,z:zVc,col:'#ffe066',room:true},
+    {text:`${p}.07`,x:(xL1+xM1)/2-s,z:zVc,col:'#ffe066',room:true},
+    {text:`${p}.27`,x:(xM2+xR1)/2+s,z:zVc,col:'#ffe066',room:true},
+    {text:`${p}.28`,x:(xR1+xR2)/2+s,z:zVc,col:'#ffe066',room:true},
+    {text:`${p}.29`,x:(xR2+xR3)/2+s,z:zVc,col:'#ffe066',room:true},
+    {text:`${p}.30`,x:(xR3+xR4)/2+s,z:zVc,col:'#ffe066',room:true},
+    {text:'huiskamer /\nkeukenhoek',x:(xL2+xL1)/2-s,z:zAc,col:'#ffffff',small:true},
+    {text:loggia,                   x:(xL1+xM1)/2-s,z:zAc,col:'#aaddff',small:true},
+    {text:'dagbesteding',           x:-6,             z:zAc,col:'#ccffaa',small:true},
+    {text:'teampost',               x:6,              z:zAc,col:'#ffccaa',small:true},
+    {text:loggia,                   x:(xM2+xR1)/2+s, z:zAc,col:'#aaddff',small:true},
+    {text:'huiskamer /\nkeukenhoek',x:(xR1+xR2)/2+s, z:zAc,col:'#ffffff',small:true},
+    {text:f===0?'leveranciersruimte':'werkruimte',x:-6,z:zVc,col:'#aaffcc',small:true},
+    {text:'entree',                 x:6,              z:zVc,col:'#aaffcc',small:true},
+    {text:'noodtrap',x:(xL5+xL4)/2-s,z:zVc,col:'#88bbff',small:true},
+    {text:'noodtrap',x:(xR4+xR5)/2+s,z:zVc,col:'#88bbff',small:true},
+  ].map(lb=>({...lb,f}));
+}
+const allLabels=[0,1,2,3].map(makeLabels);
+
+// ── HTML label systeem ────────────────────────────────────────────────────
+const labelContainer = document.createElement('div');
+labelContainer.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:27;';
+document.body.appendChild(labelContainer);
+
+// Label divs aanmaken
+const labelDivs = [];
+function makeLabelDiv(lb){
+  const div=document.createElement('div');
+  div.style.cssText=`
+    position:absolute; pointer-events:${lb.room?'auto':'none'};
+    transform:translate(-50%,-50%);
+    background:${lb.room?'rgba(10,15,40,0.8)':'rgba(0,0,0,0.55)'};
+    color:${lb.col}; padding:3px 8px; border-radius:5px;
+    font-family:'Segoe UI',sans-serif; white-space:nowrap; text-align:center;
+    font-size:${lb.small?'11px':'13px'}; font-weight:${lb.room?'bold':'normal'};
+    line-height:1.4; display:none;
+    ${lb.room?'border:1px solid rgba(255,220,80,0.45)':''}
+  `;
+  div.innerHTML=lb.text.replace('\n','<br>');
+  if(lb.room) {
+    div.style.cursor='pointer';
+    // Neutrale mouse-over (wordt overschreven door updateVochtOverlay als data beschikbaar)
+    div.onmouseenter = (e) => {
+      const tip = document.getElementById('tooltip');
+      const data = vvData && vvData[lb.text];
+      if(!data) {
+        tip.innerHTML = `<b style="color:#ffe066">${lb.text}</b><br><span style="color:#666;font-size:11px">Geen vochtdata</span>`;
+      } else {
+        const status = vochtStatus(data.ml, data.doel);
+        const kleur  = statusKleur(status);
+        const pct    = Math.min(100, Math.round(data.ml/data.doel*100));
+        tip.innerHTML = `<b style="color:${kleur}">${lb.text}</b> &nbsp;${data.initialen}<br>
+          <span style="font-size:15px;font-weight:700;color:${kleur}">${data.ml} ml</span>
+          <span style="color:#888;font-size:11px"> / ${data.doel} ml doel</span><br>
+          <div style="width:100%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:4px">
+            <div style="width:${pct}%;height:100%;background:${kleur};border-radius:3px"></div>
+          </div>
+          <span style="color:#888;font-size:10px">${pct}% — ${status}</span>`;
+      }
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY - 10) + 'px';
+    };
+    div.onmousemove = (e) => {
+      const tip = document.getElementById('tooltip');
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY - 10) + 'px';
+    };
+    div.onmouseleave = () => {
+      document.getElementById('tooltip').style.display = 'none';
+    };
+    div.onclick = () => {
+      document.getElementById('tooltip').style.display = 'none';
+      if(vvData && vvData[lb.text]) openSidePanel(lb.text);
+    };
+  }
+  labelContainer.appendChild(div);
+  return div;
+}
+
+// Maak divs voor alle etages
+const allLabelDivs = allLabels.map(lbls=>lbls.map(lb=>({lb,div:makeLabelDiv(lb)})));
+
+function proj2D(x,z,floorY){
+  // Projecteer op halverwege de muurhoogte — stabiel voor alle kijkhoeken
+  const mid = floorY + WALL_H*0.5;
+  const v=new THREE.Vector3(x,mid,z);
+  v.project(camera);
+  return {
+    sx:(v.x*0.5+0.5)*window.innerWidth,
+    sy:(-v.y*0.5+0.5)*window.innerHeight,
+    visible:v.z<1
+  };
+}
+
+let labelHitAreas=[];
+
+function updateLabelDivs(){
+  labelHitAreas=[];
+  const floorY=activeFloor*FLOOR_GAP;
+  for(let f=0;f<4;f++){
+    const show=(f===activeFloor);
+    allLabelDivs[f].forEach(({lb,div})=>{
+      if(!show){div.style.display='none';return;}
+      const p=proj2D(lb.x,lb.z,floorY);
+      if(!p.visible){div.style.display='none';return;}
+      div.style.display='block';
+      div.style.left=p.sx+'px';
+      div.style.top=p.sy+'px';
+    });
+  }
+}
+
+// ── Floor selection ────────────────────────────────────────────────────────
+let activeFloor=0;
+
+function selectFloor(f,el){
+  activeFloor=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  for(let i=0;i<4;i++){
+    floorMeshes[i].forEach(m=>{
+      if(!m.material) return;
+      const mats=Array.isArray(m.material)?m.material:[m.material];
+      mats.forEach(mat=>{
+        if(i===f){
+          mat.transparent = false;
+          mat.opacity     = 1.0;
+        } else {
+          mat.transparent = true;
+          mat.opacity     = 0.10;
+        }
+        mat.needsUpdate = true;
+      });
+    });
+  }
+  const Y=f*FLOOR_GAP;
+  targetPhi=0.18; targetTheta=0; targetRadius=120;
+  targetLookAt.set(0,Y+3,0);
+}
+
+// ── Click / hover ──────────────────────────────────────────────────────────
+const tooltip=document.getElementById('tooltip');
+
+canvas.addEventListener('mousemove',e=>{
+  canvas.style.cursor='default';
+});
+
+// ── Camera ─────────────────────────────────────────────────────────────────
+let isDragging=false,prevX=0,prevY=0;
+let theta=0.6,phi=0.75,radius=130;
+let targetTheta=theta,targetPhi=phi,targetRadius=radius;
+let targetLookAt=new THREE.Vector3(0,8,0);
+let currentLookAt=new THREE.Vector3(0,8,0);
+
+function updateCamera(){
+  const x=currentLookAt.x+radius*Math.sin(phi)*Math.sin(theta);
+  const y=currentLookAt.y+radius*Math.cos(phi);
+  const z=currentLookAt.z+radius*Math.sin(phi)*Math.cos(theta);
+  camera.position.set(x,y,z); camera.lookAt(currentLookAt);
+}
+canvas.addEventListener('mousedown',e=>{isDragging=true;prevX=e.clientX;prevY=e.clientY;});
+window.addEventListener('mouseup',()=>isDragging=false);
+canvas.addEventListener('mousemove',e=>{
+  if(!isDragging)return;
+  targetTheta-=(e.clientX-prevX)*0.008;
+  targetPhi=Math.max(0.12,Math.min(Math.PI*0.48,targetPhi+(e.clientY-prevY)*0.008));
+  prevX=e.clientX;prevY=e.clientY;
+});
+canvas.addEventListener('wheel',e=>{targetRadius=Math.max(15,Math.min(220,targetRadius+e.deltaY*0.1));},{passive:true});
+canvas.addEventListener('touchstart',e=>{isDragging=true;prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;});
+window.addEventListener('touchend',()=>isDragging=false);
+canvas.addEventListener('touchmove',e=>{
+  if(!isDragging)return;
+  targetTheta-=(e.touches[0].clientX-prevX)*0.01;
+  targetPhi=Math.max(0.12,Math.min(Math.PI*0.48,targetPhi+(e.touches[0].clientY-prevY)*0.01));
+  prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;
+  e.preventDefault();
+},{passive:false});
+
+function setView(v,el){
+  document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const Y=activeFloor*FLOOR_GAP;
+  switch(v){
+    case 'top':      targetPhi=0.18;targetTheta=0;    targetRadius=120;targetLookAt.set(0,Y+3,0);break;
+    case 'iso':      targetPhi=0.78;targetTheta=0.6;  targetRadius=115;targetLookAt.set(0,Y+5,0);break;
+    case 'corridor': targetPhi=1.15;targetTheta=1.57; targetRadius=75; targetLookAt.set(-30,Y+2,0);break;
+    case 'left':     targetPhi=0.75;targetTheta=0.3;  targetRadius=80; targetLookAt.set(-35,Y+2,5);break;
+    case 'right':    targetPhi=0.75;targetTheta=-0.3; targetRadius=80; targetLookAt.set(35,Y+2,5);break;
+  }
+}
+
+// ── Label drawing ──────────────────────────────────────────────────────────
+function proj(x,y,z){
+  const v=new THREE.Vector3(x,y,z); v.project(camera);
+  const dpr=devicePixelRatio;
+  return{
+    sx:(v.x*.5+.5)*window.innerWidth*dpr,
+    sy:(-v.y*.5+.5)*window.innerHeight*dpr,
+    visible:v.z<1
+  };
+}
+
+// ── Animate ────────────────────────────────────────────────────────────────
+function lerp(a,b,t){return a+(b-a)*t;}
+function animate(){
+  requestAnimationFrame(animate);
+  theta=lerp(theta,targetTheta,.08);
+  phi=lerp(phi,targetPhi,.08);
+  radius=lerp(radius,targetRadius,.08);
+  currentLookAt.lerp(targetLookAt,.08);
+  corrLight.intensity=0.45+0.1*Math.sin(Date.now()*.001);
+  updateCamera();
+  renderer.render(scene,camera);
+  updateLabelDivs();
+}
+
+// Start — BG solide, overige etages licht transparant
+for(let i=0;i<4;i++) floorMeshes[i].forEach(m=>{
+  if(m.material){
+    const ms=Array.isArray(m.material)?m.material:[m.material];
+    ms.forEach(mt=>{
+      mt.transparent = i!==0;
+      mt.opacity     = i===0 ? 1.0 : 0.10;
+      mt.needsUpdate = true;
+    });
+  }
+});
+selectFloor(0,document.querySelector('.fbtn'));
+setView('iso',document.querySelectorAll('.btn')[0]);
+animate();
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// VOCHT & VOEDING INTEGRATIE
+// ════════════════════════════════════════════════════════════════════════════
+const GASWA = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
+const DAG_START=7.5, DAG_EIND=21.5;
+const DREMPEL_ORANJE=0.75, DREMPEL_ROOD=0.50, DREMPEL_ALARM=0.35;
+const ICONS_VV={koffie:'☕',thee:'🍵',water:'💧',sap:'🧃',melk:'🥛',soep:'🍲',yoghurt:'🥣',vla:'🍮',pap:'🍚',fris:'🥤',ontbijt:'🍳',lunch:'🥪',diner:'🍽️',default:'🫙'};
+
+// vvData, alarmState, audioCtx gedeclareerd bovenaan script
+
+function getAudio(){ if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function beep(freq=880,dur=0.15,vol=0.3){ try{ const ctx=getAudio(),osc=ctx.createOscillator(),gain=ctx.createGain(); osc.connect(gain);gain.connect(ctx.destination); osc.frequency.value=freq;gain.gain.value=vol; osc.start();osc.stop(ctx.currentTime+dur); }catch(e){} }
+function beeps(n,interval=400){ for(let i=0;i<n;i++) setTimeout(()=>beep(),i*interval); }
+
+function schemaFractie(){
+  const now=new Date(),h=now.getHours()+now.getMinutes()/60;
+  if(h<=DAG_START)return 0;
+  if(h>=DAG_EIND)return 1;
+  return(h-DAG_START)/(DAG_EIND-DAG_START);
+}
+
+function schemaDebug(){
+  const now=new Date();
+  return `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} lokaal`;
+}
+
+function vochtStatus(ml,doel){ const s=schemaFractie(); if(s===0||doel===0)return'groen'; const r=ml/(doel*s); if(r>=DREMPEL_ORANJE)return'groen'; if(r>=DREMPEL_ROOD)return'oranje'; return'rood'; }
+function statusKleur(status){ return status==='groen'?'#4cdd8a':status==='oranje'?'#ffaa22':'#ff4444'; }
+
+function setSyncStatus(state, extra=''){
+  const dot=document.getElementById('sync-dot');
+  const lbl=document.getElementById('sync-label');
+  if(!dot||!lbl) return;
+  const cfg={
+    live:  {col:'#4cdd8a', txt:'Live data'},
+    demo:  {col:'#ffaa22', txt:'Demo-modus (geen verbinding)'},
+    error: {col:'#ff4444', txt:'Verbindingsfout'},
+    busy:  {col:'#64b4ff', txt:'Synchroniseren…'},
+  }[state]||{col:'#888',txt:'Onbekend'};
+  dot.style.background=cfg.col;
+  dot.style.boxShadow=`0 0 6px ${cfg.col}`;
+  lbl.style.color=cfg.col;
+  lbl.textContent=cfg.txt+(extra?' — '+extra:'');
+}
+
+async function fetchVV(){
+  setSyncStatus('busy');
+  try{
+    // Gebruik Nederlandse tijd (UTC+1 of UTC+2 zomertijd) voor datum
+    const now=new Date();
+    const nlDate=new Date(now.getTime()+60*60*1000); // UTC+1 minimaal
+    const today=nlDate.toISOString().split('T')[0];
+    const res=await fetch(GASWA,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'pull',date:today})});
+    const data=await res.json();
+    if(!data.ok) throw new Error(data.error||'pull mislukt');
+    const personToKamer={},nieuw={};
+    (data.people||[]).forEach(p=>{
+      const kamer=String(p.room||'').trim(); if(!kamer)return;
+      personToKamer[p.id]=kamer;
+      nieuw[kamer]={doel:p.goal||1500,initialen:p.initials||'',color:p.color||'',ml:0,records:[]};
+    });
+    (data.records||[]).forEach(r=>{
+      if(r.type!=='drink')return;
+      const kamer=personToKamer[r.person];
+      if(!kamer||!nieuw[kamer])return;
+      nieuw[kamer].ml+=parseInt(r.amount||0);
+      nieuw[kamer].records.push(r);
+    });
+    vvData=nieuw;
+    const n=Object.keys(nieuw).length;
+    setSyncStatus('live', `${n} kamers — ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`);
+    updateVochtOverlay(); checkAlarms();
+  }catch(e){
+    setSyncStatus('error', e.message);
+    console.warn('V&V live data niet beschikbaar, demo-modus:',e.message);
+    loadDemoData();
+  }
+}
+
+function loadDemoData(){
+  setSyncStatus('demo');
+  const schema=schemaFractie();
+  const kamers=['0.07','0.08','0.09','0.10','0.11','0.12','0.27','0.28','0.29','0.30','0.31','0.32'];
+  kamers.forEach((k,i)=>{
+    const doel=1200+(i%3)*300;
+    const pct=[0.9,0.6,0.3,0.8,0.95,0.4,0.7,0.55,0.85,0.35,0.65,0.45][i];
+    const ml=Math.round(doel*schema*pct);
+    vvData[k]={doel,ml,initialen:['LV','JP','AM','KS','RB','FT','MW','HS','PD','GN','EV','BK'][i],records:[
+      {iconId:'koffie',amount:150,time:730,type:'drink'},
+      {iconId:'thee',amount:100,time:1000,type:'drink'},
+      {iconId:'soep',amount:200,time:1215,type:'drink'},
+    ].slice(0,Math.ceil(ml/150))};
+  });
+  updateVochtOverlay(); checkAlarms();
+}
+
+function updateVochtOverlay(){
+  allLabelDivs.forEach(floorDivs=>{
+    floorDivs.forEach(({lb,div})=>{
+      if(!lb.room)return;
+      const data=vvData[lb.text];
+      if(!data){div.style.borderColor='rgba(255,220,80,0.45)';div.style.borderWidth='1px';div.style.boxShadow='';div.innerHTML=lb.text;return;}
+      const status=vochtStatus(data.ml,data.doel),kleur=statusKleur(status);
+      const pct=Math.min(100,Math.round(data.ml/data.doel*100));
+      const alarm=alarmState[lb.text],inAlarm=alarm&&alarm.level>=1&&(!alarm.snoozedUntil||Date.now()>alarm.snoozedUntil);
+      div.style.borderColor=inAlarm?'#ff2222':status==='groen'?'rgba(76,221,138,0.6)':status==='oranje'?'rgba(255,170,34,0.6)':'rgba(255,68,68,0.6)';
+      div.style.borderWidth=inAlarm?'2px':'1px';
+      div.style.boxShadow=inAlarm?'0 0 8px 2px rgba(255,30,30,0.7)':'';
+      div.innerHTML=`<span>${lb.text}</span><span class="vocht-badge" style="background:${kleur}"></span><div style="width:100%;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:3px"><div style="width:${pct}%;height:100%;background:${kleur};border-radius:2px"></div></div>`;
+    });
+  });
+}
+
+function openSidePanel(kamer){
+  const data=vvData[kamer],panel=document.getElementById('sidepanel');
+  document.getElementById('sp-kamer').textContent=kamer;
+  document.getElementById('sp-naam').textContent=data?.initialen||'—';
+  if(data){
+    const pct=Math.min(100,Math.round(data.ml/data.doel*100)),status=vochtStatus(data.ml,data.doel),kleur=statusKleur(status);
+    const schema=schemaFractie(),verwacht=Math.round(data.doel*schema);
+    document.getElementById('sp-ml').textContent=`${data.ml} ml`;
+    document.getElementById('sp-ml').style.color=kleur;
+    document.getElementById('sp-doel').textContent=`doel: ${data.doel} ml`;
+    document.getElementById('sp-bar').style.width=`${pct}%`;
+    document.getElementById('sp-bar').style.background=kleur;
+    document.getElementById('sp-schema').textContent=schema>0?`Op schema: ${verwacht}ml verwacht (${Math.round(schema*100)}% van dag)`:`Dag nog niet gestart (browsertijd: ${schemaDebug()})`;
+    const list=document.getElementById('sp-list'); list.innerHTML='';
+    [...(data.records||[])].sort((a,b)=>b.time-a.time).forEach(r=>{
+      const icon=ICONS_VV[r.iconId]||ICONS_VV.default,naam=r.iconId?r.iconId.charAt(0).toUpperCase()+r.iconId.slice(1):'—';
+      const h=Math.floor(r.time/100),m=String(r.time%100).padStart(2,'0');
+      const li=document.createElement('li');
+      li.innerHTML=`<span class="sp-icon">${icon}</span><span>${naam}</span><span class="sp-amt">+${r.amount}ml</span><span class="sp-time">${h}:${m}</span>`;
+      list.appendChild(li);
+    });
+    if(!data.records?.length) list.innerHTML='<li style="color:#666">Nog geen registraties</li>';
+  }
+  panel.classList.add('open');
+}
+
+function closeSidePanel(){ document.getElementById('sidepanel').classList.remove('open'); }
+
+function checkAlarms(){
+  const schema=schemaFractie(); if(schema<0.1)return;
+  Object.entries(vvData).forEach(([kamer,data])=>{
+    const ratio=data.ml/(data.doel*schema);
+    if(ratio>=DREMPEL_ORANJE){delete alarmState[kamer];clearAlarmTimers(kamer);return;}
+    if(ratio<DREMPEL_ALARM) startAlarm(kamer,data);
+  });
+}
+
+function startAlarm(kamer,data){
+  const state=alarmState[kamer],nu=Date.now();
+  if(state?.snoozedUntil&&nu<state.snoozedUntil)return;
+  if(state?.active)return;
+  alarmState[kamer]={active:true,level:1,startTime:nu};
+  showAlarmBanner(kamer,data,1); beeps(1);
+  alarmTimers[kamer]=alarmTimers[kamer]||{};
+  alarmTimers[kamer].l2=setTimeout(()=>{
+    if(alarmState[kamer]?.active&&!isSnoozed(kamer)){
+      alarmState[kamer].level=2; showAlarmBanner(kamer,data,2);
+      let count=0;
+      alarmTimers[kamer].rep=setInterval(()=>{
+        if(isSnoozed(kamer)||count>=5){clearInterval(alarmTimers[kamer].rep);return;}
+        beeps(2);count++;
+        if(count>=5) alarmTimers[kamer].l3=setTimeout(()=>{
+          if(alarmState[kamer]?.active&&!isSnoozed(kamer)){
+            alarmState[kamer].level=3; showAlarmBanner(kamer,data,3);
+            alarmTimers[kamer].rep3=setInterval(()=>{if(!alarmState[kamer]?.active||isSnoozed(kamer)){clearInterval(alarmTimers[kamer].rep3);return;} beep(660,0.1);},5000);
+          }
+        },5*60*1000);
+      },60*1000);
+    }
+  },5*60*1000);
+}
+
+function showAlarmBanner(kamer,data,level){
+  const banner=document.getElementById('alarm-banner'),msg=document.getElementById('alarm-msg');
+  const msgs=[`⚠️ Vochtachterstand: kamer ${kamer} (${data.initialen}) — ${data.ml}ml van ${data.doel}ml`,`🔔 Geen actie! Kamer ${kamer} (${data.initialen}) — vocht kritiek laag`,`🚨 URGENT: Kamer ${kamer} (${data.initialen}) — direct actie vereist`];
+  msg.textContent=msgs[level-1]; banner.style.display='flex';
+  banner.style.background=level===3?'rgba(150,0,0,0.97)':'rgba(200,30,30,0.95)';
+  banner.dataset.kamer=kamer;
+}
+
+function snoozeAlarm(minuten){
+  const banner=document.getElementById('alarm-banner'),kamer=banner.dataset.kamer;
+  if(!kamer)return;
+  if(minuten>0){alarmState[kamer]=alarmState[kamer]||{};alarmState[kamer].snoozedUntil=Date.now()+minuten*60*1000;alarmState[kamer].active=false;}
+  else{delete alarmState[kamer];clearAlarmTimers(kamer);}
+  banner.style.display='none'; updateVochtOverlay();
+}
+
+function isSnoozed(kamer){ return alarmState[kamer]?.snoozedUntil&&Date.now()<alarmState[kamer].snoozedUntil; }
+function clearAlarmTimers(kamer){ const t=alarmTimers[kamer]; if(!t)return; clearTimeout(t.l2);clearTimeout(t.l3);clearInterval(t.rep);clearInterval(t.rep3); delete alarmTimers[kamer]; }
+
+// Label mouseover
+allLabelDivs.forEach(floorDivs=>{
+  floorDivs.forEach(({lb,div})=>{
+    if(!lb.room)return;
+    div.onmouseenter=(e)=>{
+      const tip=document.getElementById('tooltip'),data=vvData&&vvData[lb.text];
+      if(!data){tip.innerHTML=`<b style="color:#ffe066">${lb.text}</b><br><span style="color:#666;font-size:11px">Geen vochtdata</span>`;}
+      else{const status=vochtStatus(data.ml,data.doel),kleur=statusKleur(status),pct=Math.min(100,Math.round(data.ml/data.doel*100));
+        tip.innerHTML=`<b style="color:${kleur}">${lb.text}</b> &nbsp;${data.initialen}<br><span style="font-size:15px;font-weight:700;color:${kleur}">${data.ml} ml</span><span style="color:#888;font-size:11px"> / ${data.doel} ml doel</span><br><div style="width:100%;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:4px"><div style="width:${pct}%;height:100%;background:${kleur};border-radius:3px"></div></div><span style="color:#888;font-size:10px">${pct}% — ${status}</span>`;}
+      tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY-10)+'px';
+    };
+    div.onmousemove=(e)=>{const tip=document.getElementById('tooltip');tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY-10)+'px';};
+    div.onmouseleave=()=>document.getElementById('tooltip').style.display='none';
+    div.onclick=()=>{document.getElementById('tooltip').style.display='none';if(vvData&&vvData[lb.text])openSidePanel(lb.text);};
+  });
+});
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+function toggleOverview(){
+  const dash = document.getElementById('dashboard');
+  const btn  = document.getElementById('overview-btn');
+  if(!dash) return;
+  if(dash.style.display==='block'){
+    dash.style.display='none';
+    if(btn){btn.style.background='rgba(100,180,255,0.15)';btn.style.color='#64b4ff';}
+  } else {
+    renderDashboard();
+    dash.style.display='block';
+    if(btn){btn.style.background='rgba(100,180,255,0.35)';btn.style.color='#fff';}
+  }
+}
+
+function lastRegTijd(records){
+  if(!records||!records.length) return null;
+  const r=records.reduce((a,b)=>a.time>b.time?a:b);
+  return Math.floor(r.time/100)+':'+String(r.time%100).padStart(2,'0');
+}
+
+function vochtTrend(kamer){
+  const d=vvData[kamer];
+  if(!d||!d.records||d.records.length<2) return null;
+  const och=d.records.filter(r=>r.time<1200).reduce((s,r)=>s+r.amount,0);
+  const mid=d.records.filter(r=>r.time>=1200).reduce((s,r)=>s+r.amount,0);
+  if(!och) return null;
+  const ratio=mid/och;
+  return ratio>1.1?{dir:'up',t:'↑'}:ratio<0.9?{dir:'down',t:'↓'}:{dir:'flat',t:'→'};
+}
+
+function makeDashRoom(prefix, nr){
+  const kamer=prefix+nr, data=vvData[kamer];
+  const div=document.createElement('div');
+  div.className='dash-room '+(data?'has-data':'no-data');
+  if(!data){ div.innerHTML=`<div class="dash-room-nr no-data">${kamer}</div>`; return div; }
+  const pct=Math.min(100,Math.round(data.ml/data.doel*100));
+  const status=vochtStatus(data.ml,data.doel), kleur=statusKleur(status);
+  const alarm=alarmState[kamer], inAlarm=alarm&&alarm.level>=1&&(!alarm.snoozedUntil||Date.now()>alarm.snoozedUntil);
+  const last=lastRegTijd(data.records), tr=vochtTrend(kamer);
+  div.innerHTML=`
+    <div class="dash-room-nr" style="${inAlarm?'color:#ff4444':''}">
+      ${kamer} <span style="color:#888;font-size:10px;font-weight:400">${data.initialen||''}</span>
+      ${tr?`<span class="dash-trend ${tr.dir}" style="margin-left:auto">${tr.t}</span>`:''}
+    </div>
+    <div class="dash-bar-bg"><div class="dash-bar-fill" style="width:${pct}%;background:${kleur}"></div></div>
+    <div class="dash-meta">
+      <span class="dash-ml" style="color:${kleur}">${data.ml}ml</span>
+      <span style="color:#555">${data.doel}ml</span>
+    </div>
+    ${last?`<div class="dash-last">Laatste: ${last}</div>`:''}`;
+  div.onclick=()=>{ toggleOverview(); openSidePanel(kamer); };
+  return div;
+}
+
+function renderDashboard(){
+  const container=document.getElementById('dash-content');
+  if(!container) return;
+  container.innerHTML='';
+  const FLOORS=[{label:'3e',prefix:'3.'},{label:'2e',prefix:'2.'},{label:'1e',prefix:'1.'},{label:'BG',prefix:'0.'}];
+  const WA=['07','08','09','10','11','12'], WB=['27','28','29','30','31','32'];
+  FLOORS.forEach(floor=>{
+    const sec=document.createElement('div'); sec.className='dash-floor';
+    sec.innerHTML=`<div class="dash-floor-title">${floor.label} — verdieping ${floor.prefix.replace('.','')}</div>
+      <div class="dash-wings">
+        <div><div class="dash-wing-title">Vleugel A</div><div class="dash-rooms" id="dA${floor.prefix}"></div></div>
+        <div><div class="dash-wing-title">Vleugel B</div><div class="dash-rooms" id="dB${floor.prefix}"></div></div>
+      </div>`;
+    container.appendChild(sec);
+    WA.forEach(nr=>document.getElementById('dA'+floor.prefix).appendChild(makeDashRoom(floor.prefix,nr)));
+    WB.forEach(nr=>document.getElementById('dB'+floor.prefix).appendChild(makeDashRoom(floor.prefix,nr)));
+  });
+}
+
+// Probeer eerst live data, val terug op demo
+fetchVV();
+setInterval(fetchVV, 30*1000);
+setInterval(()=>{ checkAlarms(); updateVochtOverlay(); }, 30*1000);
+
+
+
+</script>
+
+
+</body>
+</html>
