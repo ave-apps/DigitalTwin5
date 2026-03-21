@@ -45,7 +45,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   min-width:160px; line-height:1.6;
 }
 #legend {
-  position:fixed; top:56px; right:16px; background:rgba(0,0,0,0.5);
+  position:fixed; top:96px; right:16px; background:rgba(0,0,0,0.5);
   color:#ccc; padding:12px 16px; border-radius:10px; font-size:12px;
   backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,0.1); line-height:2;
 }
@@ -187,7 +187,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 .layer-toggle.active .layer-dot { opacity:1; }
 /* ── App launcher ──────────────────────────────────────────────────────── */
 #app-launcher {
-  position:fixed; top:56px; left:50%; transform:translateX(-50%);
+  position:fixed; top:96px; left:50%; transform:translateX(-50%);
   display:flex; gap:8px; z-index:30;
 }
 .app-btn {
@@ -203,7 +203,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 
 /* QR popup */
 .qr-popup {
-  position:absolute; bottom:calc(100% + 10px); left:50%;
+  position:absolute; top:calc(100% + 10px); left:50%;
   transform:translateX(-50%) scale(0.8);
   background:rgba(10,14,30,0.97); border:1px solid rgba(255,255,255,0.2);
   border-radius:14px; padding:14px; text-align:center;
@@ -240,7 +240,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
     👤 In dienst
     <div class="qr-popup" id="qr-dienst">
       <canvas id="qrc-dienst" width="140" height="140"></canvas>
-      <div class="qr-label">Scan om in dienst te gaan</div>
+      <div class="qr-label">Scan opent in-dienst-app</div>
       <a class="qr-open" href="dienst.html" target="_blank">Openen ↗</a>
     </div>
   </div>
