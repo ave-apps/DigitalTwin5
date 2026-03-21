@@ -908,9 +908,20 @@ function openSidePanel(kamer){
     const list=document.getElementById('sp-list'); list.innerHTML='';
     [...(data.records||[])].sort((a,b)=>b.time-a.time).forEach(r=>{
       const icon=ICONS_VV[r.iconId]||ICONS_VV.default,naam=r.iconId?r.iconId.charAt(0).toUpperCase()+r.iconId.slice(1):'—';
-      const h=Math.floor(r.time/100),m=String(r.time%100).padStart(2,'0');
+      const tijdRaw = r.time;
+      let h, m;
+      // V&V slaat tijd op als minuten sinds middernacht (bijv. 19:57 = 1197 min)
+      if(tijdRaw <= 1440) {
+        h = Math.floor(tijdRaw / 60);
+        m = tijdRaw % 60;
+      } else {
+        // HHMM formaat
+        h = Math.floor(tijdRaw / 100);
+        m = tijdRaw % 100;
+      }
+      const tijdStr = String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
       const li=document.createElement('li');
-      li.innerHTML=`<span class="sp-icon">${icon}</span><span>${naam}</span><span class="sp-amt">+${r.amount}ml</span><span class="sp-time">${h}:${m}</span>`;
+      li.innerHTML=`<span class="sp-icon">${icon}</span><span>${naam}</span><span class="sp-amt">+${r.amount}ml</span><span class="sp-time">${tijdStr}</span>`;
       list.appendChild(li);
     });
     if(!data.records?.length) list.innerHTML='<li style="color:#666">Nog geen registraties</li>';
