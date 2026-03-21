@@ -1450,9 +1450,9 @@ function rachelPanelVerwijder(id){
     body:JSON.stringify({action:'uitDienst',id})});
 }
 
-// Alt+Shift+B opent/sluit het beheerpaneel
+// Alt+Shift+Z opent/sluit het beheerpaneel
 document.addEventListener('keydown', e=>{
-  if(e.altKey && e.shiftKey && e.key==='B'){
+  if(e.altKey && e.shiftKey && e.key==='Z'){
     const panel = document.getElementById('rachel-panel');
     if(panel.style.display==='none'||!panel.style.display){
       buildRachelKoppels();
