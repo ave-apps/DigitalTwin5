@@ -783,7 +783,11 @@ for(let i=0;i<4;i++) floorMeshes[i].forEach(m=>{
 });
 selectFloor(0,document.querySelector('.fbtn'));
 setView('iso',document.querySelectorAll('.btn')[0]);
-animate();
+try {
+  animate();
+} catch(e) {
+  document.body.innerHTML += '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:red;color:white;padding:20px;z-index:9999;font-family:monospace;font-size:14px">FOUT: ' + e.message + '<br>' + e.stack + '</div>';
+}
 
 
 // ════════════════════════════════════════════════════════════════════════════
