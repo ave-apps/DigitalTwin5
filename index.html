@@ -350,6 +350,8 @@ let vvData={};
 let alarmState={}, alarmTimers={};
 let audioCtx=null;
 let dienstRecords={};
+const dienstStippen=[];
+const koppelLijnen=[];
 
 // ── Scene ──────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
@@ -1217,8 +1219,7 @@ buildKamerCoords();
 function teampostPos(f){ return {x:6, y:f*FLOOR_GAP+WALL_H/2, z:0}; }
 
 // Stip-meshes en lijn-objects
-const dienstStippen = []; // {mesh, light, etage}
-const koppelLijnen  = []; // THREE.Line objects
+// dienstStippen en koppelLijnen gedeclareerd bovenaan script
 
 function buildDienstVisualisatie(){
   // Verwijder oude
