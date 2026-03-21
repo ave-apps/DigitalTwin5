@@ -172,6 +172,58 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 .dash-trend.down { color:#ff6644; }
 .dash-trend.flat { color:#888; }
 .dash-last { font-size:10px; color:#555; margin-top:2px; }
+.layer-toggle {
+  display:flex; align-items:center; gap:7px; padding:4px 0;
+  cursor:pointer; font-size:12px; color:#888; user-select:none;
+  transition:color .15s;
+}
+.layer-toggle:hover { color:#ccc; }
+.layer-toggle.active { color:#fff; }
+.layer-toggle input { display:none; }
+.layer-dot {
+  width:10px; height:10px; border-radius:50%; flex-shrink:0;
+  opacity:0.35; transition:opacity .2s;
+}
+.layer-toggle.active .layer-dot { opacity:1; }
+/* ── App launcher ──────────────────────────────────────────────────────── */
+#app-launcher {
+  position:fixed; top:56px; left:50%; transform:translateX(-50%);
+  display:flex; gap:8px; z-index:30;
+}
+.app-btn {
+  background:rgba(0,0,0,0.55); backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,0.15); color:#ccc;
+  padding:6px 14px; border-radius:20px; cursor:pointer;
+  font-size:11px; font-weight:700; font-family:'Segoe UI',sans-serif;
+  display:flex; align-items:center; gap:6px;
+  transition:all .2s; position:relative; user-select:none;
+}
+.app-btn:hover { background:rgba(255,255,255,0.15); color:#fff; border-color:rgba(255,255,255,0.35); }
+.app-btn .app-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+/* QR popup */
+.qr-popup {
+  position:absolute; bottom:calc(100% + 10px); left:50%;
+  transform:translateX(-50%) scale(0.8);
+  background:rgba(10,14,30,0.97); border:1px solid rgba(255,255,255,0.2);
+  border-radius:14px; padding:14px; text-align:center;
+  opacity:0; pointer-events:none;
+  transition:opacity .2s, transform .2s;
+  white-space:nowrap; z-index:50;
+  box-shadow:0 8px 32px rgba(0,0,0,0.6);
+}
+.app-btn:hover .qr-popup {
+  opacity:1; pointer-events:auto;
+  transform:translateX(-50%) scale(1);
+}
+.qr-popup canvas { border-radius:8px; display:block; margin:0 auto 8px; }
+.qr-popup .qr-label { font-size:11px; color:#aaa; }
+.qr-popup .qr-open {
+  display:inline-block; margin-top:8px; padding:5px 14px;
+  background:var(--accent,#2a6fc4); color:#fff; border-radius:20px;
+  font-size:11px; font-weight:700; text-decoration:none;
+  font-family:'Segoe UI',sans-serif;
+}
 </style>
 </head>
 <body>
@@ -180,6 +232,27 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 <div id="sync-status" style="position:fixed;top:100px;left:16px;z-index:30;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.1);cursor:pointer" onclick="fetchVV()" title="Klik om te vernieuwen">
   <span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;flex-shrink:0"></span>
   <span id="sync-label" style="color:#aaa">Verbinden…</span>
+</div>
+
+<div id="app-launcher">
+  <div class="app-btn">
+    <span class="app-dot" style="background:#ff88cc"></span>
+    👤 In dienst
+    <div class="qr-popup" id="qr-dienst">
+      <canvas id="qrc-dienst" width="140" height="140"></canvas>
+      <div class="qr-label">Scan om in dienst te gaan</div>
+      <a class="qr-open" href="dienst.html" target="_blank">Openen ↗</a>
+    </div>
+  </div>
+  <div class="app-btn">
+    <span class="app-dot" style="background:#4cdd8a"></span>
+    💧 Vocht &amp; Voeding
+    <div class="qr-popup" id="qr-vv">
+      <canvas id="qrc-vv" width="140" height="140"></canvas>
+      <div class="qr-label">Scan om V&amp;V te openen</div>
+      <a class="qr-open" href="https://ave-apps.github.io/vocht-voeding/" target="_blank">Openen ↗</a>
+    </div>
+  </div>
 </div>
 <div id="tooltip"></div>
 <div id="floorUI">
@@ -197,10 +270,43 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   <button class="btn" onclick="setView('right',this)">Rechts</button>
 </div>
 <div id="legend">
+  <div style="font-size:10px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Lagen</div>
   <div class="leg"><div class="dot" style="background:#dfd0a8"></div> Kamers</div>
   <div class="leg"><div class="dot" style="background:#d6c9a8"></div> Gang</div>
   <div class="leg"><div class="dot" style="background:#9ab0c4"></div> Noodtrap</div>
   <div class="leg"><div class="dot" style="background:#c8d0b0"></div> Entree/diensten</div>
+  <div style="border-top:1px solid rgba(255,255,255,0.1);margin:10px 0"></div>
+  <div style="font-size:10px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Visualisaties</div>
+  <label class="layer-toggle active" id="layer-vv">
+    <input type="checkbox" checked onchange="toggleLayer('vv',this.checked)">
+    <span class="layer-dot" style="background:#4cdd8a"></span>
+    Vocht &amp; Voeding
+  </label>
+  <label class="layer-toggle" id="layer-koppels">
+    <input type="checkbox" onchange="toggleLayer('koppels',this.checked)">
+    <span class="layer-dot" style="background:#64b4ff"></span>
+    Zorgkoppels
+  </label>
+  <label class="layer-toggle" id="layer-stage">
+    <input type="checkbox" onchange="toggleLayer('stage',this.checked)">
+    <span class="layer-dot" style="background:#ffaa22"></span>
+    Zorgkoppels + stage
+  </label>
+  <label class="layer-toggle" id="layer-dienst">
+    <input type="checkbox" onchange="toggleLayer('dienst',this.checked)">
+    <span class="layer-dot" style="background:#ff88cc"></span>
+    In dienst
+  </label>
+  <label class="layer-toggle" id="layer-dagbesteding">
+    <input type="checkbox" onchange="toggleLayer('dagbesteding',this.checked)">
+    <span class="layer-dot" style="background:#aaffcc"></span>
+    Dagbesteding
+  </label>
+  <label class="layer-toggle" id="layer-nacht">
+    <input type="checkbox" onchange="toggleLayer('nacht',this.checked)">
+    <span class="layer-dot" style="background:#8888ff"></span>
+    Nachtzorg
+  </label>
 </div>
 
 <div id="dashboard" style="display:none">
@@ -957,6 +1063,84 @@ function renderDashboard(){
     WB.forEach(nr=>document.getElementById('dB'+floor.prefix).appendChild(makeDashRoom(floor.prefix,nr)));
   });
 }
+
+// ── Layer systeem ──────────────────────────────────────────────────────────
+const activeLayers = {
+  vv:          true,
+  koppels:     false,
+  stage:       false,
+  dienst:      false,
+  dagbesteding:false,
+  nacht:       false,
+};
+
+function toggleLayer(name, on){
+  activeLayers[name] = on;
+  const lbl = document.getElementById('layer-'+name);
+  if(lbl) lbl.classList.toggle('active', on);
+
+  switch(name){
+    case 'vv':
+      // V&V badges tonen/verbergen
+      allLabelDivs.forEach(floorDivs=>floorDivs.forEach(({lb,div})=>{
+        if(!lb.room) return;
+        if(!on){ div.style.borderColor='rgba(255,220,80,0.45)'; div.style.boxShadow=''; div.innerHTML=lb.text; }
+        else updateVochtOverlay();
+      }));
+      if(on) updateVochtOverlay();
+      break;
+    case 'koppels':
+      drawZorgkoppels();
+      break;
+    case 'stage':
+      drawZorgkoppels();
+      break;
+    case 'dienst':
+      updateDienstLayer();
+      break;
+    case 'dagbesteding':
+      updateDagbestedingLayer();
+      break;
+    case 'nacht':
+      updateNachtLayer();
+      break;
+  }
+}
+
+// Placeholder functies — worden gevuld zodra de bijbehorende apps gebouwd zijn
+function drawZorgkoppels(){ console.log('Zorgkoppels laag — nog te bouwen'); }
+function updateDienstLayer(){ console.log('In dienst laag — nog te bouwen'); }
+function updateDagbestedingLayer(){ console.log('Dagbesteding laag — nog te bouwen'); }
+function updateNachtLayer(){ console.log('Nachtzorg laag — nog te bouwen'); }
+
+// ── QR-codes genereren ────────────────────────────────────────────────────
+// Simpele QR-code via Google Charts API (geen externe library nodig)
+function makeQR(canvasId, url){
+  const cv = document.getElementById(canvasId);
+  if(!cv) return;
+  const size = cv.width;
+  const ctx  = cv.getContext('2d');
+  const img  = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => ctx.drawImage(img, 0, 0, size, size);
+  img.onerror = () => {
+    // Fallback: toon URL als tekst
+    ctx.fillStyle = '#fff'; ctx.fillRect(0,0,size,size);
+    ctx.fillStyle = '#333'; ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    const words = url.replace('https://','').split('/');
+    words.forEach((w,i) => ctx.fillText(w, size/2, 20+i*14));
+  };
+  const encoded = encodeURIComponent(url);
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}&bgcolor=ffffff&color=0a0e1e&margin=2`;
+}
+
+// Genereer QR-codes na laden
+window.addEventListener('load', ()=>{
+  const base = window.location.href.replace('index.html','').replace(/\/$/, '');
+  makeQR('qrc-dienst', base + '/dienst.html');
+  makeQR('qrc-vv',     'https://ave-apps.github.io/vocht-voeding/');
+});
 
 // Probeer eerst live data, val terug op demo
 fetchVV();

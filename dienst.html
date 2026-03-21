@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>In Dienst — Gebouw 5</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg: #f5f3ee; --surface: #ffffff; --surface2: #ede9e0;
+  --border: #d8d2c4; --text: #2a2520; --text-mid: #7a7060;
+  --text-dim: #a89f90; --accent: #2a6fc4;
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); min-height:100dvh; overflow-x:hidden; }
+
+/* Header */
+.header {
+  background:var(--surface); border-bottom:2px solid var(--border);
+  padding:14px 16px; display:flex; align-items:center; gap:10px;
+  box-shadow:0 2px 12px #00000010; position:sticky; top:0; z-index:10;
+}
+.header h1 { font-family:'Space Mono',monospace; font-size:16px; font-weight:700; flex:1; }
+#sync-dot { width:8px; height:8px; border-radius:50%; background:var(--border); flex-shrink:0; }
+#sync-label { font-size:10px; font-weight:700; color:var(--text-dim); }
+
+/* Etage-tabs */
+.etage-tabs {
+  display:flex; gap:0; background:var(--surface);
+  border-bottom:2px solid var(--border); overflow-x:auto;
+}
+.etage-tab {
+  flex:1; padding:10px 6px; text-align:center; font-size:12px;
+  font-weight:800; color:var(--text-mid); cursor:pointer;
+  border-bottom:3px solid transparent; white-space:nowrap;
+  transition:all .15s; min-width:60px;
+}
+.etage-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+/* In-dienst strook */
+.strook-area {
+  background:var(--surface); margin:12px 16px;
+  border-radius:14px; border:2px dashed var(--border);
+  min-height:80px; padding:12px;
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+}
+.strook-area.drag-over { border-color:var(--accent); background:#f0f5ff; }
+.strook-label {
+  font-size:10px; font-weight:800; color:var(--text-dim);
+  text-transform:uppercase; letter-spacing:.8px; width:100%;
+}
+.strook-empty { font-size:12px; color:var(--text-dim); font-style:italic; }
+
+/* Icoon in strook */
+.dienst-chip {
+  display:flex; align-items:center; gap:6px;
+  background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:20px; padding:6px 12px; font-size:12px; font-weight:700;
+  position:relative; cursor:pointer;
+}
+.dienst-chip .avatar {
+  width:28px; height:28px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:900; color:#fff; flex-shrink:0;
+}
+.dienst-chip .remove {
+  width:18px; height:18px; border-radius:50%; background:#ff4444;
+  color:#fff; font-size:11px; display:flex; align-items:center;
+  justify-content:center; cursor:pointer; flex-shrink:0;
+}
+
+/* Ikoon bouwer */
+.mijn-icoon {
+  background:var(--surface); border-radius:14px;
+  border:1.5px solid var(--border); margin:12px 16px;
+  padding:16px; box-shadow:0 2px 8px #00000010;
+}
+.mijn-icoon h2 { font-size:14px; font-weight:800; margin-bottom:14px; }
+.field { margin-bottom:12px; }
+.field label { display:block; font-size:10px; font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:.6px; margin-bottom:4px; }
+.field input, .field select {
+  width:100%; background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:10px; color:var(--text); font-family:'Nunito',sans-serif;
+  font-size:14px; padding:8px 11px; outline:none; -webkit-appearance:none;
+}
+.field input:focus { border-color:var(--accent); }
+
+/* Avatar preview */
+.avatar-preview {
+  width:56px; height:56px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; font-weight:900; color:#fff;
+  margin:0 auto 12px; border:3px solid var(--border);
+}
+
+/* Kleurpicker */
+.kleur-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+.kleur-dot {
+  width:28px; height:28px; border-radius:50%; cursor:pointer;
+  border:3px solid transparent; transition:transform .1s;
+}
+.kleur-dot.selected { border-color:var(--text); transform:scale(1.15); }
+
+/* Zorgkoppel checkboxen */
+.koppel-section { margin-top:14px; }
+.koppel-section h3 { font-size:12px; font-weight:800; color:var(--text-mid); text-transform:uppercase; letter-spacing:.6px; margin-bottom:8px; }
+.koppel-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.koppel-item {
+  display:flex; align-items:center; gap:8px;
+  background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:8px; padding:7px 10px; cursor:pointer;
+  font-size:13px; font-weight:700; transition:all .15s;
+}
+.koppel-item.selected { background:#e8f0ff; border-color:var(--accent); color:var(--accent); }
+.koppel-item input { display:none; }
+
+/* Stage sectie */
+.stage-section { margin-top:14px; border-top:1px solid var(--border); padding-top:14px; }
+.stage-toggle { display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:10px; }
+.stage-toggle .sw {
+  width:40px; height:22px; border-radius:11px; background:var(--border);
+  position:relative; transition:background .2s; flex-shrink:0;
+}
+.stage-toggle .sw::after {
+  content:''; position:absolute; top:3px; left:3px;
+  width:16px; height:16px; border-radius:50%; background:#fff;
+  transition:transform .2s;
+}
+.stage-toggle.on .sw { background:var(--accent); }
+.stage-toggle.on .sw::after { transform:translateX(18px); }
+.stg-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+.stg-item {
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:8px; padding:8px 4px; cursor:pointer;
+  font-size:12px; font-weight:700; transition:all .15s; text-align:center;
+}
+.stg-item.selected { background:#fff8e0; border-color:#ffaa22; color:#cc7700; }
+
+/* Sleep-knop */
+.sleep-btn {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  width:calc(100% - 32px); margin:16px auto; padding:16px;
+  background:var(--accent); color:#fff; border:none; border-radius:14px;
+  font-family:'Nunito',sans-serif; font-size:16px; font-weight:800;
+  cursor:pointer; touch-action:none; user-select:none;
+  box-shadow:0 4px 20px rgba(42,111,196,0.35);
+  transition:transform .1s, box-shadow .1s;
+}
+.sleep-btn:active { transform:scale(.97); box-shadow:0 2px 10px rgba(42,111,196,0.2); }
+.sleep-btn.in-dienst { background:#2a9c4a; box-shadow:0 4px 20px rgba(42,156,74,0.35); }
+.sleep-btn.uit-dienst { background:#c42a2a; box-shadow:0 4px 20px rgba(196,42,42,0.35); }
+
+/* Uitdienst sectie */
+.uitdienst-section {
+  background:var(--surface); border-radius:14px;
+  border:1.5px solid var(--border); margin:0 16px 16px;
+  padding:16px; display:none;
+}
+.uitdienst-section h2 { font-size:14px; font-weight:800; margin-bottom:12px; color:#c42a2a; }
+
+/* Banner */
+.banner {
+  position:fixed; top:16px; left:50%; transform:translateX(-50%);
+  background:var(--text); color:var(--bg); border-radius:20px;
+  padding:8px 18px; font-size:12px; font-weight:800; z-index:100;
+  opacity:0; transition:opacity .3s; white-space:nowrap;
+}
+.banner.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>👤 In Dienst — Gebouw 5</h1>
+  <span id="sync-dot"></span>
+  <span id="sync-label">Lokaal</span>
+</div>
+
+<!-- Etage tabs -->
+<div class="etage-tabs">
+  <div class="etage-tab active" data-etage="0" onclick="selectEtage(0,this)">BG</div>
+  <div class="etage-tab" data-etage="1" onclick="selectEtage(1,this)">1e</div>
+  <div class="etage-tab" data-etage="2" onclick="selectEtage(2,this)">2e</div>
+  <div class="etage-tab" data-etage="3" onclick="selectEtage(3,this)">3e</div>
+</div>
+
+<!-- In dienst strook -->
+<div class="strook-area" id="strook">
+  <div class="strook-label">▸ In dienst op deze etage</div>
+  <div class="strook-empty" id="strook-empty">Nog niemand in dienst gesleept</div>
+</div>
+
+<!-- Mijn icoon configureren -->
+<div class="mijn-icoon">
+  <h2>Mijn icoon</h2>
+
+  <div class="avatar-preview" id="avatar-preview" style="background:#2a6fc4">AB</div>
+
+  <div class="field">
+    <label>Volledige naam</label>
+    <input type="text" id="naam" placeholder="bijv. Anne Bakker" autocomplete="off" oninput="updateAfkorting()">
+  </div>
+
+  <div class="field">
+    <label>Functie</label>
+    <select id="functie">
+      <option value="BGL">Begeleider</option>
+      <option value="SBG">Stagebegeleider</option>
+      <option value="GDR">Gedragsdeskundige</option>
+      <option value="TL">Teamleider</option>
+      <option value="STG">Stagiaire</option>
+      <option value="VRJ">Vrijwilliger</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Kleur icoon</label>
+    <div class="kleur-row" id="kleur-row"></div>
+  </div>
+
+  <!-- Zorgkoppels -->
+  <div class="koppel-section" id="koppel-section">
+    <h3>Zorgkoppel — Vleugel A</h3>
+    <div class="koppel-grid" id="koppel-A"></div>
+    <h3 style="margin-top:10px">Zorgkoppel — Vleugel B</h3>
+    <div class="koppel-grid" id="koppel-B"></div>
+  </div>
+
+  <!-- Stage -->
+  <div class="stage-section" id="stage-section" style="display:none">
+    <div class="stage-toggle" id="stage-toggle" onclick="toggleStage()">
+      <div class="sw"></div>
+      <span style="font-size:13px;font-weight:700">Stagebegeleider</span>
+    </div>
+    <div id="stg-grid-wrap" style="display:none">
+      <div class="field"><label>Stagiaires</label></div>
+      <div class="stg-grid" id="stg-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Sleep/Uit dienst knop -->
+<button class="sleep-btn" id="sleep-btn" ontouchstart="startSleep(event)" onmousedown="startSleep(event)">
+  ☀️ Sleep naar in dienst
+</button>
+
+<!-- Uit dienst sectie -->
+<div class="uitdienst-section" id="uitdienst-section">
+  <h2>Uit dienst melden</h2>
+  <button class="sleep-btn uit-dienst" onclick="uitDienst()">🌙 Uit dienst gaan</button>
+</div>
+
+<div class="banner" id="banner"></div>
+
+<script>
+const GASWA = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
+
+const KLEUREN = ['#2a6fc4','#c42a6f','#2a9c4a','#c47a2a','#6f2ac4','#2aafc4','#c4442a','#888888'];
+const KAMERS_A = ['07','08','09','10','11','12'];
+const KAMERS_B = ['27','28','29','30','31','32'];
+const STG_NRS  = ['01','02','03','04','05','06','07','08','09','10'];
+const ETAGES   = ['BG','1e','2e','3e'];
+
+let activeEtage = 0;
+let selectedKleur = KLEUREN[0];
+let selectedKoppels = new Set();
+let isStageToggle = false;
+let selectedStg = new Set();
+let inDienstData = null; // eigen dienst-record
+let dienstRecords = {}; // alle records per etage
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+
+// ── Afkorting genereren ────────────────────────────────────────────────────
+function maakAfkorting(naam){
+  if(!naam) return '??';
+  const delen = naam.trim().split(/\s+/);
+  if(delen.length === 1) return delen[0].slice(0,2).toUpperCase();
+  // Eerste letter voornaam + eerste letter achternaam (skip tussenvoegsel)
+  const voornaam = delen[0][0];
+  const achternaam = delen[delen.length-1][0];
+  return (voornaam+achternaam).toUpperCase();
+}
+
+function updateAfkorting(){
+  const naam = document.getElementById('naam').value;
+  const afk  = maakAfkorting(naam);
+  document.getElementById('avatar-preview').textContent = afk;
+  // Toon stage-sectie alleen voor stagebegeleider
+  const functie = document.getElementById('functie').value;
+  document.getElementById('stage-section').style.display =
+    (functie==='SBG') ? '' : 'none';
+}
+
+// ── Kleurpicker bouwen ─────────────────────────────────────────────────────
+function buildKleurPicker(){
+  const row = document.getElementById('kleur-row');
+  KLEUREN.forEach((k,i) => {
+    const d = document.createElement('div');
+    d.className = 'kleur-dot' + (i===0?' selected':'');
+    d.style.background = k;
+    d.onclick = () => {
+      document.querySelectorAll('.kleur-dot').forEach(x=>x.classList.remove('selected'));
+      d.classList.add('selected');
+      selectedKleur = k;
+      document.getElementById('avatar-preview').style.background = k;
+    };
+    row.appendChild(d);
+  });
+}
+
+// ── Koppel-checkboxen bouwen ───────────────────────────────────────────────
+function buildKoppels(){
+  const prefix = ['0','1','2','3'][activeEtage]+'.';
+  ['A','B'].forEach(vleugel => {
+    const grid = document.getElementById('koppel-'+vleugel);
+    grid.innerHTML = '';
+    const kamers = vleugel==='A' ? KAMERS_A : KAMERS_B;
+    kamers.forEach(nr => {
+      const kamer = prefix+nr;
+      const div = document.createElement('div');
+      div.className = 'koppel-item' + (selectedKoppels.has(kamer)?' selected':'');
+      div.textContent = kamer;
+      div.onclick = () => {
+        if(selectedKoppels.has(kamer)) selectedKoppels.delete(kamer);
+        else selectedKoppels.add(kamer);
+        div.classList.toggle('selected', selectedKoppels.has(kamer));
+      };
+      grid.appendChild(div);
+    });
+  });
+}
+
+// ── STG-grid bouwen ───────────────────────────────────────────────────────
+function buildStgGrid(){
+  const grid = document.getElementById('stg-grid');
+  grid.innerHTML = '';
+  STG_NRS.forEach(nr => {
+    const div = document.createElement('div');
+    div.className = 'stg-item' + (selectedStg.has(nr)?' selected':'');
+    div.textContent = 'STG '+nr;
+    div.onclick = () => {
+      if(selectedStg.has(nr)) selectedStg.delete(nr);
+      else selectedStg.add(nr);
+      div.classList.toggle('selected', selectedStg.has(nr));
+    };
+    grid.appendChild(div);
+  });
+}
+
+function toggleStage(){
+  isStageToggle = !isStageToggle;
+  document.getElementById('stage-toggle').classList.toggle('on', isStageToggle);
+  document.getElementById('stg-grid-wrap').style.display = isStageToggle ? '' : 'none';
+}
+
+// ── Etage selectie ────────────────────────────────────────────────────────
+function selectEtage(idx, el){
+  activeEtage = idx;
+  document.querySelectorAll('.etage-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  buildKoppels();
+  renderStrook();
+}
+
+// ── Strook renderen ───────────────────────────────────────────────────────
+function renderStrook(){
+  const strook = document.getElementById('strook');
+  const empty  = document.getElementById('strook-empty');
+  // Verwijder bestaande chips
+  strook.querySelectorAll('.dienst-chip').forEach(c=>c.remove());
+
+  const records = dienstRecords[activeEtage] || [];
+  empty.style.display = records.length ? 'none' : '';
+
+  records.forEach(r => {
+    const chip = document.createElement('div');
+    chip.className = 'dienst-chip';
+    chip.innerHTML = `
+      <div class="avatar" style="background:${r.kleur}">${r.afkorting}</div>
+      <span>${r.naam.split(' ')[0]}</span>
+      <span style="font-size:10px;color:var(--text-dim)">${r.functie}</span>`;
+    chip.title = `${r.naam} — ${ETAGES[r.etage]}\nKoppels: ${[...r.koppels].join(', ')||'geen'}`;
+    strook.appendChild(chip);
+  });
+}
+
+// ── Sleep in dienst ───────────────────────────────────────────────────────
+function startSleep(e){
+  const naam = document.getElementById('naam').value.trim();
+  if(!naam){ showBanner('Vul eerst je naam in'); return; }
+  if(inDienstData){ showBanner('Je bent al in dienst!'); return; }
+
+  const afk = maakAfkorting(naam);
+  const record = {
+    id:        uid(),
+    naam,
+    afkorting: afk,
+    functie:   document.getElementById('functie').value,
+    kleur:     selectedKleur,
+    etage:     activeEtage,
+    koppels:   [...selectedKoppels],
+    stgBegeleider: isStageToggle,
+    stgNrs:    [...selectedStg],
+    tijdIn:    new Date().toTimeString().slice(0,5),
+    datum:     new Date().toISOString().split('T')[0],
+  };
+
+  inDienstData = record;
+  if(!dienstRecords[activeEtage]) dienstRecords[activeEtage] = [];
+  dienstRecords[activeEtage].push(record);
+
+  renderStrook();
+  document.getElementById('sleep-btn').style.display = 'none';
+  document.getElementById('uitdienst-section').style.display = '';
+
+  pushDienst(record);
+  showBanner(`✓ ${naam.split(' ')[0]} — ${ETAGES[activeEtage]} in dienst`);
+}
+
+// ── Uit dienst ────────────────────────────────────────────────────────────
+function uitDienst(){
+  if(!inDienstData) return;
+  const naam = inDienstData.naam;
+  // Verwijder uit lokale records
+  dienstRecords[activeEtage] = (dienstRecords[activeEtage]||[])
+    .filter(r=>r.id !== inDienstData.id);
+  pushUitDienst(inDienstData.id);
+  inDienstData = null;
+  renderStrook();
+  document.getElementById('sleep-btn').style.display = '';
+  document.getElementById('uitdienst-section').style.display = 'none';
+  showBanner(`🌙 ${naam.split(' ')[0]} — uit dienst`);
+}
+
+// ── GASWA communicatie ────────────────────────────────────────────────────
+async function pushDienst(record){
+  setSyncStatus('busy');
+  try{
+    const res = await fetch(GASWA, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'pushDienst', record })
+    });
+    const data = await res.json();
+    setSyncStatus(data.ok ? 'ok' : 'error');
+  } catch(e){ setSyncStatus('error'); }
+}
+
+async function pushUitDienst(id){
+  try{
+    await fetch(GASWA, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'uitDienst', id })
+    });
+  } catch(e){}
+}
+
+async function pullDienst(){
+  try{
+    const res = await fetch(GASWA, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'pullDienst' })
+    });
+    const data = await res.json();
+    if(data.ok && data.records){
+      dienstRecords = {};
+      data.records.forEach(r => {
+        if(!dienstRecords[r.etage]) dienstRecords[r.etage] = [];
+        dienstRecords[r.etage].push(r);
+      });
+      renderStrook();
+      setSyncStatus('ok');
+    }
+  } catch(e){ setSyncStatus('error'); }
+}
+
+function setSyncStatus(state){
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  const cfg = {ok:{col:'#4cdd8a',txt:'Gesynchroniseerd'}, busy:{col:'#64b4ff',txt:'Bezig…'}, error:{col:'#ff4444',txt:'Geen verbinding'}}[state]||{col:'#888',txt:'Lokaal'};
+  dot.style.background = cfg.col;
+  lbl.style.color = cfg.col;
+  lbl.textContent = cfg.txt;
+}
+
+// ── Laad opgeslagen naam ──────────────────────────────────────────────────
+function loadOpgeslagen(){
+  try {
+    const saved = localStorage.getItem('dienst_profiel');
+    if(saved){
+      const p = JSON.parse(saved);
+      document.getElementById('naam').value = p.naam || '';
+      document.getElementById('functie').value = p.functie || 'BGL';
+      // Kleur herstellen
+      if(p.kleur){
+        selectedKleur = p.kleur;
+        document.querySelectorAll('.kleur-dot').forEach((d,i)=>{
+          d.classList.toggle('selected', KLEUREN[i]===p.kleur);
+        });
+        document.getElementById('avatar-preview').style.background = p.kleur;
+      }
+      updateAfkorting();
+    }
+  } catch(e){}
+}
+
+function saveProfielLocaal(){
+  try {
+    localStorage.setItem('dienst_profiel', JSON.stringify({
+      naam: document.getElementById('naam').value,
+      functie: document.getElementById('functie').value,
+      kleur: selectedKleur,
+    }));
+  } catch(e){}
+}
+
+// Sla profiel op bij wijzigen
+document.getElementById('naam').addEventListener('change', saveProfielLocaal);
+document.getElementById('functie').addEventListener('change', ()=>{ updateAfkorting(); saveProfielLocaal(); });
+
+// ── Banner ────────────────────────────────────────────────────────────────
+let bannerTimer;
+function showBanner(msg){
+  const b = document.getElementById('banner');
+  b.textContent = msg; b.classList.add('show');
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(()=>b.classList.remove('show'), 2200);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+buildKleurPicker();
+buildKoppels();
+buildStgGrid();
+loadOpgeslagen();
+pullDienst();
+setInterval(pullDienst, 30*1000);
+</script>
+</body>
+</html>
