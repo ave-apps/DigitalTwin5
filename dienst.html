@@ -391,7 +391,10 @@ function renderStrook(){
 function startSleep(e){
   const naam = document.getElementById('naam').value.trim();
   if(!naam){ showBanner('Vul eerst je naam in'); return; }
-  if(inDienstData){ showBanner('Je bent al in dienst!'); return; }
+  if(inDienstData){ showBanner('Je bent al in dienst — scroll naar beneden voor Uit dienst'); return; }
+  // Controleer ook in strook of naam al voorkomt
+  const bestaand = (dienstRecords[activeEtage]||[]).find(r=>r.naam===naam);
+  if(bestaand){ showBanner(`${naam.split(' ')[0]} staat al in dienst op deze etage`); return; }
 
   const afk = maakAfkorting(naam);
   const record = {
@@ -409,6 +412,7 @@ function startSleep(e){
   };
 
   inDienstData = record;
+  try { localStorage.setItem('dienst_actief', JSON.stringify(record)); } catch(e) {}
   if(!dienstRecords[activeEtage]) dienstRecords[activeEtage] = [];
   dienstRecords[activeEtage].push(record);
 
@@ -424,11 +428,11 @@ function startSleep(e){
 function uitDienst(){
   if(!inDienstData) return;
   const naam = inDienstData.naam;
-  // Verwijder uit lokale records
   dienstRecords[activeEtage] = (dienstRecords[activeEtage]||[])
     .filter(r=>r.id !== inDienstData.id);
   pushUitDienst(inDienstData.id);
   inDienstData = null;
+  try { localStorage.removeItem('dienst_actief'); } catch(e) {}
   renderStrook();
   document.getElementById('sleep-btn').style.display = '';
   document.getElementById('uitdienst-section').style.display = 'none';
@@ -534,6 +538,20 @@ buildKleurPicker();
 buildKoppels();
 buildStgGrid();
 loadOpgeslagen();
+
+// Herstel actieve dienst uit localStorage
+try {
+  const saved = localStorage.getItem('dienst_actief');
+  if(saved){
+    inDienstData = JSON.parse(saved);
+    activeEtage = inDienstData.etage || 0;
+    // Update etage tab
+    document.querySelectorAll('.etage-tab').forEach((t,i) => t.classList.toggle('active', i===activeEtage));
+    document.getElementById('sleep-btn').style.display = 'none';
+    document.getElementById('uitdienst-section').style.display = '';
+  }
+} catch(e) {}
+
 pullDienst();
 setInterval(pullDienst, 30*1000);
 </script>
