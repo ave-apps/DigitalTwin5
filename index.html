@@ -350,8 +350,8 @@ let vvData={};
 let alarmState={}, alarmTimers={};
 let audioCtx=null;
 let dienstRecords={};
-const dienstStippen=[];
-const koppelLijnen=[];
+var dienstStippen=[];
+var koppelLijnen=[];
 
 // ── Scene ──────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
@@ -785,11 +785,7 @@ for(let i=0;i<4;i++) floorMeshes[i].forEach(m=>{
 });
 selectFloor(0,document.querySelector('.fbtn'));
 setView('iso',document.querySelectorAll('.btn')[0]);
-try {
-  animate();
-} catch(e) {
-  document.body.innerHTML += '<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:red;color:white;padding:20px;z-index:9999;font-family:monospace;font-size:14px">FOUT: ' + e.message + '<br>' + e.stack + '</div>';
-}
+animate();
 
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1191,7 +1187,7 @@ window.addEventListener('load', ()=>{
 // ── Teampost stippen & koppellijnen ────────────────────────────────────────
 
 // Kamer-coördinaten lookup
-const KAMER_COORDS = {};
+var KAMER_COORDS = {};
 function buildKamerCoords(){
   [0,1,2,3].forEach(f=>{
     const Y = f*FLOOR_GAP + WALL_H/2;
@@ -1301,7 +1297,7 @@ function drawZorgkoppels(){
 }
 
 // ── Rachel popup (klik op teampost-stip) ──────────────────────────────────
-const rachelPopup = document.createElement('div');
+var rachelPopup = document.createElement('div');
 rachelPopup.id = 'rachel-popup';
 rachelPopup.style.cssText = `
   position:fixed; display:none; z-index:40;
@@ -1382,7 +1378,7 @@ function rachelVerwijder(id){
 }
 
 // Raycaster voor klik op stip
-const raycaster3D = new THREE.Raycaster();
+var raycaster3D = new THREE.Raycaster();
 canvas.addEventListener('click', ev=>{
   if(dienstStippen.length===0) return;
   const rect = canvas.getBoundingClientRect();
