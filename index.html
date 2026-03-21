@@ -217,6 +217,10 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   opacity:1; pointer-events:auto;
   transform:translateX(-50%) scale(1);
 }
+.qr-popup.pinned {
+  opacity:1; pointer-events:auto;
+  transform:translateX(-50%) scale(1);
+}
 .qr-popup canvas { border-radius:8px; display:block; margin:0 auto 8px; }
 .qr-popup .qr-label { font-size:11px; color:#aaa; }
 .qr-popup .qr-open {
@@ -1124,6 +1128,26 @@ function drawZorgkoppels(){ console.log('Zorgkoppels laag — nog te bouwen'); }
 function updateDienstLayer(){ console.log('In dienst laag — nog te bouwen'); }
 function updateDagbestedingLayer(){ console.log('Dagbesteding laag — nog te bouwen'); }
 function updateNachtLayer(){ console.log('Nachtzorg laag — nog te bouwen'); }
+
+// ── App-knop popup gedrag ──────────────────────────────────────────────────
+document.querySelectorAll('.app-btn').forEach(btn => {
+  const popup = btn.querySelector('.qr-popup');
+  if(!popup) return;
+  let hideTimer = null;
+
+  const show = () => {
+    clearTimeout(hideTimer);
+    popup.classList.add('pinned');
+  };
+  const hide = () => {
+    hideTimer = setTimeout(() => popup.classList.remove('pinned'), 300);
+  };
+
+  btn.addEventListener('mouseenter', show);
+  btn.addEventListener('mouseleave', hide);
+  popup.addEventListener('mouseenter', show);
+  popup.addEventListener('mouseleave', hide);
+});
 
 // ── QR-codes genereren ────────────────────────────────────────────────────
 // Simpele QR-code via Google Charts API (geen externe library nodig)
