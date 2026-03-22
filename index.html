@@ -1410,7 +1410,7 @@ function buildRachelOverzicht(){
     <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
       <div style="width:22px;height:22px;border-radius:50%;background:${r.kleur||'#888'};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff;flex-shrink:0">${r.afkorting||'?'}</div>
       <span style="color:#fff;font-size:12px;flex:1">${r.naam}</span>
-      <span style="color:#888;font-size:10px">${['BG','1e','2e','3e'][r.etage]||''} ${r.tijdIn||''}</span>
+      <span style="color:#888;font-size:10px">${['BG','1e','2e','3e'][r.etage]||''} ${parseTijdIn(r.tijdIn)}</span>
       <button onclick="rachelPanelVerwijder('${r.id}')"
         style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:14px">×</button>
     </div>`).join('');
@@ -1425,6 +1425,29 @@ function nlDatum(){
 function nlTijd(){
   const now = new Date();
   return now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+}
+
+// Zet tijdIn altijd om naar HH:MM, ongeacht wat de Sheet terugstuurde
+// (decimaal 0.604, volledige date-string, of al "14:30")
+function parseTijdIn(val){
+  if(!val && val !== 0) return '';
+  const s = String(val).trim();
+  // Al correct formaat
+  if(/^\d{2}:\d{2}$/.test(s)) return s;
+  // Decimaal van Sheets (bijv. 0.60416...)
+  const dec = parseFloat(s);
+  if(!isNaN(dec) && dec >= 0 && dec < 1){
+    const totalMin = Math.round(dec * 24 * 60);
+    const h = Math.floor(totalMin / 60) % 24;
+    const m = totalMin % 60;
+    return h.toString().padStart(2,'0') + ':' + m.toString().padStart(2,'0');
+  }
+  // Volledige date-string (bijv. "Sat Dec 30 1899 17:03:00 GMT+0000...")
+  const d = new Date(s);
+  if(!isNaN(d.getTime())){
+    return d.getUTCHours().toString().padStart(2,'0') + ':' + d.getUTCMinutes().toString().padStart(2,'0');
+  }
+  return s; // fallback: toon zoals het is
 }
 
 function rachelPanelVoegToe(){
@@ -1519,7 +1542,7 @@ function openRachelPopup(etage, screenX, screenY){
         <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
           <div style="width:24px;height:24px;border-radius:50%;background:${r.kleur||'#888'};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;flex-shrink:0">${r.afkorting||'?'}</div>
           <span style="color:#fff;font-size:12px;flex:1">${r.naam}</span>
-          <span style="color:#888;font-size:10px">${r.tijdIn||''}</span>
+          <span style="color:#888;font-size:10px">${parseTijdIn(r.tijdIn)}</span>
           <button onclick="rachelVerwijder('${r.id}')" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:14px;padding:0 2px">×</button>
         </div>`).join('')
     : '<div style="color:#666;font-size:12px">Niemand in dienst</div>';
@@ -1675,18 +1698,7 @@ async function fetchDienst(){
     if(data.ok && data.records){
       dienstRecords={};
       data.records.forEach(r=>{
-        r.etage = Number(r.etage);
-        // Google Sheets slaat tijden op als decimaal (0.604... = 14:30).
-        // Converteer terug naar HH:MM als de waarde geen ':' bevat.
-        if(r.tijdIn !== undefined && r.tijdIn !== '' && !String(r.tijdIn).includes(':')){
-          const dec = parseFloat(r.tijdIn);
-          if(!isNaN(dec)){
-            const totalMin = Math.round(dec * 24 * 60);
-            const h = Math.floor(totalMin / 60) % 24;
-            const m = totalMin % 60;
-            r.tijdIn = h.toString().padStart(2,'0') + ':' + m.toString().padStart(2,'0');
-          }
-        }
+        r.etage = Number(r.etage); // zorg dat etage altijd een getal is
         if(!dienstRecords[r.etage]) dienstRecords[r.etage]=[];
         dienstRecords[r.etage].push(r);
       });
