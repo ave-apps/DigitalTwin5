@@ -681,15 +681,36 @@ chantalDiv.style.cssText = `
 `;
 labelContainer.appendChild(chantalDiv);
 
+// Chantal status — opgeslagen in Google Sheet, gesynchroniseerd
+let chantalStatus = 'welkom'; // lokale cache, default groen
+
 function getChantalStatus(){
-  return localStorage.getItem('chantal_status') || 'welkom';
+  return chantalStatus;
 }
-function setChantalStatus(s){
-  localStorage.setItem('chantal_status', s);
+
+async function setChantalStatus(s){
+  chantalStatus = s;
   updateChantalDiv();
+  try {
+    await fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'setChantal', status:s})});
+  } catch(e) { console.warn('setChantal fout:', e); }
 }
+
 function toggleChantal(){
   setChantalStatus(getChantalStatus() === 'welkom' ? 'bezet' : 'welkom');
+}
+
+async function fetchChantalStatus(){
+  try {
+    const res  = await fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'getChantal'})});
+    const data = await res.json();
+    if(data.ok && data.status){
+      chantalStatus = data.status;
+      updateChantalDiv();
+    }
+  } catch(e) {}
 }
 
 function updateChantalDiv(){
@@ -1790,6 +1811,8 @@ async function fetchDienst(){
 fetchVV();
 setInterval(fetchVV, 30*1000);
 setInterval(()=>{ checkAlarms(); updateVochtOverlay(); }, 30*1000);
+setInterval(fetchChantalStatus, 30*1000);
+fetchChantalStatus(); // direct bij laden
 
 
 
