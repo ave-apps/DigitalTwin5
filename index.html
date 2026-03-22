@@ -1543,7 +1543,7 @@ function openRachelPopup(etage, screenX, screenY){
           <div style="width:24px;height:24px;border-radius:50%;background:${r.kleur||'#888'};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;flex-shrink:0">${r.afkorting||'?'}</div>
           <span style="color:#fff;font-size:12px;flex:1">${r.naam}</span>
           <span style="color:#888;font-size:10px">${parseTijdIn(r.tijdIn)}</span>
-          <button onclick="rachelVerwijder('${r.id}')" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:14px;padding:0 2px">×</button>
+          <button onclick="rachelVerwijder('${r.id}',event)" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:14px;padding:0 2px">×</button>
         </div>`).join('')
     : '<div style="color:#666;font-size:12px">Niemand in dienst</div>';
 
@@ -1576,7 +1576,8 @@ function rachelVoegToe(){
     body:JSON.stringify({action:'pushDienst',record})});
 }
 
-function rachelVerwijder(id){
+function rachelVerwijder(id, ev){
+  if(ev) ev.stopPropagation();
   Object.keys(dienstRecords).forEach(e=>{
     dienstRecords[e]=(dienstRecords[e]||[]).filter(r=>r.id!==id);
   });
