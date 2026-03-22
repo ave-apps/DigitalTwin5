@@ -698,8 +698,33 @@ function selectFloor(f,el){
 // ── Click / hover ──────────────────────────────────────────────────────────
 const tooltip=document.getElementById('tooltip');
 
-canvas.addEventListener('mousemove',e=>{
-  canvas.style.cursor='default';
+// Mouse-over op koppellijnen (TubeGeometry meshes)
+var raycasterHover = new THREE.Raycaster();
+
+canvas.addEventListener('mousemove', e=>{
+  if(isDragging){ tooltip.style.display='none'; canvas.style.cursor='default'; return; }
+  canvas.style.cursor = 'default';
+
+  if(!koppelLijnen.length){ tooltip.style.display='none'; return; }
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  const my = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  raycasterHover.setFromCamera(new THREE.Vector2(mx, my), camera);
+
+  const hits = raycasterHover.intersectObjects(koppelLijnen);
+  if(hits.length){
+    const ud = hits[0].object.userData;
+    const delen = (ud.naam||'').trim().split(/\s+/);
+    const afk = ((delen[0]||'')[0]||'') + ((delen[delen.length-1]||'')[0]||'');
+    tooltip.innerHTML = '<b style="color:#ff88cc">' + afk.toUpperCase() + '</b> <span style="color:#888">↔</span> <b style="color:#ffe066">' + ud.kamer + '</b>';
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+    canvas.style.cursor = 'pointer';
+  } else {
+    tooltip.style.display = 'none';
+  }
 });
 
 // ── Camera ─────────────────────────────────────────────────────────────────
