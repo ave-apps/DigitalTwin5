@@ -352,6 +352,7 @@ let audioCtx=null;
 let dienstRecords={};
 var dienstStippen=[];
 var koppelLijnen=[];
+var stipHitbollen=[];
 
 // ── Scene ──────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
@@ -1264,18 +1265,21 @@ function buildDienstVisualisatie(){
             new THREE.Vector3(pos.x, pos.y, pos.z),
             new THREE.Vector3(kc.x, kc.y, kc.z)
           ];
-          const geo  = new THREE.BufferGeometry().setFromPoints(points);
-          // Kleur van begeleider
-          const col  = new THREE.Color(r.kleur||'#64b4ff');
-          const mat  = new THREE.LineBasicMaterial({color:col, transparent:true, opacity:0.7, linewidth:2});
-          const line = new THREE.Line(geo, mat);
-          line.userData = {naam:r.naam, kamer, functie:r.functie};
-          scene.add(line);
-          koppelLijnen.push(line);
+          // TubeGeometry: zichtbaar in alle browsers (WebGL negeert linewidth>1)
+          const curve = new THREE.LineCurve3(points[0], points[1]);
+          const col   = new THREE.Color(r.kleur||'#64b4ff');
+          const mat   = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.85});
+          const tube  = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 0.22, 6, false), mat);
+          tube.userData = {naam:r.naam, kamer, functie:r.functie};
+          scene.add(tube);
+          koppelLijnen.push(tube);
         });
       });
     }
   });
+
+  // Na bouwen van alle stippen: hitbollen aanmaken voor klikdetectie
+  rebuildStipHitbollen();
 }
 
 // Laat stippen pulsen in animatieloop
@@ -1562,19 +1566,36 @@ function rachelVerwijder(id){
 }
 
 // Raycaster voor klik op stip
+// Onzichtbare hitbollen (radius 2.5, schaal altijd 1) naast de pulserende stipmeshes.
+// capture=true garandeert dat dit vóór andere canvas-handlers vuurt.
 var raycaster3D = new THREE.Raycaster();
+
+function rebuildStipHitbollen(){
+  stipHitbollen.forEach(h=>scene.remove(h));
+  stipHitbollen.length = 0;
+  dienstStippen.forEach(s=>{
+    const hgeo  = new THREE.SphereGeometry(2.5, 8, 8);
+    const hmat  = new THREE.MeshBasicMaterial({visible:false});
+    const hmesh = new THREE.Mesh(hgeo, hmat);
+    hmesh.position.copy(s.mesh.position);
+    hmesh.userData = {type:'teampost', etage:s.etage};
+    scene.add(hmesh);
+    stipHitbollen.push(hmesh);
+  });
+}
+
 canvas.addEventListener('click', ev=>{
-  if(dienstStippen.length===0) return;
+  if(!stipHitbollen.length) return;
   const rect = canvas.getBoundingClientRect();
   const mx = ((ev.clientX-rect.left)/rect.width)*2-1;
   const my = -((ev.clientY-rect.top)/rect.height)*2+1;
   raycaster3D.setFromCamera(new THREE.Vector2(mx,my), camera);
-  const hits = raycaster3D.intersectObjects(dienstStippen.map(s=>s.mesh));
+  const hits = raycaster3D.intersectObjects(stipHitbollen);
   if(hits.length){
-    const etage = hits[0].object.userData.etage;
-    openRachelPopup(etage, ev.clientX, ev.clientY);
+    ev.stopImmediatePropagation();
+    openRachelPopup(hits[0].object.userData.etage, ev.clientX, ev.clientY);
   }
-});
+}, true);
 
 // Sluit popup bij klik buiten
 document.addEventListener('click', ev=>{
