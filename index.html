@@ -667,6 +667,58 @@ function updateLabelDivs(){
   }
 }
 
+// ── Chantal aanwezigheidslabel ────────────────────────────────────────────
+// 3e etage, voorzijde, tussen entree (x=6) en 3.27 (x=16) — positie x=11
+const CHANTAL_X = 11, CHANTAL_Z = 6.5; // iets voorzijde van de gang
+const CHANTAL_FLOOR = 3;
+
+const chantalDiv = document.createElement('div');
+chantalDiv.style.cssText = `
+  position:absolute; pointer-events:auto; transform:translate(-50%,-50%);
+  display:none; cursor:pointer; user-select:none;
+  font-family:'Segoe UI',sans-serif; font-size:11px;
+  white-space:nowrap; text-align:center; line-height:1.5;
+`;
+labelContainer.appendChild(chantalDiv);
+
+function getChantalStatus(){
+  return localStorage.getItem('chantal_status') || 'welkom';
+}
+function setChantalStatus(s){
+  localStorage.setItem('chantal_status', s);
+  updateChantalDiv();
+}
+function toggleChantal(){
+  setChantalStatus(getChantalStatus() === 'welkom' ? 'bezet' : 'welkom');
+}
+
+function updateChantalDiv(){
+  const s = getChantalStatus();
+  const kleur = s === 'welkom' ? '#4cdd8a' : '#ff4444';
+  const label = s === 'welkom' ? 'welkom' : 'bezet';
+  chantalDiv.innerHTML = `
+    <div style="background:rgba(10,15,40,0.92);border:1.5px solid ${kleur};border-radius:7px;padding:5px 11px;display:inline-flex;align-items:center;gap:7px;box-shadow:0 0 8px ${kleur}55;">
+      <span style="width:10px;height:10px;border-radius:50%;background:${kleur};flex-shrink:0;display:inline-block"></span>
+      <span style="color:#fff;font-weight:700;font-size:13px">Chantal</span>
+      <span style="color:${kleur};font-size:11px;font-weight:600">${label}</span>
+    </div>`;
+}
+chantalDiv.addEventListener('click', ev=>{ ev.stopPropagation(); toggleChantal(); });
+updateChantalDiv();
+
+function updateChantalPos(){
+  const show = (activeFloor === CHANTAL_FLOOR);
+  if(!show){ chantalDiv.style.display='none'; return; }
+  const floorY = CHANTAL_FLOOR * FLOOR_GAP;
+  const p = proj2D(CHANTAL_X, CHANTAL_Z, floorY);
+  if(!p.visible){ chantalDiv.style.display='none'; return; }
+  chantalDiv.style.display = 'block';
+  chantalDiv.style.left = p.sx + 'px';
+  chantalDiv.style.top  = (p.sy - 38) + 'px'; // boven het kamertje
+}
+
+
+
 // ── Floor selection ────────────────────────────────────────────────────────
 let activeFloor=0;
 
@@ -796,6 +848,7 @@ function animate(){
   updateCamera();
   renderer.render(scene,camera);
   updateLabelDivs();
+  updateChantalPos();
 }
 
 // Start — BG solide, overige etages licht transparant
