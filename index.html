@@ -1675,7 +1675,18 @@ async function fetchDienst(){
     if(data.ok && data.records){
       dienstRecords={};
       data.records.forEach(r=>{
-        r.etage = Number(r.etage); // zorg dat etage altijd een getal is
+        r.etage = Number(r.etage);
+        // Google Sheets slaat tijden op als decimaal (0.604... = 14:30).
+        // Converteer terug naar HH:MM als de waarde geen ':' bevat.
+        if(r.tijdIn !== undefined && r.tijdIn !== '' && !String(r.tijdIn).includes(':')){
+          const dec = parseFloat(r.tijdIn);
+          if(!isNaN(dec)){
+            const totalMin = Math.round(dec * 24 * 60);
+            const h = Math.floor(totalMin / 60) % 24;
+            const m = totalMin % 60;
+            r.tijdIn = h.toString().padStart(2,'0') + ':' + m.toString().padStart(2,'0');
+          }
+        }
         if(!dienstRecords[r.etage]) dienstRecords[r.etage]=[];
         dienstRecords[r.etage].push(r);
       });
