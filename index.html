@@ -1639,7 +1639,7 @@ function buildRachelOverzicht(){
     <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
       <div style="width:22px;height:22px;border-radius:50%;background:${r.kleur||'#888'};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff;flex-shrink:0">${r.afkorting||'?'}</div>
       <span style="color:#fff;font-size:12px;flex:1">${r.naam}</span>
-      <span style="color:#888;font-size:10px">${['BG','1e','2e','3e'][r.etage]||''} ${parseTijdIn(r.tijdIn)}</span>
+      <span style="color:#888;font-size:10px">${etagelabel(r)} ${parseTijdIn(r.tijdIn)}</span>
       <button onclick="rachelPanelVerwijder('${r.id}')"
         style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:14px">×</button>
     </div>`).join('');
@@ -1994,6 +1994,12 @@ function onChatSelectChange(){
   renderChatBerichten();
 }
 
+// Geeft etage-label terug, of functieomschrijving voor bijzondere functies
+function etagelabel(r){
+  if(r.functie === 'MGR') return 'manager Geb5';
+  return ['BG','1e','2e','3e'][r.etage] || '';
+}
+
 function updateChatSelect(){
   const sel    = document.getElementById('chat-select');
   if(!sel) return;
@@ -2003,7 +2009,7 @@ function updateChatSelect(){
   alle.forEach(r=>{
     const opt = document.createElement('option');
     opt.value = r.id;
-    opt.textContent = r.naam + ' (' + (['BG','1e','2e','3e'][r.etage]||'') + ')';
+    opt.textContent = r.naam + ' (' + etagelabel(r) + ')';
     sel.appendChild(opt);
   });
   if(huidig) sel.value = huidig;
