@@ -2070,13 +2070,19 @@ function renderChatBerichten(){
   }
   box.innerHTML = chatBerichten.map(m=>{
     const eigen = chatIkBen && m.naam === chatIkBen.naam;
-    return '<div class="chat-msg' + (eigen?' eigen':'') + '">'
+    const delBtn = eigen
+      ? '<button onclick="verwijderChatBericht(\''+m.id+'\')" '
+        + 'style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:13px;'
+        + 'line-height:1;padding:0 0 0 4px;flex-shrink:0;opacity:0.7" '
+        + 'title="Verwijder bericht">×</button>'
+      : '';
+    return '<div class="chat-msg' + (eigen?' eigen':'') + '" style="align-items:center">'
       + (!eigen ? '<div class="chat-avatar" style="background:'+(m.kleur||'#888')+'">'+(m.afkorting||'?')+'</div>' : '')
       + '<div class="chat-bubble">'
       + '<div class="chat-meta"><b>'+escapeHtml(m.naam)+'</b> &nbsp;'+parseChatTijd(m.tijd)+'</div>'
       + '<div class="chat-text">'+escapeHtml(m.tekst)+'</div>'
       + '</div>'
-      + (eigen ? '<div class="chat-avatar" style="background:'+(m.kleur||'#888')+'">'+(m.afkorting||'?')+'</div>' : '')
+      + (eigen ? delBtn + '<div class="chat-avatar" style="background:'+(m.kleur||'#888')+'">'+(m.afkorting||'?')+'</div>' : '')
       + '</div>';
   }).join('');
   box.scrollTop = box.scrollHeight;
@@ -2107,6 +2113,16 @@ async function verstuurChatBericht(){
     await fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
       body: JSON.stringify({action:'pushChat', message:msg})});
   } catch(e){ console.warn('pushChat fout:', e); }
+}
+
+async function verwijderChatBericht(id){
+  chatBerichten = chatBerichten.filter(m=>m.id!==id);
+  chatLastId.delete(id);
+  renderChatBerichten();
+  try {
+    await fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'deleteChat', id})});
+  } catch(e){ console.warn('deleteChat fout:', e); }
 }
 
 async function fetchChatBerichten(){
