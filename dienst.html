@@ -152,6 +152,14 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .sleep-btn.in-dienst { background:#2a9c4a; box-shadow:0 4px 20px rgba(42,156,74,0.35); }
 .sleep-btn.uit-dienst { background:#c42a2a; box-shadow:0 4px 20px rgba(196,42,42,0.35); }
 
+/* Sleep-knop sticky footer */
+#sleep-btn-wrap {
+  position:sticky; bottom:0; left:0; right:0;
+  background:linear-gradient(transparent, var(--bg) 30%);
+  padding:12px 0 16px; z-index:20;
+}
+body { padding-bottom:80px; }
+
 /* Uitdienst sectie */
 .uitdienst-section {
   background:var(--surface); border-radius:14px;
@@ -241,10 +249,12 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
   </div>
 </div>
 
-<!-- Sleep/Uit dienst knop -->
-<button class="sleep-btn" id="sleep-btn" ontouchstart="startSleep(event)" onmousedown="startSleep(event)">
-  ☀️ Sleep naar in dienst
-</button>
+<!-- Sleep/Uit dienst knop — sticky onderaan -->
+<div id="sleep-btn-wrap">
+  <button class="sleep-btn" id="sleep-btn" ontouchstart="startSleep(event)" onmousedown="startSleep(event)">
+    ☀️ Sleep naar in dienst
+  </button>
+</div>
 
 <!-- Uit dienst sectie -->
 <div class="uitdienst-section" id="uitdienst-section">
