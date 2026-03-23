@@ -1981,27 +1981,52 @@ let chatBerichten = [];
 let chatIkBen     = null;
 let chatMinimized = false;
 let chatLastId    = new Set();
+let chatVerwijderd = new Set(); // ids van verwijderde berichten — nooit meer ophalen
 
-// Sleepbaar maken
+// Sleepbaar maken — muis én touch
 (function(){
   const win = document.getElementById('chat-window');
   const hdr = document.getElementById('chat-header');
   let dragging=false, startX, startY, startL, startT;
-  hdr.addEventListener('mousedown', e=>{
-    if(e.target.id==='chat-minimize') return;
+
+  function startDrag(clientX, clientY){
     dragging=true;
     const r=win.getBoundingClientRect();
-    startX=e.clientX; startY=e.clientY; startL=r.left; startT=r.top;
+    startX=clientX; startY=clientY; startL=r.left; startT=r.top;
     win.style.right='auto'; win.style.bottom='auto';
     win.style.left=startL+'px'; win.style.top=startT+'px';
+  }
+
+  function moveDrag(clientX, clientY){
+    if(!dragging) return;
+    const maxL = window.innerWidth  - win.offsetWidth;
+    const maxT = window.innerHeight - win.offsetHeight;
+    win.style.left = Math.max(0, Math.min(maxL, startL+(clientX-startX)))+'px';
+    win.style.top  = Math.max(0, Math.min(maxT, startT+(clientY-startY)))+'px';
+  }
+
+  // Muis
+  hdr.addEventListener('mousedown', e=>{
+    if(e.target.id==='chat-minimize') return;
+    startDrag(e.clientX, e.clientY);
     e.preventDefault();
   });
-  window.addEventListener('mousemove', e=>{
-    if(!dragging) return;
-    win.style.left = Math.max(0, startL+(e.clientX-startX))+'px';
-    win.style.top  = Math.max(0, startT+(e.clientY-startY))+'px';
-  });
+  window.addEventListener('mousemove', e=>{ if(dragging) moveDrag(e.clientX, e.clientY); });
   window.addEventListener('mouseup', ()=>dragging=false);
+
+  // Touch
+  hdr.addEventListener('touchstart', e=>{
+    if(e.target.id==='chat-minimize') return;
+    const t=e.touches[0];
+    startDrag(t.clientX, t.clientY);
+    e.preventDefault();
+  },{passive:false});
+  window.addEventListener('touchmove', e=>{
+    if(!dragging) return;
+    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    e.preventDefault();
+  },{passive:false});
+  window.addEventListener('touchend', ()=>dragging=false);
 })();
 
 function toggleChatMinimize(){
@@ -2117,6 +2142,7 @@ async function verstuurChatBericht(){
 
 async function verwijderChatBericht(id){
   chatBerichten = chatBerichten.filter(m=>m.id!==id);
+  chatVerwijderd.add(id); // blokkeer terugkomen via poll
   chatLastId.delete(id);
   renderChatBerichten();
   try {
@@ -2133,7 +2159,7 @@ async function fetchChatBerichten(){
     if(data.ok && data.messages){
       let nieuw = false;
       data.messages.forEach(m=>{
-        if(!chatLastId.has(m.id)){
+        if(!chatLastId.has(m.id) && !chatVerwijderd.has(m.id)){
           chatBerichten.push(m);
           chatLastId.add(m.id);
           nieuw = true;
