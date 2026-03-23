@@ -1314,7 +1314,8 @@ function renderDashboard(){
 }
 
 // ── Layer systeem ──────────────────────────────────────────────────────────
-const activeLayers = {
+// Herstel laagkeuzes uit localStorage, met defaults
+const layerDefaults = {
   vv:          true,
   koppels:     false,
   stage:       false,
@@ -1322,11 +1323,27 @@ const activeLayers = {
   dagbesteding:false,
   nacht:       false,
 };
+let savedLayers = {};
+try { savedLayers = JSON.parse(localStorage.getItem('active_layers')||'{}'); } catch(e) {}
+const activeLayers = Object.assign({}, layerDefaults, savedLayers);
+
+// Pas checkboxen en labels aan op basis van herstelde keuzes
+window.addEventListener('DOMContentLoaded', ()=>{
+  Object.keys(activeLayers).forEach(name=>{
+    const lbl = document.getElementById('layer-'+name);
+    if(!lbl) return;
+    const cb = lbl.querySelector('input[type=checkbox]');
+    if(cb) cb.checked = activeLayers[name];
+    lbl.classList.toggle('active', activeLayers[name]);
+  });
+});
 
 function toggleLayer(name, on){
   activeLayers[name] = on;
   const lbl = document.getElementById('layer-'+name);
   if(lbl) lbl.classList.toggle('active', on);
+  // Bewaar laagkeuzes in localStorage
+  try { localStorage.setItem('active_layers', JSON.stringify(activeLayers)); } catch(e) {}
 
   switch(name){
     case 'vv':
