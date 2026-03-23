@@ -229,81 +229,6 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   font-size:11px; font-weight:700; text-decoration:none;
   font-family:'Segoe UI',sans-serif;
 }
-
-/* ── Chat venster ──────────────────────────────────────────────────────────── */
-#chat-window {
-  position:fixed; bottom:120px; right:16px; width:300px;
-  background:rgba(10,14,30,0.97); border:1px solid rgba(255,255,255,0.15);
-  border-radius:14px; z-index:35; font-family:'Segoe UI',sans-serif;
-  box-shadow:0 8px 32px rgba(0,0,0,0.6); display:flex; flex-direction:column;
-  overflow:hidden; transition:height 0.2s;
-  backdrop-filter:blur(12px);
-}
-#chat-window.minimized { height:44px !important; }
-#chat-header {
-  display:flex; align-items:center; gap:8px; padding:10px 12px;
-  background:rgba(255,255,255,0.05); cursor:move; user-select:none;
-  border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;
-}
-#chat-header .chat-title { color:#fff; font-size:13px; font-weight:700; flex:1; }
-#chat-header .chat-dot { width:8px; height:8px; border-radius:50%; background:#4cdd8a; flex-shrink:0; }
-#chat-minimize {
-  background:none; border:none; color:#888; cursor:pointer; font-size:16px;
-  line-height:1; padding:0 2px; flex-shrink:0;
-}
-#chat-minimize:hover { color:#fff; }
-#chat-who {
-  padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;
-}
-#chat-who select {
-  width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
-  border-radius:8px; color:#fff; padding:5px 8px;
-  font-family:'Segoe UI',sans-serif; font-size:12px; outline:none;
-}
-#chat-messages {
-  flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;
-  min-height:160px; max-height:260px;
-}
-#chat-messages::-webkit-scrollbar { width:4px; }
-#chat-messages::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:2px; }
-.chat-msg { display:flex; gap:8px; align-items:flex-start; }
-.chat-msg .chat-avatar {
-  width:26px; height:26px; border-radius:50%; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center;
-  font-size:9px; font-weight:900; color:#fff;
-}
-.chat-msg .chat-bubble { flex:1; }
-.chat-msg .chat-meta { font-size:10px; color:#888; margin-bottom:2px; }
-.chat-msg .chat-meta b { color:#ccc; }
-.chat-msg .chat-text { font-size:12px; color:#ddd; line-height:1.4; word-break:break-word; }
-.chat-msg.eigen .chat-bubble { text-align:right; }
-.chat-msg.eigen .chat-text {
-  background:rgba(100,180,255,0.15); border-radius:8px; padding:4px 8px; display:inline-block;
-}
-#chat-input-row {
-  display:flex; gap:6px; padding:8px 10px;
-  border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;
-}
-#chat-input {
-  flex:1; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
-  border-radius:8px; color:#fff; padding:6px 10px;
-  font-family:'Segoe UI',sans-serif; font-size:12px; outline:none;
-}
-#chat-input::placeholder { color:#555; }
-#chat-send {
-  background:#2a6fc4; border:none; border-radius:8px; color:#fff;
-  padding:6px 12px; cursor:pointer; font-size:13px; font-weight:700;
-  flex-shrink:0;
-}
-#chat-send:hover { background:#3a7fd4; }
-#chat-toggle {
-  position:fixed; bottom:120px; right:16px; z-index:34;
-  background:rgba(10,14,30,0.92); border:1px solid rgba(255,255,255,0.2);
-  border-radius:50%; width:44px; height:44px; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  font-size:20px; box-shadow:0 4px 16px rgba(0,0,0,0.4);
-  backdrop-filter:blur(8px); display:none;
-}
 </style>
 </head>
 <body>
@@ -793,24 +718,81 @@ function updateChantalDiv(){
   const kleur = s === 'welkom' ? '#4cdd8a' : '#ff4444';
   const label = s === 'welkom' ? 'welkom' : 'bezet';
   chantalDiv.innerHTML = `
-    <div style="background:rgba(10,15,40,0.92);border:1.5px solid ${kleur};border-radius:7px;padding:5px 11px;display:inline-flex;align-items:center;gap:7px;box-shadow:0 0 8px ${kleur}55;">
-      <span style="width:10px;height:10px;border-radius:50%;background:${kleur};flex-shrink:0;display:inline-block"></span>
-      <span style="color:#fff;font-weight:700;font-size:13px">Chantal</span>
-      <span style="color:${kleur};font-size:11px;font-weight:600">${label}</span>
+    <div style="background:rgba(10,15,40,0.88);border:1px solid ${kleur};border-radius:6px;padding:3px 7px;display:inline-flex;align-items:center;gap:5px;box-shadow:0 0 6px ${kleur}44;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${kleur};flex-shrink:0;display:inline-block"></span>
+      <span style="color:${kleur};font-size:12px;font-weight:700">${label}</span>
+      <span style="color:#777;font-size:9px;font-weight:400;margin-left:1px">Chantal</span>
     </div>`;
 }
-chantalDiv.addEventListener('click', ev=>{ ev.stopPropagation(); toggleChantal(); });
+// Vaste lijst van mensen die het bordje mogen bedienen
+const CHANTAL_BEDIENERS = ['Chantal de Vries', 'Rachel Jansen', 'Albert van Esveld'];
+let chantalBediener = localStorage.getItem('chantal_bediener') || null;
+
+// Mini-popup voor bediening
+const chantalPopup = document.createElement('div');
+chantalPopup.id = 'chantal-popup';
+chantalPopup.style.cssText = `
+  position:fixed; display:none; z-index:60;
+  background:rgba(10,14,30,0.97); border:1px solid rgba(255,255,255,0.2);
+  border-radius:12px; padding:14px 16px; min-width:180px;
+  font-family:'Segoe UI',sans-serif; box-shadow:0 8px 32px rgba(0,0,0,0.6);
+`;
+chantalPopup.innerHTML = `
+  <div style="font-size:11px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">Wie ben jij?</div>
+  ${CHANTAL_BEDIENERS.map(n=>`
+    <button onclick="chantalBedien('${n}')" style="display:block;width:100%;text-align:left;
+      background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+      border-radius:7px;color:#ddd;padding:7px 10px;margin-bottom:6px;cursor:pointer;
+      font-family:'Segoe UI',sans-serif;font-size:12px;font-weight:600;"
+      onmouseover="this.style.background='rgba(255,255,255,0.14)'"
+      onmouseout="this.style.background='rgba(255,255,255,0.06)'">${n}</button>
+  `).join('')}
+  <button onclick="document.getElementById('chantal-popup').style.display='none'"
+    style="display:block;width:100%;text-align:center;background:none;border:none;
+    color:#555;cursor:pointer;font-size:11px;margin-top:2px;">Annuleren</button>
+`;
+document.body.appendChild(chantalPopup);
+
+function chantalBedien(naam){
+  chantalBediener = naam;
+  localStorage.setItem('chantal_bediener', naam);
+  document.getElementById('chantal-popup').style.display = 'none';
+  toggleChantal();
+}
+
+chantalDiv.addEventListener('click', ev=>{
+  ev.stopPropagation();
+  // Als bediener al bekend is (in localStorage), direct togglen
+  if(chantalBediener && CHANTAL_BEDIENERS.includes(chantalBediener)){
+    toggleChantal();
+  } else {
+    // Toon popup om te identificeren
+    const r = chantalDiv.getBoundingClientRect();
+    chantalPopup.style.left = Math.min(r.left, window.innerWidth - 210) + 'px';
+    chantalPopup.style.top  = (r.bottom + 8) + 'px';
+    chantalPopup.style.display = 'block';
+  }
+});
+
+// Sluit popup bij klik buiten
+document.addEventListener('click', ev=>{
+  const p = document.getElementById('chantal-popup');
+  if(p && p.style.display==='block' && !p.contains(ev.target)){
+    p.style.display='none';
+  }
+});
+
 updateChantalDiv();
 
 function updateChantalPos(){
-  const show = (activeFloor === CHANTAL_FLOOR);
-  if(!show){ chantalDiv.style.display='none'; return; }
-  const floorY = CHANTAL_FLOOR * FLOOR_GAP;
-  const p = proj2D(CHANTAL_X, CHANTAL_Z, floorY);
+  // Bordje altijd zichtbaar, geprojecteerd op de actieve etage
+  const floorY = activeFloor * FLOOR_GAP;
+  // Projecteer op de 3e etage hoogte maar toon op de actieve etage positie
+  const p = proj2D(CHANTAL_X, CHANTAL_Z, CHANTAL_FLOOR * FLOOR_GAP);
   if(!p.visible){ chantalDiv.style.display='none'; return; }
   chantalDiv.style.display = 'block';
   chantalDiv.style.left = p.sx + 'px';
-  chantalDiv.style.top  = (p.sy - 38) + 'px'; // boven het kamertje
+  chantalDiv.style.top  = (p.sy - 38) + 'px';
 }
 
 
@@ -1454,7 +1436,6 @@ function buildDienstVisualisatie(){
 
   // Na bouwen van alle stippen: hitbollen aanmaken voor klikdetectie
   rebuildStipHitbollen();
-  updateChatSelect();
 }
 
 // Laat stippen pulsen in animatieloop
@@ -1514,11 +1495,12 @@ rachelPanel.innerHTML = `
 
   <div style="margin-bottom:10px">
     <label style="font-size:10px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:4px">Functie</label>
-    <select id="ra-functie" style="width:100%;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:8px 10px;font-family:'Segoe UI',sans-serif;font-size:13px;outline:none;-webkit-appearance:none">
-      <option value="BGL">Begeleider</option>
-      <option value="SBG">Stagebegeleider</option>
-      <option value="TL">Teamleider</option>
-      <option value="GDR">Gedragsdeskundige</option>
+    <select id="ra-functie" onchange="updateEtageButtons()" style="width:100%;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:8px 10px;font-family:'Segoe UI',sans-serif;font-size:13px;outline:none;-webkit-appearance:none">
+      <option value="BGLB">Begeleider B</option>
+      <option value="BGLC">Begeleider C</option>
+      <option value="CIOP">CIOP</option>
+      <option value="STG">Stagiair(e)</option>
+      <option value="MGR">Manager</option>
     </select>
   </div>
 
@@ -1545,12 +1527,23 @@ let rachelPanelKoppels = new Set();
 
 function rachelSetEtage(idx, btn){
   rachelPanelEtage = idx;
-  document.querySelectorAll('[data-etage]').forEach(b=>{
-    b.style.background = parseInt(b.dataset.etage)===idx ? '#ff88cc' : 'rgba(255,255,255,0.05)';
-    b.style.color      = parseInt(b.dataset.etage)===idx ? '#1a1a2e' : '#aaa';
-  });
+  updateEtageButtons();
   buildRachelKoppels();
   buildRachelOverzicht();
+}
+
+function updateEtageButtons(){
+  const isMgr = document.getElementById('ra-functie').value === 'MGR';
+  document.querySelectorAll('[data-etage]').forEach(b=>{
+    const i = parseInt(b.dataset.etage);
+    if(isMgr){
+      b.style.background = '#2a9c4a';
+      b.style.color      = '#fff';
+    } else {
+      b.style.background = i===rachelPanelEtage ? '#ff88cc' : 'rgba(255,255,255,0.05)';
+      b.style.color      = i===rachelPanelEtage ? '#1a1a2e' : '#aaa';
+    }
+  });
 }
 
 function buildRachelKoppels(){
@@ -1636,7 +1629,7 @@ function rachelPanelVoegToe(){
     id: Math.random().toString(36).slice(2,9),
     naam, afkorting: afk,
     functie: document.getElementById('ra-functie').value,
-    kleur, etage: rachelPanelEtage,
+    kleur, etage: document.getElementById('ra-functie').value==='MGR' ? 0 : rachelPanelEtage,
     koppels: [...rachelPanelKoppels],
     stgBegeleider: false, stgNrs: [],
     tijdIn: nlTijd(),
@@ -1889,185 +1882,11 @@ setInterval(fetchVV, 30*1000);
 setInterval(()=>{ checkAlarms(); updateVochtOverlay(); }, 30*1000);
 setInterval(fetchChantalStatus, 30*1000);
 fetchChantalStatus(); // direct bij laden
-setInterval(fetchChatBerichten, 15*1000);
-fetchChatBerichten(); // direct bij laden
 
 
-
-
-// ════════════════════════════════════════════════════════════════════════════
-// TEAMCHAT
-// ════════════════════════════════════════════════════════════════════════════
-let chatBerichten = [];       // lokale cache
-let chatIkBen     = null;     // geselecteerde collega {naam, afkorting, kleur}
-let chatMinimized = false;
-let chatLastId    = new Set();
-
-// Maak chat-venster sleepbaar
-(function(){
-  const win = document.getElementById('chat-window');
-  const hdr = document.getElementById('chat-header');
-  let dx=0, dy=0, dragging=false, startX, startY, startL, startT;
-  // Initieel rechtsonder verankerd — geen absolute positionering nodig tenzij gesleept
-  hdr.addEventListener('mousedown', e=>{
-    if(e.target.id==='chat-minimize') return;
-    dragging=true;
-    const r=win.getBoundingClientRect();
-    startX=e.clientX; startY=e.clientY; startL=r.left; startT=r.top;
-    win.style.right='auto'; win.style.bottom='auto';
-    win.style.left=startL+'px'; win.style.top=startT+'px';
-    e.preventDefault();
-  });
-  window.addEventListener('mousemove', e=>{
-    if(!dragging) return;
-    win.style.left = Math.max(0, startL+(e.clientX-startX))+'px';
-    win.style.top  = Math.max(0, startT+(e.clientY-startY))+'px';
-  });
-  window.addEventListener('mouseup', ()=>dragging=false);
-})();
-
-function toggleChatMinimize(){
-  chatMinimized = !chatMinimized;
-  const win = document.getElementById('chat-window');
-  const btn = document.getElementById('chat-minimize');
-  win.classList.toggle('minimized', chatMinimized);
-  btn.textContent = chatMinimized ? '+' : '−';
-}
-
-function onChatSelectChange(){
-  const sel = document.getElementById('chat-select');
-  const val = sel.value;
-  if(!val){ chatIkBen=null; return; }
-  const alle = Object.values(dienstRecords).flat();
-  const rec  = alle.find(r=>r.id===val);
-  if(rec) chatIkBen = {id:rec.id, naam:rec.naam, afkorting:rec.afkorting, kleur:rec.kleur||'#888'};
-  renderChatBerichten();
-}
-
-function updateChatSelect(){
-  const sel  = document.getElementById('chat-select');
-  const huidig = sel.value;
-  const alle = Object.values(dienstRecords).flat();
-  sel.innerHTML = '<option value="">— Wie ben jij? —</option>';
-  alle.forEach(r=>{
-    const opt = document.createElement('option');
-    opt.value = r.id;
-    opt.textContent = r.naam + ' (' + (['BG','1e','2e','3e'][r.etage]||'') + ')';
-    sel.appendChild(opt);
-  });
-  if(huidig) sel.value = huidig;
-}
-
-function renderChatBerichten(){
-  const box = document.getElementById('chat-messages');
-  if(!chatBerichten.length){
-    box.innerHTML = '<div style="color:#555;font-size:12px;text-align:center;margin-top:20px">Nog geen berichten vandaag</div>';
-    return;
-  }
-  box.innerHTML = chatBerichten.map(m=>{
-    const eigen = chatIkBen && m.naam === chatIkBen.naam;
-    return `<div class="chat-msg${eigen?' eigen':''}">
-      ${!eigen ? `<div class="chat-avatar" style="background:${m.kleur||'#888'}">${m.afkorting||'?'}</div>` : ''}
-      <div class="chat-bubble">
-        <div class="chat-meta"><b>${m.naam}</b> &nbsp;${m.tijd}</div>
-        <div class="chat-text">${escapeHtml(m.tekst)}</div>
-      </div>
-      ${eigen ? `<div class="chat-avatar" style="background:${m.kleur||'#888'}">${m.afkorting||'?'}</div>` : ''}
-    </div>`;
-  }).join('');
-  box.scrollTop = box.scrollHeight;
-}
-
-function escapeHtml(s){
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-async function verstuurChatBericht(){
-  const input = document.getElementById('chat-input');
-  const tekst = input.value.trim();
-  if(!tekst || !chatIkBen) {
-    if(!chatIkBen) document.getElementById('chat-select').style.borderColor='#ff4444';
-    return;
-  }
-  document.getElementById('chat-select').style.borderColor='';
-  input.value = '';
-  const msg = {
-    id:        Math.random().toString(36).slice(2,11),
-    naam:      chatIkBen.naam,
-    afkorting: chatIkBen.afkorting,
-    kleur:     chatIkBen.kleur,
-    tekst,
-    tijd:      nlTijd(),
-    datum:     nlDatum(),
-  };
-  // Optimistisch toevoegen
-  chatBerichten.push(msg);
-  chatLastId.add(msg.id);
-  renderChatBerichten();
-  // Verstuur naar Sheet
-  try {
-    await fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify({action:'pushChat', message:msg})});
-  } catch(e) { console.warn('pushChat fout:', e); }
-}
-
-async function fetchChatBerichten(){
-  try {
-    const res  = await fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
-      body: JSON.stringify({action:'pullChat'})});
-    const data = await res.json();
-    if(data.ok && data.messages){
-      // Voeg alleen nieuwe berichten toe (voorkom duplicaten)
-      let nieuweBerichtAanwezig = false;
-      data.messages.forEach(m=>{
-        if(!chatLastId.has(m.id)){
-          chatBerichten.push(m);
-          chatLastId.add(m.id);
-          nieuweBerichtAanwezig = true;
-        }
-      });
-      // Sorteer op tijd
-      chatBerichten.sort((a,b)=>a.tijd.localeCompare(b.tijd));
-      if(nieuweBerichtAanwezig){
-        renderChatBerichten();
-        // Knipoog in dot als venster geminimaliseerd is
-        if(chatMinimized){
-          const dot = document.getElementById('chat-dot');
-          dot.style.background='#ffd060';
-          setTimeout(()=>dot.style.background='#4cdd8a', 2000);
-        }
-      }
-    }
-  } catch(e) {}
-}
-
-// Herlaad de select als dienstRecords wijzigen — hook in buildDienstVisualisatie
-const _origBuildDienst = buildDienstVisualisatie;
-// (updateChatSelect wordt aangeroepen vanuit buildDienstVisualisatie via patch hieronder)
 
 </script>
 
-
-
-<!-- ── Chat venster ──────────────────────────────────────────────────────── -->
-<div id="chat-window" style="height:380px">
-  <div id="chat-header">
-    <span class="chat-dot" id="chat-dot"></span>
-    <span class="chat-title">💬 Teamchat</span>
-    <button id="chat-minimize" onclick="toggleChatMinimize()" title="Minimaliseren">−</button>
-  </div>
-  <div id="chat-who">
-    <select id="chat-select" onchange="onChatSelectChange()">
-      <option value="">— Wie ben jij? —</option>
-    </select>
-  </div>
-  <div id="chat-messages"></div>
-  <div id="chat-input-row">
-    <input id="chat-input" placeholder="Typ een bericht…" maxlength="200"
-      onkeydown="if(event.key==='Enter')verstuurChatBericht()">
-    <button id="chat-send" onclick="verstuurChatBericht()">➤</button>
-  </div>
-</div>
 
 </body>
 </html>
