@@ -563,18 +563,8 @@ buildKoppels();
 buildStgGrid();
 loadOpgeslagen();
 
-// Herstel actieve dienst uit localStorage
-try {
-  const saved = localStorage.getItem('dienst_actief');
-  if(saved){
-    inDienstData = JSON.parse(saved);
-    activeEtage = inDienstData.etage || 0;
-    // Update etage tab
-    document.querySelectorAll('.etage-tab').forEach((t,i) => t.classList.toggle('active', i===activeEtage));
-    document.getElementById('sleep-btn').style.display = 'none';
-    // uit-dienst per chip ×
-  }
-} catch(e) {}
+// dienst_actief localStorage opruimen (oude sessie)
+try { localStorage.removeItem('dienst_actief'); } catch(e) {}
 
 pullDienst();
 setInterval(pullDienst, 30*1000);
