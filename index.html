@@ -1832,7 +1832,7 @@ function rebuildStipHitbollen(){
   stipHitbollen.forEach(h=>scene.remove(h));
   stipHitbollen.length = 0;
   dienstStippen.forEach(s=>{
-    const hgeo  = new THREE.SphereGeometry(2.5, 8, 8);
+    const hgeo  = new THREE.SphereGeometry(4.5, 8, 8); // ruime hitzone, ook voor touch
     const hmat  = new THREE.MeshBasicMaterial({visible:false});
     const hmesh = new THREE.Mesh(hgeo, hmat);
     hmesh.position.copy(s.mesh.position);
