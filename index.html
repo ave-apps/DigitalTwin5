@@ -238,6 +238,11 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   box-shadow:0 8px 32px rgba(0,0,0,0.6); display:flex; flex-direction:column;
   overflow:hidden; transition:height 0.2s; backdrop-filter:blur(12px);
 }
+@media (max-width:480px){
+  #chat-window {
+    right:8px; left:8px; width:auto; bottom:80px;
+  }
+}
 #chat-window.minimized { height:44px !important; }
 #chat-header {
   display:flex; align-items:center; gap:8px; padding:10px 12px;
@@ -1837,18 +1842,33 @@ function rebuildStipHitbollen(){
   });
 }
 
-canvas.addEventListener('click', ev=>{
-  if(!stipHitbollen.length) return;
+function checkStipHit(clientX, clientY, ev){
+  if(!stipHitbollen.length) return false;
   const rect = canvas.getBoundingClientRect();
-  const mx = ((ev.clientX-rect.left)/rect.width)*2-1;
-  const my = -((ev.clientY-rect.top)/rect.height)*2+1;
+  const mx = ((clientX-rect.left)/rect.width)*2-1;
+  const my = -((clientY-rect.top)/rect.height)*2+1;
   raycaster3D.setFromCamera(new THREE.Vector2(mx,my), camera);
   const hits = raycaster3D.intersectObjects(stipHitbollen);
   if(hits.length){
-    ev.stopImmediatePropagation();
-    openRachelPopup(hits[0].object.userData.etage, ev.clientX, ev.clientY);
+    if(ev) ev.stopImmediatePropagation();
+    openRachelPopup(hits[0].object.userData.etage, clientX, clientY);
+    return true;
   }
+  return false;
+}
+
+canvas.addEventListener('click', ev=>{
+  checkStipHit(ev.clientX, ev.clientY, ev);
 }, true);
+
+// Touch: stip ook op mobiel klikbaar
+canvas.addEventListener('touchend', ev=>{
+  if(isDragging) return;
+  const t = ev.changedTouches[0];
+  if(checkStipHit(t.clientX, t.clientY, ev)){
+    ev.preventDefault();
+  }
+}, {capture:true, passive:false});
 
 // Sluit popup bij klik buiten
 document.addEventListener('click', ev=>{
