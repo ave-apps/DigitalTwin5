@@ -391,7 +391,8 @@ function renderStrook(){
     chip.innerHTML = `
       <div class="avatar" style="background:${r.kleur}">${r.afkorting}</div>
       <span>${r.naam.split(' ')[0]}</span>
-      <span style="font-size:10px;color:var(--text-dim)">${r.functie}</span>`;
+      <span style="font-size:10px;color:var(--text-dim)">${r.functie}</span>
+      <span onclick="uitDienstId('${r.id}')" style="margin-left:4px;color:#c42a2a;font-size:14px;font-weight:900;cursor:pointer;line-height:1" title="Uit dienst">×</span>`;
     chip.title = `${r.naam} — ${ETAGES[r.etage]}\nKoppels: ${[...r.koppels].join(', ')||'geen'}`;
     strook.appendChild(chip);
   });
@@ -401,8 +402,7 @@ function renderStrook(){
 function startSleep(e){
   const naam = document.getElementById('naam').value.trim();
   if(!naam){ showBanner('Vul eerst je naam in'); return; }
-  if(inDienstData){ showBanner('Je bent al in dienst — scroll naar beneden voor Uit dienst'); return; }
-  // Controleer ook in strook of naam al voorkomt
+  // Controleer of naam al in strook voorkomt
   const bestaand = (dienstRecords[activeEtage]||[]).find(r=>r.naam===naam);
   if(bestaand){ showBanner(`${naam.split(' ')[0]} staat al in dienst op deze etage`); return; }
 
@@ -421,17 +421,21 @@ function startSleep(e){
     datum:     new Date().toISOString().split('T')[0],
   };
 
-  inDienstData = record;
-  try { localStorage.setItem('dienst_actief', JSON.stringify(record)); } catch(e) {}
   if(!dienstRecords[activeEtage]) dienstRecords[activeEtage] = [];
   dienstRecords[activeEtage].push(record);
 
   renderStrook();
-  document.getElementById('sleep-btn').style.display = 'none';
-  document.getElementById('uitdienst-section').style.display = '';
-
   pushDienst(record);
   showBanner(`✓ ${naam.split(' ')[0]} — ${ETAGES[activeEtage]} in dienst`);
+
+  // Formulier resetten voor volgende collega
+  document.getElementById('naam').value = '';
+  selectedKoppels.clear();
+  selectedStg.clear();
+  isStageToggle = false;
+  document.getElementById('stage-toggle').classList.remove('on');
+  document.getElementById('stg-grid-wrap').style.display = 'none';
+  buildKoppels();
 }
 
 // ── Uit dienst ────────────────────────────────────────────────────────────
@@ -447,6 +451,16 @@ function uitDienst(){
   document.getElementById('sleep-btn').style.display = '';
   document.getElementById('uitdienst-section').style.display = 'none';
   showBanner(`🌙 ${naam.split(' ')[0]} — uit dienst`);
+}
+
+// ── Uit dienst per id (chip ×) ───────────────────────────────────────────
+function uitDienstId(id){
+  const rec = (dienstRecords[activeEtage]||[]).find(r=>r.id===id);
+  if(!rec) return;
+  dienstRecords[activeEtage] = dienstRecords[activeEtage].filter(r=>r.id!==id);
+  pushUitDienst(id);
+  renderStrook();
+  showBanner(`🌙 ${rec.naam.split(' ')[0]} — uit dienst`);
 }
 
 // ── GASWA communicatie ────────────────────────────────────────────────────
@@ -558,7 +572,7 @@ try {
     // Update etage tab
     document.querySelectorAll('.etage-tab').forEach((t,i) => t.classList.toggle('active', i===activeEtage));
     document.getElementById('sleep-btn').style.display = 'none';
-    document.getElementById('uitdienst-section').style.display = '';
+    // uit-dienst per chip ×
   }
 } catch(e) {}
 
