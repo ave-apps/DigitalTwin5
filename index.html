@@ -2095,20 +2095,28 @@ function renderChatBerichten(){
   }
   box.innerHTML = chatBerichten.map(m=>{
     const eigen = chatIkBen && m.naam === chatIkBen.naam;
-    const delBtn = eigen
-      ? '<button onclick="verwijderChatBericht(\''+m.id+'\')" '
-        + 'style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:13px;'
-        + 'line-height:1;padding:0 0 0 4px;flex-shrink:0;opacity:0.7" '
-        + 'title="Verwijder bericht">×</button>'
-      : '';
-    return '<div class="chat-msg' + (eigen?' eigen':'') + '" style="align-items:center">'
-      + (!eigen ? '<div class="chat-avatar" style="background:'+(m.kleur||'#888')+'">'+(m.afkorting||'?')+'</div>' : '')
-      + '<div class="chat-bubble">'
-      + '<div class="chat-meta"><b>'+escapeHtml(m.naam)+'</b> &nbsp;'+parseChatTijd(m.tijd)+'</div>'
-      + '<div class="chat-text">'+escapeHtml(m.tekst)+'</div>'
-      + '</div>'
-      + (eigen ? delBtn + '<div class="chat-avatar" style="background:'+(m.kleur||'#888')+'">'+(m.afkorting||'?')+'</div>' : '')
-      + '</div>';
+    const delBtn = '<button onclick="verwijderChatBericht(\'' + m.id + '\')" '
+      + 'style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:14px;'
+      + 'line-height:1;padding:2px 4px;flex-shrink:0;opacity:0.6;align-self:flex-start;margin-top:2px" '
+      + 'title="Verwijderen">&times;</button>';
+    if(eigen){
+      return '<div class="chat-msg eigen" style="align-items:flex-start;justify-content:flex-end">'
+        + delBtn
+        + '<div class="chat-bubble" style="text-align:right;max-width:75%">'
+        + '<div class="chat-meta" style="text-align:right"><b>' + escapeHtml(m.naam) + '</b>&nbsp;' + parseChatTijd(m.tijd) + '</div>'
+        + '<div class="chat-text" style="display:inline-block;text-align:left">' + escapeHtml(m.tekst) + '</div>'
+        + '</div>'
+        + '<div class="chat-avatar" style="background:' + (m.kleur||'#888') + '">' + (m.afkorting||'?') + '</div>'
+        + '</div>';
+    } else {
+      return '<div class="chat-msg" style="align-items:flex-start">'
+        + '<div class="chat-avatar" style="background:' + (m.kleur||'#888') + '">' + (m.afkorting||'?') + '</div>'
+        + '<div class="chat-bubble" style="max-width:75%">'
+        + '<div class="chat-meta"><b>' + escapeHtml(m.naam) + '</b>&nbsp;' + parseChatTijd(m.tijd) + '</div>'
+        + '<div class="chat-text">' + escapeHtml(m.tekst) + '</div>'
+        + '</div>'
+        + '</div>';
+    }
   }).join('');
   box.scrollTop = box.scrollHeight;
 }
