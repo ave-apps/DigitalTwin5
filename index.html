@@ -14,12 +14,12 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   /* Mask: van 8 uur (linksonder) tot 3 uur (rechtsboven) opgaand uit de duisternis */
   /* Twee gradienten gecombineerd: radiaal vanuit het centrum van de bol + hoekverval */
   -webkit-mask-image:
-    radial-gradient(ellipse 88% 85% at 52% 56%, black 42%, transparent 100%),
-    linear-gradient(135deg, transparent 0%, transparent 20%, black 60%);
+    radial-gradient(ellipse 88% 85% at 52% 56%, black 42%, transparent 90%),
+    linear-gradient(145deg, transparent 0%, transparent 18%, black 52%, black 70%, transparent 95%);
   -webkit-mask-composite: source-in;
   mask-image:
-    radial-gradient(ellipse 88% 85% at 52% 56%, black 42%, transparent 100%),
-    linear-gradient(135deg, transparent 0%, transparent 20%, black 60%);
+    radial-gradient(ellipse 88% 85% at 52% 56%, black 42%, transparent 90%),
+    linear-gradient(145deg, transparent 0%, transparent 18%, black 52%, black 70%, transparent 95%);
   mask-composite: intersect;
 }
 #dromer-wrap img {
