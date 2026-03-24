@@ -1087,6 +1087,11 @@ async function fetchVV(){
     const n=Object.keys(nieuw).length;
     setSyncStatus('live', `${n} kamer${n===1?'':'s'} — ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`);
     updateVochtOverlay(); checkAlarms();
+    // Zijpaneel verversen als het open staat
+    const spKamer = document.getElementById('sp-kamer');
+    if(spKamer && document.getElementById('sidepanel').classList.contains('open')){
+      openSidePanel(spKamer.textContent);
+    }
     // Ook dienst-data ophalen
     fetchDienst();
   }catch(e){
