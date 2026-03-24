@@ -7,19 +7,17 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 #dromer {
-  position:fixed; bottom:0; right:0; width:340px; z-index:1;
+  position:fixed; bottom:-30px; right:-10px; width:520px; z-index:36;
   pointer-events:none;
   opacity:0;
-  filter:blur(6px) saturate(0.5);
-  mask-image:radial-gradient(ellipse 90% 85% at 75% 90%, black 35%, transparent 75%);
-  -webkit-mask-image:radial-gradient(ellipse 90% 85% at 75% 90%, black 35%, transparent 75%);
-  animation: dromerIntro 5s ease forwards;
+  filter:blur(8px) saturate(0.3);
+  animation: dromerIntro 14s ease forwards;
 }
 @keyframes dromerIntro {
-  0%   { opacity:0;    filter:blur(6px)  saturate(0.3); }
-  25%  { opacity:0.75; filter:blur(0px)  saturate(1.0); }
-  60%  { opacity:0.75; filter:blur(0px)  saturate(1.0); }
-  100% { opacity:0.12; filter:blur(2px)  saturate(0.5); }
+  0%   { opacity:0;   filter:blur(8px) saturate(0.3); }
+  12%  { opacity:1.0; filter:blur(0px) saturate(1.1); }
+  70%  { opacity:1.0; filter:blur(0px) saturate(1.1); }
+  100% { opacity:0;   filter:blur(5px) saturate(0.0); }
 }
 #canvas { display:block; }
 #ui {
@@ -252,6 +250,12 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   border-radius:14px; z-index:35; font-family:'Segoe UI',sans-serif;
   box-shadow:0 8px 32px rgba(0,0,0,0.6); display:flex; flex-direction:column;
   overflow:hidden; transition:height 0.2s; backdrop-filter:blur(12px);
+  opacity:0; animation: chatVerschijn 1.2s ease 13.5s forwards;
+}
+@keyframes chatVerschijn {
+  0%   { opacity:0; box-shadow:0 0 0px rgba(100,180,255,0); }
+  30%  { opacity:1; box-shadow:0 0 28px 6px rgba(100,180,255,0.55), 0 8px 32px rgba(0,0,0,0.6); }
+  100% { opacity:1; box-shadow:0 8px 32px rgba(0,0,0,0.6); }
 }
 @media (max-width:480px){
   #chat-window {
