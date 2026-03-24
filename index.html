@@ -7,12 +7,19 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 #dromer {
-  position:fixed; bottom:0; right:0; width:320px; z-index:1;
+  position:fixed; bottom:0; right:0; width:340px; z-index:1;
   pointer-events:none;
-  opacity:0.35;
-  filter:blur(1px) saturate(0.7);
+  opacity:0;
+  filter:blur(6px) saturate(0.5);
   mask-image:radial-gradient(ellipse 90% 85% at 75% 90%, black 35%, transparent 75%);
   -webkit-mask-image:radial-gradient(ellipse 90% 85% at 75% 90%, black 35%, transparent 75%);
+  animation: dromerIntro 5s ease forwards;
+}
+@keyframes dromerIntro {
+  0%   { opacity:0;    filter:blur(6px)  saturate(0.3); }
+  25%  { opacity:0.75; filter:blur(0px)  saturate(1.0); }
+  60%  { opacity:0.75; filter:blur(0px)  saturate(1.0); }
+  100% { opacity:0.12; filter:blur(2px)  saturate(0.5); }
 }
 #canvas { display:block; }
 #ui {
@@ -240,7 +247,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 
 /* ── Chat venster ──────────────────────────────────────────────────────────── */
 #chat-window {
-  position:fixed; bottom:120px; right:16px; width:300px;
+  position:fixed; bottom:120px; right:0; width:340px;
   background:rgba(10,14,30,0.97); border:1px solid rgba(255,255,255,0.15);
   border-radius:14px; z-index:35; font-family:'Segoe UI',sans-serif;
   box-shadow:0 8px 32px rgba(0,0,0,0.6); display:flex; flex-direction:column;
@@ -248,7 +255,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 }
 @media (max-width:480px){
   #chat-window {
-    right:8px; left:8px; width:auto; bottom:80px;
+    right:0; left:0; width:100%; bottom:80px; border-radius:14px 14px 0 0;
   }
 }
 #chat-window.minimized { height:44px !important; }
