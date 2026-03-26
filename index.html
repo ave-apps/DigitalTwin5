@@ -2270,8 +2270,237 @@ async function fetchChatBerichten(){
 
 // ── Data ─────────────────────────────────────────────────────────────────
 let stgData = [];
-let stgLabelDivs = [];   // { div, line }  — idx correspondeert met stgData[idx]
-let stgFetching = false; // guard: voorkomt parallelle fetches
+let stgLabelMap = new Map(); // id → { div, line, volgnr }
+let stgFetching = false;     // guard: voorkomt parallelle fetches
+
+// ── SVG overlay voor verbindingslijnen ───────────────────────────────────
+const stgSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+stgSvg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:26;';
+document.body.appendChild(stgSvg);
+
+// ── Fase-iconen + kleuren ─────────────────────────────────────────────────
+const STG_FASE_ICON  = { ok:'✓', lopend:'▶', warn:'!', alert:'✕', open:'○' };
+const STG_FASE_KLEUR = { ok:'#4cdd8a', lopend:'#64b4ff', warn:'#ffaa44', alert:'#ff5555', open:'#888' };
+const STG_FASE_LABEL = { ok:'goed', lopend:'loopt', warn:'aandacht', alert:'probleem', open:'gepland' };
+
+// ── Kamer-string → 3D coördinaten ────────────────────────────────────────
+function kamerNaarPos(kamer) {
+  const delen = String(kamer).split('.');
+  if (delen.length < 2) return null;
+  const etage = parseInt(delen[0]);
+  const nr    = parseInt(delen[1]);
+  if (isNaN(etage) || isNaN(nr)) return null;
+  const s = K * (3 - etage) / 3;
+  const kamerMap = {
+    11:{x:(xL5+xL4)/2-s,z:zAc}, 12:{x:(xL4+xL3)/2-s,z:zAc},
+    31:{x:(xR4+xR5)/2+s,z:zAc}, 32:{x:(xR3+xR4)/2+s,z:zAc},
+    10:{x:(xL4+xL3)/2-s,z:zVc},  9:{x:(xL3+xL2)/2-s,z:zVc},
+     8:{x:(xL2+xL1)/2-s,z:zVc},  7:{x:(xL1+xM1)/2-s,z:zVc},
+    27:{x:(xM2+xR1)/2+s,z:zVc}, 28:{x:(xR1+xR2)/2+s,z:zVc},
+    29:{x:(xR2+xR3)/2+s,z:zVc}, 30:{x:(xR3+xR4)/2+s,z:zVc},
+  };
+  const pos = kamerMap[nr];
+  if (!pos) return null;
+  return { ...pos, floor: etage };
+}
+
+// ── Data ophalen ──────────────────────────────────────────────────────────
+async function fetchStagiairs() {
+  if (stgFetching) return;
+  stgFetching = true;
+  try {
+    const res  = await fetch(GASWA, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'pullStagiairs' })
+    });
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.stagiairs)) {
+      stgData = data.stagiairs;
+      herbouwStagelijnDivs();
+    }
+  } catch(e) { console.warn('fetchStagiairs fout:', e); }
+  finally { stgFetching = false; }
+}
+
+// ── DOM herbouwen (eenmalig per fetch) ───────────────────────────────────
+function herbouwStagelijnDivs() {
+  // Verwijder ALLE stagelijn-elementen via class — ook eventuele wezen
+  labelContainer.querySelectorAll('.stg-label-div').forEach(el => el.remove());
+  stgSvg.querySelectorAll('.stg-line').forEach(el => el.remove());
+  stgLabelMap = new Map();
+
+  stgData.forEach((stg, volgnr) => {
+    const div  = maakStagelijnDiv(stg.id, volgnr);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.classList.add('stg-line');
+    line.setAttribute('stroke','rgba(255,255,255,0.7)');
+    line.setAttribute('stroke-width','1.5');
+    line.setAttribute('stroke-dasharray','4 3');
+    line.style.display = 'none';
+    stgSvg.appendChild(line);
+    labelContainer.appendChild(div);
+    stgLabelMap.set(stg.id, { div, line, volgnr });
+  });
+}
+
+// ── Div aanmaken — gekoppeld aan stg.id, niet aan index ──────────────────
+function maakStagelijnDiv(stgId, volgnr) {
+  const div = document.createElement('div');
+  div.className = 'stg-label-div';
+  div.style.cssText = 'position:absolute;pointer-events:auto;display:none;user-select:none;font-family:Segoe UI,sans-serif;min-width:120px;cursor:pointer;';
+
+  // Tooltip helpers
+  function stgTip(e, html) {
+    const tip = document.getElementById('tooltip');
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top  = (e.clientY - 10) + 'px';
+  }
+  function stgTipMove(e) {
+    const tip = document.getElementById('tooltip');
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top  = (e.clientY - 10) + 'px';
+  }
+  function stgTipHide() { document.getElementById('tooltip').style.display = 'none'; }
+
+  // Naamtag — volgnr voor weergave (STG1, STG2...), id voor data-opzoek
+  const naamTag = document.createElement('div');
+  naamTag.style.cssText = 'background:#22c55e;color:#fff;font-size:12px;font-weight:800;padding:3px 10px;border-radius:4px;margin-bottom:8px;display:inline-block;letter-spacing:.5px;border:2px solid #fff;cursor:pointer;';
+  naamTag.textContent = 'STG' + (volgnr + 1);
+
+  // Tooltip: altijd live opzoeken via id
+  naamTag.onmouseenter = (e) => {
+    const live = stgData.find(s => s.id === stgId);
+    if (!live) return;
+    const liveFases = Array.isArray(live.fases) ? live.fases : [];
+    const liveFase  = liveFases.find(f=>f.status==='lopend') || liveFases[0];
+    const liveKleur = STG_FASE_KLEUR[liveFase?.status||'open'] || '#888';
+    const livePct   = liveFases.length ? Math.round(liveFases.filter(f=>f.status==='ok').length/liveFases.length*100) : 0;
+    stgTip(e,
+      `<b style="color:#22c55e">STG${volgnr+1} — ${live.naam}</b><br>` +
+      `📍 kamer ${live.kamer||'?'} &nbsp;·&nbsp; 👤 ${live.begeleider||'?'}<br>` +
+      `🏫 ${live.school||'?'}<br>` +
+      `📅 ${live.start||'?'} → ${live.eind||'?'}<br>` +
+      `<span style="background:${liveKleur}22;color:${liveKleur};padding:1px 6px;border-radius:8px;font-size:10px">` +
+      `${liveFase?.label||'—'} &nbsp; ${livePct}%</span>`
+    );
+  };
+  naamTag.onmousemove = stgTipMove;
+  naamTag.onmouseleave = stgTipHide;
+  div.appendChild(naamTag);
+
+  // Tijdlijn — opgebouwd vanuit stgData op aanmaakmoment (herbouw bij elke fetch)
+  const stg = stgData.find(s => s.id === stgId);
+  const tl = document.createElement('div');
+  tl.style.cssText = 'display:flex;flex-direction:column;gap:0;padding-left:8px;border-left:2px solid rgba(255,255,255,0.25);margin-left:10px;';
+
+  const fases = Array.isArray(stg?.fases) ? stg.fases : [];
+  const toTonen = fases.length > 0 ? fases : [
+    {code:'ST-00',label:'Start stage',datum:stg?.start,status:'ok'},
+    {code:'ST-99',label:'Einde stage',datum:stg?.eind,status:'open'},
+  ];
+
+  toTonen.forEach(fase => {
+    const rij   = document.createElement('div');
+    rij.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;position:relative;';
+    const kleur = STG_FASE_KLEUR[fase.status] || '#888';
+    const icoon = STG_FASE_ICON[fase.status] || '○';
+
+    const knoop = document.createElement('div');
+    knoop.style.cssText = `width:24px;height:24px;border-radius:50%;background:${kleur};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0;margin-left:-13px;border:2px solid rgba(255,255,255,0.6);cursor:${fase.link?'pointer':'default'};`;
+    knoop.textContent = icoon;
+    knoop.onmouseenter = (e) => stgTip(e,
+      `<b style="color:${kleur}">${fase.code||''} — ${fase.label||''}</b><br>` +
+      `📅 ${fase.datum||'?'}<br>` +
+      `<span style="color:${kleur};font-size:10px">${STG_FASE_LABEL[fase.status]||fase.status||'?'}</span>` +
+      (fase.link?`<br><span style="color:#aaddff;font-size:10px">📄 klik voor document</span>`:'')
+    );
+    knoop.onmousemove = stgTipMove;
+    knoop.onmouseleave = stgTipHide;
+    if (fase.link) knoop.onclick = (e) => { e.stopPropagation(); window.open(fase.link,'_blank'); };
+
+    const tekst = document.createElement('div');
+    tekst.style.cssText = 'line-height:1.3;';
+    const labelEl = document.createElement('div');
+    labelEl.style.cssText = 'background:rgba(10,14,40,0.85);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);white-space:nowrap;';
+    labelEl.textContent = fase.label || fase.code;
+    if (fase.link) {
+      const badge = document.createElement('span');
+      badge.style.cssText = 'background:rgba(255,255,255,0.12);color:#aaddff;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;border:1px solid rgba(100,180,255,0.3);';
+      badge.textContent = '.docx';
+      labelEl.appendChild(badge);
+    }
+    const datumEl = document.createElement('div');
+    datumEl.style.cssText = 'color:rgba(255,255,255,0.6);font-size:10px;padding-left:2px;margin-top:1px;';
+    datumEl.textContent = fase.datum || '';
+    tekst.appendChild(labelEl);
+    tekst.appendChild(datumEl);
+    rij.appendChild(knoop);
+    rij.appendChild(tekst);
+    tl.appendChild(rij);
+  });
+
+  div.appendChild(tl);
+  return div;
+}
+
+// ── Tonen / verbergen ─────────────────────────────────────────────────────
+function toonStagelijn()  { stgLabelMap.forEach(({div,line})=>{ div.style.display='block'; line.style.display=''; }); }
+function hideStagelijn()  { stgLabelMap.forEach(({div,line})=>{ div.style.display='none';  line.style.display='none'; }); }
+
+// ── Positioneren elke frame — opzoek via id ───────────────────────────────
+function updateStagelijnPosities() {
+  if (!activeLayers.stage) return;
+
+  stgLabelMap.forEach(({ div, line, volgnr }, stgId) => {
+    const stg = stgData.find(s => s.id === stgId);
+    if (!stg) { div.style.display='none'; line.style.display='none'; return; }
+
+    const pos = kamerNaarPos(stg.kamer);
+    let ankerScherm = null;
+    if (pos) {
+      const p = proj2D(pos.x, pos.z, pos.floor * FLOOR_GAP);
+      if (p.visible) ankerScherm = p;
+    }
+
+    if (!ankerScherm) { div.style.display='none'; line.style.display='none'; return; }
+
+    div.style.display = 'block';
+    const panelX = Math.max(10, ankerScherm.sx - 260 - volgnr * 10);
+    const panelY = Math.max(60, ankerScherm.sy - 80 - volgnr * 30);
+    div.style.left = panelX + 'px';
+    div.style.top  = panelY + 'px';
+
+    const divRect = div.getBoundingClientRect();
+    line.setAttribute('x1', panelX + divRect.width);
+    line.setAttribute('y1', panelY + 20);
+    line.setAttribute('x2', ankerScherm.sx);
+    line.setAttribute('y2', ankerScherm.sy);
+    line.style.display = '';
+  });
+}
+
+// ── Integreer in render-loop ──────────────────────────────────────────────
+const _origUpdateLabelDivs = updateLabelDivs;
+updateLabelDivs = function() {
+  _origUpdateLabelDivs();
+  if (activeLayers.stage) updateStagelijnPosities();
+  else hideStagelijn();
+};
+
+// ── Stage-laag aan/uit via bestaande toggleLayer ──────────────────────────
+const _origDrawZorgkoppels = drawZorgkoppels;
+drawZorgkoppels = function() {
+  _origDrawZorgkoppels();
+  // Alleen tonen/verbergen — GEEN fetch hier (fetchStagiairs loopt via interval)
+  if (activeLayers.stage) toonStagelijn();
+  else hideStagelijn();
+};
+
+// ── Data ophalen bij start + periodiek verversen ──────────────────────────
+fetchStagiairs();
+setInterval(fetchStagiairs, 15000);  // elke 15s — snel genoeg voor kamerwijzigingen
 
 // ── SVG overlay voor verbindingslijnen ───────────────────────────────────
 const stgSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
