@@ -619,7 +619,6 @@ function saveStagiair(){
     code:  f.code,
     label: f.label,
     datum: document.getElementById(f.id+'-datum').value,
-    link:  document.getElementById(f.id+'-link').value.trim(),
     status: i === 0 ? status : (i < FASES.findIndex(x=>x.id===FASES.find((_,j)=>j===0)?.id) ? 'ok' : 'open'),
   }));
 
