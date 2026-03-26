@@ -347,6 +347,15 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
     </div>
   </div>
   <div class="app-btn">
+    <span class="app-dot" style="background:#ffaa22"></span>
+    🎓 Stagebeheer
+    <div class="qr-popup" id="qr-stage">
+      <canvas id="qrc-stage" width="140" height="140"></canvas>
+      <div class="qr-label">Scan opent stagebeheer</div>
+      <a class="qr-open" href="stagiair.html" target="_blank">Openen ↗</a>
+    </div>
+  </div>
+  <div class="app-btn">
     <span class="app-dot" style="background:#4cdd8a"></span>
     💧 Vocht &amp; Voeding
     <div class="qr-popup" id="qr-vv">
@@ -1457,6 +1466,7 @@ function makeQR(canvasId, url){
 window.addEventListener('load', ()=>{
   const base = window.location.href.replace('index.html','').replace(/\/$/, '');
   makeQR('qrc-dienst', base + '/dienst.html');
+  makeQR('qrc-stage',  base + '/stagiair.html');
   makeQR('qrc-vv',     'https://ave-apps.github.io/vocht-voeding/');
 });
 

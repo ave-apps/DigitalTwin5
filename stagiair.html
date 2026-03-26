@@ -235,11 +235,11 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     </div>
     <div class="modal-field">
       <label>Startdatum stage</label>
-      <input id="m-start" type="date">
+      <input id="m-start" type="date" onchange="valideerFaseDatums()">
     </div>
     <div class="modal-field">
       <label>Einddatum stage</label>
-      <input id="m-eind" type="date">
+      <input id="m-eind" type="date" onchange="valideerFaseDatums()">
     </div>
 
     <div style="font-size:12px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">
@@ -250,7 +250,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <div class="fase-edit-title">ST-01 — Voorbereiding</div>
         <div class="modal-field" style="margin-bottom:8px">
           <label>Geplande datum</label>
-          <input id="f1-datum" type="date">
+          <input id="f1-datum" type="date" onchange="valideerFaseDatums()">
+          <span id="f1-warn" style="color:#c47a2a;font-size:11px;font-weight:600"></span>
         </div>
         <div class="modal-field" style="margin-bottom:0">
           <label>Google Drive maplink</label>
@@ -261,7 +262,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <div class="fase-edit-title">ST-02 — Uitvoering</div>
         <div class="modal-field" style="margin-bottom:8px">
           <label>Geplande datum</label>
-          <input id="f2-datum" type="date">
+          <input id="f2-datum" type="date" onchange="valideerFaseDatums()">
+          <span id="f2-warn" style="color:#c47a2a;font-size:11px;font-weight:600"></span>
         </div>
         <div class="modal-field" style="margin-bottom:0">
           <label>Google Drive maplink</label>
@@ -272,7 +274,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <div class="fase-edit-title">ST-03 — Beoordeling</div>
         <div class="modal-field" style="margin-bottom:8px">
           <label>Geplande datum</label>
-          <input id="f3-datum" type="date">
+          <input id="f3-datum" type="date" onchange="valideerFaseDatums()">
+          <span id="f3-warn" style="color:#c47a2a;font-size:11px;font-weight:600"></span>
         </div>
         <div class="modal-field" style="margin-bottom:0">
           <label>Google Drive maplink</label>
@@ -283,7 +286,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <div class="fase-edit-title">ST-04 — Evaluatie</div>
         <div class="modal-field" style="margin-bottom:8px">
           <label>Geplande datum</label>
-          <input id="f4-datum" type="date">
+          <input id="f4-datum" type="date" onchange="valideerFaseDatums()">
+          <span id="f4-warn" style="color:#c47a2a;font-size:11px;font-weight:600"></span>
         </div>
         <div class="modal-field" style="margin-bottom:0">
           <label>Google Drive maplink</label>
@@ -380,7 +384,7 @@ function initials(naam){
 
 function statusInfo(status, datum){
   const vandaag = new Date().toISOString().split('T')[0];
-  // Als datum verstreken en nog niet ok: automatisch waarschuwen
+  // Alleen 'lopend' met verstreken datum = Vertraagd; 'open' nooit automatisch
   if(status === 'lopend' && datum && datum < vandaag){
     return { cls:'alert', label:'Vertraagd', pill:'pill-alert' };
   }
@@ -392,6 +396,18 @@ function statusInfo(status, datum){
     open:   { cls:'open',   label:'Gepland',    pill:'pill-open'   },
   };
   return map[status] || map.open;
+}
+
+// Kaart-niveau status: beste representatieve fase
+function huidigeFaseSelect(fases){
+  // 1. Eerste 'lopend'
+  const lopend = fases.find(f => f.status === 'lopend');
+  if(lopend) return lopend;
+  // 2. Eerste 'open' (nooit als vertraagd zien)
+  const open = fases.find(f => f.status === 'open');
+  if(open) return open;
+  // 3. Laatste fase
+  return fases[fases.length - 1];
 }
 
 function voortgang(fases){
@@ -421,7 +437,7 @@ function render(){
 
   list.innerHTML = stagiairs.map(s => {
     const pct = voortgang(s.fases);
-    const huidigeFase = s.fases.find(f => f.status === 'lopend') || s.fases[0];
+    const huidigeFase = huidigeFaseSelect(s.fases);
     const si = statusInfo(huidigeFase.status, huidigeFase.datum);
 
     const fasesHtml = FASES.map((f,i) => {
@@ -516,6 +532,33 @@ document.getElementById('modal-overlay').addEventListener('click', e=>{
   if(e.target === document.getElementById('modal-overlay')) closeModal();
 });
 
+function valideerFaseDatums(){
+  const start = document.getElementById('m-start').value;
+  const eind  = document.getElementById('m-eind').value;
+  const ids   = ['f1','f2','f3','f4'];
+  let vorige  = start;
+  let geldig  = true;
+
+  ids.forEach((id, i) => {
+    const inp = document.getElementById(id+'-datum');
+    const waarschEl = document.getElementById(id+'-warn');
+    const val = inp.value;
+    let msg = '';
+
+    if(val){
+      if(start && val < start) msg = '⚠️ Vóór startdatum stage';
+      else if(eind && val > eind) msg = '⚠️ Na einddatum stage';
+      else if(vorige && val < vorige) msg = '⚠️ Vóór datum fase ' + i;
+    }
+
+    if(waarschEl) waarschEl.textContent = msg;
+    if(msg) geldig = false;
+    if(val) vorige = val;
+  });
+
+  return geldig;
+}
+
 function saveStagiair(){
   const naam = document.getElementById('m-naam').value.trim();
   if(!naam){ document.getElementById('m-naam').focus(); return; }
@@ -569,6 +612,9 @@ function saveStagiair(){
     });
   }
 
+  if(!valideerFaseDatums()){
+    if(!confirm('Er zijn datumwaarschuwingen. Toch opslaan?')) return;
+  }
   save();
   closeModal();
 }
