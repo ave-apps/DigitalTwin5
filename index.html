@@ -2360,6 +2360,9 @@ function maakStagelijnDiv(stgId, volgnr) {
     // Niet slepen als er op een knoop of link geklikt wordt
     if (e.target.tagName === 'A' || e.target.closest('a')) return;
     isDragging = true;
+    // Lees huidige positie uit CSS — voorkomt de eerste sprong
+    posX = parseInt(div.style.left) || 0;
+    posY = parseInt(div.style.top)  || 0;
     dragStartX = e.clientX - posX;
     dragStartY = e.clientY - posY;
     div.style.cursor = 'grabbing';
