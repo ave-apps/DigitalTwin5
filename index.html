@@ -2380,20 +2380,22 @@ function bouwStagelijnDiv(stg, idx) {
   `;
   naamTag.textContent = 'STG' + (idx + 1);
 
-  // Custom tooltip op naamtag
-  const _stgFases = Array.isArray(stg.fases) ? stg.fases : [];
-  const huidigeFase = _stgFases.find(f=>f.status==='lopend') || _stgFases[0];
-  const kleurFase   = STG_FASE_KLEUR[huidigeFase?.status||'open'] || '#888';
-  const pctOk       = _stgFases.length ? Math.round(_stgFases.filter(f=>f.status==='ok').length / _stgFases.length * 100) : 0;
-
-  naamTag.onmouseenter = (e) => stgTip(e,
-    `<b style="color:#22c55e">STG${idx+1} — ${stg.naam}</b><br>` +
-    `📍 kamer ${stg.kamer||'?'} &nbsp;·&nbsp; 👤 ${stg.begeleider||'?'}<br>` +
-    `🏫 ${stg.school||'?'}<br>` +
-    `📅 ${stg.start||'?'} → ${stg.eind||'?'}<br>` +
-    `<span style="background:${kleurFase}22;color:${kleurFase};padding:1px 6px;border-radius:8px;font-size:10px">` +
-    `${huidigeFase?.label||'—'} &nbsp; ${pctOk}%</span>`
-  );
+  // Custom tooltip op naamtag — altijd live uit stgData lezen
+  naamTag.onmouseenter = (e) => {
+    const live = stgData[idx] || stg;
+    const liveFases   = Array.isArray(live.fases) ? live.fases : [];
+    const liveFase    = liveFases.find(f=>f.status==='lopend') || liveFases[0];
+    const liveKleur   = STG_FASE_KLEUR[liveFase?.status||'open'] || '#888';
+    const livePct     = liveFases.length ? Math.round(liveFases.filter(f=>f.status==='ok').length / liveFases.length * 100) : 0;
+    stgTip(e,
+      `<b style="color:#22c55e">STG${idx+1} — ${live.naam}</b><br>` +
+      `📍 kamer ${live.kamer||'?'} &nbsp;·&nbsp; 👤 ${live.begeleider||'?'}<br>` +
+      `🏫 ${live.school||'?'}<br>` +
+      `📅 ${live.start||'?'} → ${live.eind||'?'}<br>` +
+      `<span style="background:${liveKleur}22;color:${liveKleur};padding:1px 6px;border-radius:8px;font-size:10px">` +
+      `${liveFase?.label||'—'} &nbsp; ${livePct}%</span>`
+    );
+  };
   naamTag.onmousemove = stgTipMove;
   naamTag.onmouseleave = stgTipHide;
   div.appendChild(naamTag);
@@ -2561,7 +2563,12 @@ function renderStagelijn() {
 function updateStagelijnPosities() {
   if (!activeLayers.stage) return;
 
-  stgLabelDivs.forEach(({ div, line, stg, pos }, idx) => {
+  stgLabelDivs.forEach(({ div, line }, idx) => {
+    // Altijd live lezen uit stgData zodat kamerwissel direct zichtbaar is
+    const stg = stgData[idx];
+    if (!stg) { div.style.display='none'; line.style.display='none'; return; }
+    const pos = kamerNaarPos(stg.kamer);
+
     // Ankerpunt in 3D → scherm
     let ankerScherm = null;
 
