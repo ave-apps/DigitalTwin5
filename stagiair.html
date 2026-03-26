@@ -440,10 +440,29 @@ function voortgang(fases){
   return Math.round((ok / fases.length) * 100);
 }
 
+// Converteert dd-MM-yyyy → yyyy-MM-dd voor gebruik in <input type="date">
+function toInputDatum(d){
+  if(!d) return '';
+  const parts = d.split('-');
+  if(parts.length !== 3) return d;
+  if(parts[0].length === 2) {
+    // dd-MM-yyyy → yyyy-MM-dd
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return d; // al ISO
+}
+
 function formatDatum(d){
   if(!d) return '—';
-  const [y,m,dag] = d.split('-');
-  return `${dag}-${m}-${y}`;
+  // Ondersteunt zowel yyyy-MM-dd (uit input) als dd-MM-yyyy (uit GAS)
+  const parts = d.split('-');
+  if(parts.length !== 3) return d;
+  if(parts[0].length === 4) {
+    // ISO: yyyy-MM-dd → dd-MM-yyyy
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  // Al dd-MM-yyyy
+  return d;
 }
 
 // ── Render ────────────────────────────────────────────────────────
@@ -531,11 +550,11 @@ function openModal(id){
       document.getElementById('m-kamer').value      = s.kamer||'';
       document.getElementById('m-begeleider').value = s.begeleider||'';
       document.getElementById('m-school').value     = s.school||'';
-      document.getElementById('m-start').value      = s.start||'';
-      document.getElementById('m-eind').value       = s.eind||'';
+      document.getElementById('m-start').value      = toInputDatum(s.start||'');
+      document.getElementById('m-eind').value       = toInputDatum(s.eind||'');
       document.getElementById('m-status').value     = s.fases.find(f=>f.status==='lopend')?.status || s.fases[0].status;
       FASES.forEach((f,i)=>{
-        document.getElementById(f.id+'-datum').value = s.fases[i].datum||'';
+        document.getElementById(f.id+'-datum').value = toInputDatum(s.fases[i].datum||'');
         document.getElementById(f.id+'-link').value  = s.fases[i].link||'';
       });
     }
