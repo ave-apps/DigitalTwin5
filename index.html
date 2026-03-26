@@ -2332,7 +2332,25 @@ function bouwStagelijnDiv(stg, idx) {
     user-select:none;
     font-family:'Segoe UI',sans-serif;
     min-width:120px;
+    cursor:pointer;
   `;
+
+  // Custom tooltip helper (zelfde als bestaande kamer-labels)
+  function stgTip(e, html) {
+    const tip = document.getElementById('tooltip');
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top  = (e.clientY - 10) + 'px';
+  }
+  function stgTipMove(e) {
+    const tip = document.getElementById('tooltip');
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top  = (e.clientY - 10) + 'px';
+  }
+  function stgTipHide() {
+    document.getElementById('tooltip').style.display = 'none';
+  }
 
   // Naamtag bovenaan
   const naamTag = document.createElement('div');
@@ -2347,9 +2365,26 @@ function bouwStagelijnDiv(stg, idx) {
     display:inline-block;
     letter-spacing:.5px;
     border:2px solid #fff;
+    cursor:pointer;
   `;
   naamTag.textContent = 'STG' + (idx + 1);
-  naamTag.title = stg.naam + ' — kamer ' + (stg.kamer || '?');
+
+  // Custom tooltip op naamtag
+  const _stgFases = Array.isArray(stg.fases) ? stg.fases : [];
+  const huidigeFase = _stgFases.find(f=>f.status==='lopend') || _stgFases[0];
+  const kleurFase   = STG_FASE_KLEUR[huidigeFase?.status||'open'] || '#888';
+  const pctOk       = _stgFases.length ? Math.round(_stgFases.filter(f=>f.status==='ok').length / _stgFases.length * 100) : 0;
+
+  naamTag.onmouseenter = (e) => stgTip(e,
+    `<b style="color:#22c55e">STG${idx+1} — ${stg.naam}</b><br>` +
+    `📍 kamer ${stg.kamer||'?'} &nbsp;·&nbsp; 👤 ${stg.begeleider||'?'}<br>` +
+    `🏫 ${stg.school||'?'}<br>` +
+    `📅 ${stg.start||'?'} → ${stg.eind||'?'}<br>` +
+    `<span style="background:${kleurFase}22;color:${kleurFase};padding:1px 6px;border-radius:8px;font-size:10px">` +
+    `${huidigeFase?.label||'—'} &nbsp; ${pctOk}%</span>`
+  );
+  naamTag.onmousemove = stgTipMove;
+  naamTag.onmouseleave = stgTipHide;
   div.appendChild(naamTag);
 
   // Tijdlijn-verticale lijn + fase-knooppunten
@@ -2401,9 +2436,18 @@ function bouwStagelijnDiv(stg, idx) {
       cursor:${fase.link ? 'pointer' : 'default'};
     `;
     knoop.textContent = icoon;
+    // Custom tooltip op fase-knooppunten
+    knoop.onmouseenter = (e) => stgTip(e,
+      `<b style="color:${kleur}">${fase.code||''} — ${fase.label||''}</b><br>` +
+      `📅 ${fase.datum||'?'}<br>` +
+      `<span style="color:${kleur};font-size:10px">${STG_FASE_LABEL[fase.status]||fase.status||'?'}</span>` +
+      (fase.link ? `<br><span style="color:#aaddff;font-size:10px">📄 klik voor document</span>` : '')
+    );
+    knoop.onmousemove = stgTipMove;
+    knoop.onmouseleave = stgTipHide;
     if (fase.link) {
       knoop.onclick = (e) => { e.stopPropagation(); window.open(fase.link, '_blank'); };
-      knoop.title = '📄 Open ' + fase.label;
+      knoop.style.cursor = 'pointer';
     }
 
     // Tekstblok naast knooppunt
