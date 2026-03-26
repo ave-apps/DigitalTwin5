@@ -278,10 +278,6 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
           <input id="f1-datum" type="date" onchange="valideerFaseDatums()">
           <span id="f1-warn" style="color:#c47a2a;font-size:11px;font-weight:600"></span>
         </div>
-        <div class="modal-field" style="margin-bottom:0">
-          <label>Google Drive maplink</label>
-          <input id="f1-link" type="url" placeholder="https://drive.google.com/...">
-        </div>
       </div>
       <div class="fase-edit-item">
         <div class="fase-edit-title">ST-02 — Uitvoering</div>
@@ -289,10 +285,6 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
           <label>Geplande datum</label>
           <input id="f2-datum" type="date" onchange="valideerFaseDatums()">
           <span id="f2-warn" style="color:#c47a2a;font-size:11px;font-weight:600"></span>
-        </div>
-        <div class="modal-field" style="margin-bottom:0">
-          <label>Google Drive maplink</label>
-          <input id="f2-link" type="url" placeholder="https://drive.google.com/...">
         </div>
       </div>
       <div class="fase-edit-item">
@@ -302,10 +294,6 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
           <input id="f3-datum" type="date" onchange="valideerFaseDatums()">
           <span id="f3-warn" style="color:#c47a2a;font-size:11px;font-weight:600"></span>
         </div>
-        <div class="modal-field" style="margin-bottom:0">
-          <label>Google Drive maplink</label>
-          <input id="f3-link" type="url" placeholder="https://drive.google.com/...">
-        </div>
       </div>
       <div class="fase-edit-item">
         <div class="fase-edit-title">ST-04 — Evaluatie</div>
@@ -314,10 +302,14 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
           <input id="f4-datum" type="date" onchange="valideerFaseDatums()">
           <span id="f4-warn" style="color:#c47a2a;font-size:11px;font-weight:600"></span>
         </div>
-        <div class="modal-field" style="margin-bottom:0">
-          <label>Google Drive maplink</label>
-          <input id="f4-link" type="url" placeholder="https://drive.google.com/...">
-        </div>
+      </div>
+    </div>
+
+    <div class="modal-field" style="margin-top:16px">
+      <label>Google Drive — stagiairmap</label>
+      <input id="m-drivelink" type="url" placeholder="https://drive.google.com/drive/folders/...">
+      <div style="font-size:10px;color:var(--text-dim);margin-top:4px">
+        Link naar de map van deze stagiair (bijv. ST-00-Stagiairs/Linda-van-Ooijen-2026)
       </div>
     </div>
 
@@ -495,7 +487,6 @@ function render(){
           <span class="fase-status-pill ${fsi.pill}">${fsi.label}</span>
         </div>
         <div class="fase-acties">
-          ${fd.link ? `<a class="fase-btn map" href="${fd.link}" target="_blank">📁 Drive-map</a>` : ''}
           <button class="fase-btn edit" onclick="editFaseStatus('${s.id}',${i})">Status wijzigen</button>
         </div>
       </div>`;
@@ -523,7 +514,10 @@ function render(){
       <div class="stg-fases">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <span style="font-size:12px;font-weight:800;color:var(--text-mid)">Faseverloop</span>
-          <button class="fase-btn edit" onclick="openModal('${s.id}')">✏️ Bewerken</button>
+          <div style="display:flex;gap:8px">
+            ${s.driveLink ? `<a class="fase-btn map" href="${s.driveLink}" target="_blank">📁 Drive-map</a>` : ''}
+            <button class="fase-btn edit" onclick="openModal('${s.id}')">✏️ Bewerken</button>
+          </div>
         </div>
         <div class="fase-tijdlijn">${fasesHtml}</div>
       </div>
@@ -552,18 +546,17 @@ function openModal(id){
       document.getElementById('m-school').value     = s.school||'';
       document.getElementById('m-start').value      = toInputDatum(s.start||'');
       document.getElementById('m-eind').value       = toInputDatum(s.eind||'');
+      document.getElementById('m-drivelink').value  = s.driveLink||'';
       document.getElementById('m-status').value     = s.fases.find(f=>f.status==='lopend')?.status || s.fases[0].status;
       FASES.forEach((f,i)=>{
         document.getElementById(f.id+'-datum').value = toInputDatum(s.fases[i].datum||'');
-        document.getElementById(f.id+'-link').value  = s.fases[i].link||'';
       });
     }
   } else {
-    ['m-naam','m-kamer','m-begeleider','m-school','m-start','m-eind'].forEach(id=>document.getElementById(id).value='');
+    ['m-naam','m-kamer','m-begeleider','m-school','m-start','m-eind','m-drivelink'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('m-status').value='open';
     FASES.forEach(f=>{
       document.getElementById(f.id+'-datum').value='';
-      document.getElementById(f.id+'-link').value='';
     });
   }
   modal.classList.add('open');
@@ -657,11 +650,11 @@ function saveStagiair(){
         school:     document.getElementById('m-school').value.trim(),
         start:      document.getElementById('m-start').value,
         eind:       document.getElementById('m-eind').value,
+        driveLink:  document.getElementById('m-drivelink').value.trim(),
         kamerHistorie: historieNw,
         fases:      FASES.map((f,i)=>({
           code: f.code, label: f.label,
           datum: document.getElementById(f.id+'-datum').value,
-          link:  document.getElementById(f.id+'-link').value.trim(),
           status: stagiairs[idx].fases[i].status,
         }))
       };
@@ -677,9 +670,9 @@ function saveStagiair(){
       fases: FASES.map((f,i)=>({
         code: f.code, label: f.label,
         datum: document.getElementById(f.id+'-datum').value,
-        link:  document.getElementById(f.id+'-link').value.trim(),
         status: i===0 ? status : 'open',
       })),
+      driveLink:    document.getElementById('m-drivelink').value.trim(),
       aangemaaktOp: new Date().toISOString(),
     });
   }
