@@ -672,14 +672,37 @@ function saveStagiair(){
   closeModal();
 }
 
+const ADMIN_PIN = '5B-admin'; // ← pincode hier aanpassen indien gewenst
+
 function deleteStagiair(){
   if(!editingId) return;
   const s = stagiairs.find(x=>x.id===editingId);
   if(!s) return;
-  if(!confirm(`${s.naam} verwijderen?`)) return;
+
+  // Stap 1: admin-pincode
+  const pin = prompt('🔒 Admin-pincode vereist om een stagiair te verwijderen:');
+  if(pin === null) return; // geannuleerd
+  if(pin.trim() !== ADMIN_PIN){
+    alert('❌ Onjuiste pincode. Verwijdering geannuleerd.');
+    return;
+  }
+
+  // Stap 2: expliciete bevestiging met naam
+  if(!confirm(`⚠️ Stagiair "${s.naam}" definitief verwijderen?\n\nDeze actie kan niet ongedaan worden gemaakt.`)) return;
+
+  // Lokaal verwijderen
   stagiairs = stagiairs.filter(x=>x.id!==editingId);
-  save();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stagiairs));
+  render();
   closeModal();
+  showBanner('🗑️ ' + s.naam + ' verwijderd');
+
+  // GAS verwijderen (rij uit sheet)
+  if(GASWA){
+    fetch(GASWA, { method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'deleteStagiair', id: s.id })
+    }).catch(e => console.warn('deleteStagiair fout:', e));
+  }
 }
 
 // ── Fase-status snel wijzigen ─────────────────────────────────────
