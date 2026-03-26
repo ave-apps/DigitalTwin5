@@ -222,8 +222,33 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <input id="m-naam" type="text" placeholder="bijv. Linda van Ooijen-de Boer">
     </div>
     <div class="modal-field">
-      <label>Koppelkamer</label>
-      <input id="m-kamer" type="text" placeholder="bijv. 0.12">
+      <label>Koppelkamer (huidige)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="m-kamer" type="text" placeholder="bijv. 0.12" style="flex:1">
+        <button type="button" onclick="toggleKamerWissel()" id="btn-kamerwissel"
+          style="background:var(--accent);color:#fff;border:none;border-radius:8px;
+          padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+          🔄 Wisselen
+        </button>
+      </div>
+    </div>
+    <div id="kamer-wissel-sectie" style="display:none;background:rgba(255,170,34,0.08);
+      border:1px solid rgba(255,170,34,0.3);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:800;color:#ffaa22;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
+        Kamerwissel vastleggen
+      </div>
+      <div class="modal-field" style="margin-bottom:8px">
+        <label>Nieuwe kamer</label>
+        <input id="m-kamer-nieuw" type="text" placeholder="bijv. 0.08">
+      </div>
+      <div class="modal-field" style="margin-bottom:8px">
+        <label>Datum wisseling</label>
+        <input id="m-kamer-datum" type="date">
+      </div>
+      <div class="modal-field" style="margin-bottom:0">
+        <label>Reden</label>
+        <input id="m-kamer-reden" type="text" placeholder="bijv. Kamer niet beschikbaar / bewoner weigert medewerking">
+      </div>
     </div>
     <div class="modal-field">
       <label>Stagebegeleider</label>
@@ -466,6 +491,9 @@ function render(){
             📍 ${s.kamer||'—'} &nbsp;·&nbsp; 👤 ${s.begeleider||'—'} &nbsp;·&nbsp; 🏫 ${s.school||'—'}
           </div>
           <div class="stg-meta">${formatDatum(s.start)} → ${formatDatum(s.eind)}</div>
+          ${(s.kamerHistorie||[]).length ? `<div class="stg-meta" style="color:#c47a2a;font-size:10px;margin-top:2px">
+            ${(s.kamerHistorie||[]).map(h=>'↩ '+h.oud+'→'+h.nieuw+' ('+formatDatum(h.datum)+(h.reden?' — '+h.reden:'')+')').join(' · ')}
+          </div>` : ''}
         </div>
         <span class="stg-chevron">▼</span>
       </div>
@@ -525,7 +553,18 @@ function openModal(id){
 
 function closeModal(){
   document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('kamer-wissel-sectie').style.display = 'none';
+  document.getElementById('m-kamer-nieuw').value  = '';
+  document.getElementById('m-kamer-datum').value  = '';
+  document.getElementById('m-kamer-reden').value  = '';
   editingId = null;
+}
+
+function toggleKamerWissel(){
+  const s = document.getElementById('kamer-wissel-sectie');
+  const open = s.style.display === 'none';
+  s.style.display = open ? '' : 'none';
+  if(open) document.getElementById('m-kamer-nieuw').focus();
 }
 
 document.getElementById('modal-overlay').addEventListener('click', e=>{
@@ -580,17 +619,31 @@ function saveStagiair(){
   if(editingId){
     const idx = stagiairs.findIndex(s=>s.id===editingId);
     if(idx>=0){
+      const nieuweKamer  = document.getElementById('m-kamer-nieuw').value.trim();
+      const wisselDatum  = document.getElementById('m-kamer-datum').value;
+      const wisselReden  = document.getElementById('m-kamer-reden').value.trim();
+      const oudeKamer    = document.getElementById('m-kamer').value.trim();
+      const historieNw   = [...(stagiairs[idx].kamerHistorie||[])];
+      if(nieuweKamer && nieuweKamer !== oudeKamer){
+        historieNw.push({
+          oud:   oudeKamer || stagiairs[idx].kamer,
+          nieuw: nieuweKamer,
+          datum: wisselDatum || new Date().toISOString().split('T')[0],
+          reden: wisselReden,
+        });
+      }
       stagiairs[idx] = { ...stagiairs[idx], naam,
-        kamer:      document.getElementById('m-kamer').value.trim(),
+        kamer:      nieuweKamer || document.getElementById('m-kamer').value.trim(),
         begeleider: document.getElementById('m-begeleider').value.trim(),
         school:     document.getElementById('m-school').value.trim(),
         start:      document.getElementById('m-start').value,
         eind:       document.getElementById('m-eind').value,
+        kamerHistorie: historieNw,
         fases:      FASES.map((f,i)=>({
           code: f.code, label: f.label,
           datum: document.getElementById(f.id+'-datum').value,
           link:  document.getElementById(f.id+'-link').value.trim(),
-          status: stagiairs[idx].fases[i].status, // status behouden
+          status: stagiairs[idx].fases[i].status,
         }))
       };
     }
