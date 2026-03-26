@@ -2328,6 +2328,7 @@ function herbouwStagelijnDivs() {
   labelContainer.querySelectorAll('.stg-label-div').forEach(el => el.remove());
   stgSvg.querySelectorAll('.stg-line').forEach(el => el.remove());
   stgLabelMap = new Map();
+  // stgDragPos bewust NIET wissen — sleepposities blijven na data-refresh
 
   stgData.forEach((stg, volgnr) => {
     const div  = maakStagelijnDiv(stg.id, volgnr);
@@ -2344,10 +2345,44 @@ function herbouwStagelijnDivs() {
 }
 
 // ── Div aanmaken — gekoppeld aan stg.id, niet aan index ──────────────────
+// ── Sleepposities per stgId — onthouden over herbouw heen ────────────────
+const stgDragPos = new Map(); // stgId → { x, y } schermcoördinaten
+
 function maakStagelijnDiv(stgId, volgnr) {
   const div = document.createElement('div');
   div.className = 'stg-label-div';
-  div.style.cssText = 'position:absolute;pointer-events:auto;display:none;user-select:none;font-family:Segoe UI,sans-serif;min-width:120px;cursor:pointer;';
+  div.style.cssText = 'position:absolute;pointer-events:auto;display:none;user-select:none;font-family:Segoe UI,sans-serif;min-width:120px;cursor:grab;';
+
+  // ── Drag-logica ────────────────────────────────────────────────────────
+  let isDragging = false, dragStartX = 0, dragStartY = 0, posX = 0, posY = 0;
+
+  div.addEventListener('mousedown', (e) => {
+    // Niet slepen als er op een knoop of link geklikt wordt
+    if (e.target.tagName === 'A' || e.target.closest('a')) return;
+    isDragging = true;
+    dragStartX = e.clientX - posX;
+    dragStartY = e.clientY - posY;
+    div.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    posX = e.clientX - dragStartX;
+    posY = e.clientY - dragStartY;
+    div.style.left = posX + 'px';
+    div.style.top  = posY + 'px';
+    stgDragPos.set(stgId, { x: posX, y: posY });
+    // Lijn live meebewegen
+    const entry = stgLabelMap.get(stgId);
+    if (entry) {
+      const divRect = div.getBoundingClientRect();
+      entry.line.setAttribute('x1', posX + divRect.width);
+      entry.line.setAttribute('y1', posY + 20);
+    }
+  });
+  document.addEventListener('mouseup', () => {
+    if (isDragging) { isDragging = false; div.style.cursor = 'grab'; }
+  });
 
   // Tooltip helpers
   function stgTip(e, html) {
@@ -2453,6 +2488,16 @@ function hideStagelijn()  { stgLabelMap.forEach(({div,line})=>{ div.style.displa
 function updateStagelijnPosities() {
   if (!activeLayers.stage) return;
 
+  // Groepeer per kamer voor hoekberekening
+  const kamerGroepen = new Map(); // kamer → [stgId, ...]
+  stgLabelMap.forEach(({ volgnr }, stgId) => {
+    const stg = stgData.find(s => s.id === stgId);
+    if (!stg) return;
+    const k = stg.kamer || '?';
+    if (!kamerGroepen.has(k)) kamerGroepen.set(k, []);
+    kamerGroepen.get(k).push(stgId);
+  });
+
   stgLabelMap.forEach(({ div, line, volgnr }, stgId) => {
     const stg = stgData.find(s => s.id === stgId);
     if (!stg) { div.style.display='none'; line.style.display='none'; return; }
@@ -2463,17 +2508,48 @@ function updateStagelijnPosities() {
       const p = proj2D(pos.x, pos.z, pos.floor * FLOOR_GAP);
       if (p.visible) ankerScherm = p;
     }
-
     if (!ankerScherm) { div.style.display='none'; line.style.display='none'; return; }
 
     div.style.display = 'block';
-    const panelX = Math.max(10, ankerScherm.sx - 260 - volgnr * 10);
-    const panelY = Math.max(60, ankerScherm.sy - 80 - volgnr * 30);
+
+    // Als er een sleeppositie is, label daar laten — alleen lijn aanpassen
+    if (stgDragPos.has(stgId)) {
+      const sp = stgDragPos.get(stgId);
+      div.style.left = sp.x + 'px';
+      div.style.top  = sp.y + 'px';
+      const divRect = div.getBoundingClientRect();
+      line.setAttribute('x1', sp.x + divRect.width);
+      line.setAttribute('y1', sp.y + 20);
+      line.setAttribute('x2', ankerScherm.sx);
+      line.setAttribute('y2', ankerScherm.sy);
+      line.style.display = '';
+      return;
+    }
+
+    // Hoekgebaseerde startpositie — per kamer andere hoek per stagiair
+    const groep    = kamerGroepen.get(stg.kamer) || [stgId];
+    const idxInGrp = groep.indexOf(stgId);
+    const totaal   = groep.length;
+    // Basishoek 210° (linksonder), per extra stagiair +50° draaien
+    const basisHoek = 210;
+    const hoekDeg  = basisHoek + idxInGrp * (totaal > 1 ? 50 : 0);
+    const hoekRad  = hoekDeg * Math.PI / 180;
+    const afstand  = 220 + idxInGrp * 20;
+
+    const panelX = Math.max(10, Math.min(
+      window.innerWidth - 160,
+      ankerScherm.sx + Math.cos(hoekRad) * afstand - 60
+    ));
+    const panelY = Math.max(60, Math.min(
+      window.innerHeight - 200,
+      ankerScherm.sy + Math.sin(hoekRad) * afstand
+    ));
+
     div.style.left = panelX + 'px';
     div.style.top  = panelY + 'px';
 
     const divRect = div.getBoundingClientRect();
-    line.setAttribute('x1', panelX + divRect.width);
+    line.setAttribute('x1', panelX + divRect.width / 2);
     line.setAttribute('y1', panelY + 20);
     line.setAttribute('x2', ankerScherm.sx);
     line.setAttribute('y2', ankerScherm.sy);
