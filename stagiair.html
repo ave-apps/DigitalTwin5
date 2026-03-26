@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stagebeheer — Gebouw 5</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg:#f5f3ee; --surface:#ffffff; --surface2:#ede9e0;
+  --border:#d8d2c4; --text:#2a2520; --text-mid:#7a7060;
+  --text-dim:#a89f90; --accent:#2a6fc4;
+  --stg:#6f2ac4; --stg-light:#f0e8ff;
+  --ok:#2a9c4a; --warn:#c47a2a; --alert:#c42a2a; --open:#888888;
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); min-height:100dvh; }
+
+/* ── Header ── */
+.header {
+  background:var(--surface); border-bottom:2px solid var(--border);
+  padding:14px 16px; display:flex; align-items:center; gap:10px;
+  box-shadow:0 2px 12px #00000010; position:sticky; top:0; z-index:10;
+}
+.header h1 { font-family:'Space Mono',monospace; font-size:16px; font-weight:700; flex:1; }
+.header-dot { width:8px; height:8px; border-radius:50%; background:var(--stg); flex-shrink:0; }
+
+/* ── Stagiair-lijst ── */
+.stg-list { padding:16px; display:flex; flex-direction:column; gap:12px; }
+
+.stg-card {
+  background:var(--surface); border:1.5px solid var(--border);
+  border-radius:14px; overflow:hidden;
+  box-shadow:0 2px 8px #00000008;
+}
+.stg-card-header {
+  display:flex; align-items:center; gap:12px; padding:14px 16px;
+  cursor:pointer; user-select:none;
+  border-bottom:1px solid var(--border);
+}
+.stg-avatar {
+  width:40px; height:40px; border-radius:50%; background:var(--stg);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; font-weight:900; color:#fff; flex-shrink:0;
+}
+.stg-info { flex:1; }
+.stg-naam { font-size:14px; font-weight:800; }
+.stg-meta { font-size:11px; color:var(--text-mid); margin-top:2px; }
+.stg-chevron { font-size:16px; color:var(--text-dim); transition:transform .2s; }
+.stg-card.open .stg-chevron { transform:rotate(180deg); }
+
+/* ── Fases ── */
+.stg-fases { display:none; padding:16px; }
+.stg-card.open .stg-fases { display:block; }
+
+.fase-tijdlijn {
+  position:relative; padding-left:28px;
+  border-left:2px solid var(--border); margin-left:10px;
+}
+.fase-item {
+  position:relative; margin-bottom:20px;
+}
+.fase-item:last-child { margin-bottom:0; }
+.fase-dot {
+  position:absolute; left:-37px; top:2px;
+  width:14px; height:14px; border-radius:50%;
+  border:2px solid var(--surface); flex-shrink:0;
+}
+.fase-dot.ok     { background:var(--ok); }
+.fase-dot.warn   { background:var(--warn); }
+.fase-dot.alert  { background:var(--alert); }
+.fase-dot.open   { background:var(--open); }
+.fase-dot.lopend { background:var(--accent); }
+
+.fase-header {
+  display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;
+}
+.fase-label {
+  font-size:12px; font-weight:800; color:var(--text);
+}
+.fase-datum {
+  font-size:11px; color:var(--text-mid);
+  font-family:'Space Mono',monospace;
+}
+.fase-status-pill {
+  font-size:10px; font-weight:700; padding:2px 8px;
+  border-radius:20px; white-space:nowrap;
+}
+.pill-ok     { background:#e8f8ee; color:var(--ok); }
+.pill-warn   { background:#fff5e0; color:var(--warn); }
+.pill-alert  { background:#ffe8e8; color:var(--alert); }
+.pill-open   { background:var(--surface2); color:var(--text-dim); }
+.pill-lopend { background:#e8f0ff; color:var(--accent); }
+
+.fase-acties {
+  display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;
+}
+.fase-btn {
+  font-family:'Nunito',sans-serif; font-size:11px; font-weight:700;
+  padding:5px 12px; border-radius:8px; border:1.5px solid var(--border);
+  background:var(--surface2); color:var(--text-mid); cursor:pointer;
+  text-decoration:none; display:inline-flex; align-items:center; gap:4px;
+  transition:all .15s;
+}
+.fase-btn:hover { background:var(--border); color:var(--text); }
+.fase-btn.map   { border-color:#4285f4; color:#4285f4; background:#f0f5ff; }
+.fase-btn.map:hover { background:#ddeaff; }
+.fase-btn.edit  { border-color:var(--stg); color:var(--stg); background:var(--stg-light); }
+
+/* ── Voortgangsbalk ── */
+.voortgang-wrap { padding:0 16px 14px; }
+.voortgang-label {
+  font-size:10px; font-weight:800; color:var(--text-dim);
+  text-transform:uppercase; letter-spacing:.6px; margin-bottom:6px;
+}
+.voortgang-bar {
+  height:6px; border-radius:3px; background:var(--surface2);
+  overflow:hidden;
+}
+.voortgang-fill {
+  height:100%; border-radius:3px; background:var(--stg);
+  transition:width .4s;
+}
+
+/* ── Toevoeg-knop ── */
+#add-stg-btn {
+  position:fixed; bottom:24px; right:24px; z-index:20;
+  width:56px; height:56px; border-radius:50%;
+  background:var(--stg); border:none; color:#fff;
+  font-size:28px; font-weight:300; cursor:pointer;
+  box-shadow:0 4px 20px rgba(111,42,196,0.4);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .15s;
+}
+#add-stg-btn:active { transform:scale(.95); }
+
+/* ── Modal ── */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.4);
+  z-index:50; display:flex; align-items:flex-end;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.modal-overlay.open { opacity:1; pointer-events:auto; }
+.modal {
+  background:var(--surface); border-radius:20px 20px 0 0;
+  padding:20px 20px 36px; width:100%; max-height:92dvh;
+  overflow-y:auto; transform:translateY(100%);
+  transition:transform .3s;
+}
+.modal-overlay.open .modal { transform:translateY(0); }
+.modal-handle {
+  width:40px; height:4px; border-radius:2px;
+  background:var(--border); margin:0 auto 16px;
+}
+.modal-title { font-size:16px; font-weight:800; margin-bottom:16px; }
+.modal-field { margin-bottom:14px; }
+.modal-field label {
+  display:block; font-size:10px; font-weight:800;
+  color:var(--text-dim); text-transform:uppercase;
+  letter-spacing:.6px; margin-bottom:5px;
+}
+.modal-field input, .modal-field select, .modal-field textarea {
+  width:100%; background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:10px; color:var(--text); font-family:'Nunito',sans-serif;
+  font-size:14px; padding:8px 11px; outline:none; -webkit-appearance:none;
+}
+.modal-field input:focus, .modal-field select:focus { border-color:var(--stg); }
+.modal-actions {
+  display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;
+}
+.btn { font-family:'Nunito',sans-serif; font-size:13px; font-weight:700;
+  padding:10px 16px; border-radius:10px; border:1.5px solid var(--border);
+  cursor:pointer; background:var(--surface2); color:var(--text); }
+.btn-primary { background:var(--stg); border-color:var(--stg); color:#fff; }
+.btn-danger  { background:#ffe8e8; border-color:var(--alert); color:var(--alert); }
+
+/* ── Fase-edit sectie in modal ── */
+.fase-edit-list { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
+.fase-edit-item {
+  background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:12px; padding:12px;
+}
+.fase-edit-title {
+  font-size:12px; font-weight:800; color:var(--text-mid);
+  text-transform:uppercase; letter-spacing:.6px; margin-bottom:10px;
+}
+
+/* ── Leeg scherm ── */
+.empty-state {
+  text-align:center; padding:60px 24px; color:var(--text-dim);
+}
+.empty-state .empty-icon { font-size:48px; margin-bottom:12px; }
+.empty-state p { font-size:14px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-dot"></span>
+  <h1>Stagebeheer</h1>
+  <span style="font-size:11px;color:var(--text-dim);font-family:'Space Mono',monospace" id="stg-count"></span>
+</div>
+
+<div class="stg-list" id="stg-list">
+  <div class="empty-state">
+    <div class="empty-icon">🎓</div>
+    <p>Nog geen stagiairs.<br>Druk op + om een stagiair toe te voegen.</p>
+  </div>
+</div>
+
+<button id="add-stg-btn" onclick="openModal()">+</button>
+
+<!-- ── Modal: stagiair toevoegen / bewerken ── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">Stagiair toevoegen</div>
+
+    <div class="modal-field">
+      <label>Volledige naam stagiair</label>
+      <input id="m-naam" type="text" placeholder="bijv. Linda van Ooijen-de Boer">
+    </div>
+    <div class="modal-field">
+      <label>Koppelkamer</label>
+      <input id="m-kamer" type="text" placeholder="bijv. 0.12">
+    </div>
+    <div class="modal-field">
+      <label>Stagebegeleider</label>
+      <input id="m-begeleider" type="text" placeholder="Naam begeleider">
+    </div>
+    <div class="modal-field">
+      <label>School / opleiding</label>
+      <input id="m-school" type="text" placeholder="bijv. ROC Nova College">
+    </div>
+    <div class="modal-field">
+      <label>Startdatum stage</label>
+      <input id="m-start" type="date">
+    </div>
+    <div class="modal-field">
+      <label>Einddatum stage</label>
+      <input id="m-eind" type="date">
+    </div>
+
+    <div style="font-size:12px;font-weight:800;color:var(--text-mid);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px">
+      Fases — geplande datum &amp; Drive-maplink
+    </div>
+    <div class="fase-edit-list">
+      <div class="fase-edit-item">
+        <div class="fase-edit-title">ST-01 — Voorbereiding</div>
+        <div class="modal-field" style="margin-bottom:8px">
+          <label>Geplande datum</label>
+          <input id="f1-datum" type="date">
+        </div>
+        <div class="modal-field" style="margin-bottom:0">
+          <label>Google Drive maplink</label>
+          <input id="f1-link" type="url" placeholder="https://drive.google.com/...">
+        </div>
+      </div>
+      <div class="fase-edit-item">
+        <div class="fase-edit-title">ST-02 — Uitvoering</div>
+        <div class="modal-field" style="margin-bottom:8px">
+          <label>Geplande datum</label>
+          <input id="f2-datum" type="date">
+        </div>
+        <div class="modal-field" style="margin-bottom:0">
+          <label>Google Drive maplink</label>
+          <input id="f2-link" type="url" placeholder="https://drive.google.com/...">
+        </div>
+      </div>
+      <div class="fase-edit-item">
+        <div class="fase-edit-title">ST-03 — Beoordeling</div>
+        <div class="modal-field" style="margin-bottom:8px">
+          <label>Geplande datum</label>
+          <input id="f3-datum" type="date">
+        </div>
+        <div class="modal-field" style="margin-bottom:0">
+          <label>Google Drive maplink</label>
+          <input id="f3-link" type="url" placeholder="https://drive.google.com/...">
+        </div>
+      </div>
+      <div class="fase-edit-item">
+        <div class="fase-edit-title">ST-04 — Evaluatie</div>
+        <div class="modal-field" style="margin-bottom:8px">
+          <label>Geplande datum</label>
+          <input id="f4-datum" type="date">
+        </div>
+        <div class="modal-field" style="margin-bottom:0">
+          <label>Google Drive maplink</label>
+          <input id="f4-link" type="url" placeholder="https://drive.google.com/...">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-field" style="margin-top:16px">
+      <label>Status huidige fase</label>
+      <select id="m-status">
+        <option value="open">Open — nog niet gestart</option>
+        <option value="lopend">Lopend — in uitvoering</option>
+        <option value="ok">Afgerond — goed</option>
+        <option value="warn">Aandacht nodig</option>
+        <option value="alert">Probleem / vertraging</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="m-save" onclick="saveStagiair()">Opslaan</button>
+      <button class="btn" onclick="closeModal()">Annuleren</button>
+      <button class="btn btn-danger" id="m-delete" style="display:none" onclick="deleteStagiair()">Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'stagebeheer_v1';
+const SYNC_KEY    = 'stagebeheer_sync_v1';
+let stagiairs = [];
+let editingId = null;
+
+// ── Sync config (zelfde GAS-URL als andere apps) ──────────────────
+let GASWA = '';
+function loadSyncConfig(){
+  try { const c = JSON.parse(localStorage.getItem(SYNC_KEY)||'{}'); GASWA = c.url||''; } catch(e){}
+}
+function saveSyncConfig(url){
+  GASWA = url;
+  try { localStorage.setItem(SYNC_KEY, JSON.stringify({url})); } catch(e){}
+}
+
+const FASES = [
+  { id:'f1', code:'ST-01', label:'Voorbereiding' },
+  { id:'f2', code:'ST-02', label:'Uitvoering'    },
+  { id:'f3', code:'ST-03', label:'Beoordeling'   },
+  { id:'f4', code:'ST-04', label:'Evaluatie'     },
+];
+
+// ── Opslag ────────────────────────────────────────────────────────
+function load(){
+  try { stagiairs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e){ stagiairs=[]; }
+}
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stagiairs));
+  render();
+  if(GASWA) pushStagiairs();
+}
+
+async function pushStagiairs(){
+  try {
+    await fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'pushStagiairs', stagiairs})});
+  } catch(e){ console.warn('pushStagiairs fout:', e); }
+}
+
+async function pullStagiairs(){
+  if(!GASWA) return;
+  try {
+    const res  = await fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'pullStagiairs'})});
+    const data = await res.json();
+    if(data.ok && Array.isArray(data.stagiairs) && data.stagiairs.length){
+      // Merge: Sheet is leidend voor nieuwe/gewijzigde records
+      const sheetIds = new Set(data.stagiairs.map(s=>s.id));
+      // Bewaar lokale die niet in Sheet zitten (nog niet gepusht)
+      const lokaalNieuw = stagiairs.filter(s=>!sheetIds.has(s.id));
+      stagiairs = [...data.stagiairs, ...lokaalNieuw];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stagiairs));
+      render();
+      showBanner('✓ Stagiairs gesynchroniseerd');
+    }
+  } catch(e){ console.warn('pullStagiairs fout:', e); }
+}
+
+// ── Hulpfuncties ──────────────────────────────────────────────────
+function uid(){ return 'stg_' + Math.random().toString(36).slice(2,11); }
+
+function initials(naam){
+  const d = naam.trim().split(/\s+/);
+  return (d[0][0] + (d[d.length-1][0]||'')).toUpperCase();
+}
+
+function statusInfo(status, datum){
+  const vandaag = new Date().toISOString().split('T')[0];
+  // Als datum verstreken en nog niet ok: automatisch waarschuwen
+  if(status === 'lopend' && datum && datum < vandaag){
+    return { cls:'alert', label:'Vertraagd', pill:'pill-alert' };
+  }
+  const map = {
+    ok:     { cls:'ok',     label:'Afgerond',   pill:'pill-ok'     },
+    warn:   { cls:'warn',   label:'Aandacht',   pill:'pill-warn'   },
+    alert:  { cls:'alert',  label:'Probleem',   pill:'pill-alert'  },
+    lopend: { cls:'lopend', label:'Lopend',     pill:'pill-lopend' },
+    open:   { cls:'open',   label:'Gepland',    pill:'pill-open'   },
+  };
+  return map[status] || map.open;
+}
+
+function voortgang(fases){
+  const ok = fases.filter(f => f.status === 'ok').length;
+  return Math.round((ok / fases.length) * 100);
+}
+
+function formatDatum(d){
+  if(!d) return '—';
+  const [y,m,dag] = d.split('-');
+  return `${dag}-${m}-${y}`;
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function render(){
+  const list = document.getElementById('stg-list');
+  const count = document.getElementById('stg-count');
+  count.textContent = stagiairs.length ? stagiairs.length + ' stagiair' + (stagiairs.length>1?'s':'') : '';
+
+  if(!stagiairs.length){
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🎓</div>
+      <p>Nog geen stagiairs.<br>Druk op + om een stagiair toe te voegen.</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = stagiairs.map(s => {
+    const pct = voortgang(s.fases);
+    const huidigeFase = s.fases.find(f => f.status === 'lopend') || s.fases[0];
+    const si = statusInfo(huidigeFase.status, huidigeFase.datum);
+
+    const fasesHtml = FASES.map((f,i) => {
+      const fd = s.fases[i];
+      const fsi = statusInfo(fd.status, fd.datum);
+      return `<div class="fase-item">
+        <div class="fase-dot ${fsi.cls}"></div>
+        <div class="fase-header">
+          <span class="fase-label">${f.code} — ${f.label}</span>
+          <span class="fase-datum">${formatDatum(fd.datum)}</span>
+          <span class="fase-status-pill ${fsi.pill}">${fsi.label}</span>
+        </div>
+        <div class="fase-acties">
+          ${fd.link ? `<a class="fase-btn map" href="${fd.link}" target="_blank">📁 Drive-map</a>` : ''}
+          <button class="fase-btn edit" onclick="editFaseStatus('${s.id}',${i})">Status wijzigen</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="stg-card" id="card-${s.id}">
+      <div class="stg-card-header" onclick="toggleCard('${s.id}')">
+        <div class="stg-avatar">${initials(s.naam)}</div>
+        <div class="stg-info">
+          <div class="stg-naam">${s.naam}</div>
+          <div class="stg-meta">
+            📍 ${s.kamer||'—'} &nbsp;·&nbsp; 👤 ${s.begeleider||'—'} &nbsp;·&nbsp; 🏫 ${s.school||'—'}
+          </div>
+          <div class="stg-meta">${formatDatum(s.start)} → ${formatDatum(s.eind)}</div>
+        </div>
+        <span class="stg-chevron">▼</span>
+      </div>
+      <div class="voortgang-wrap">
+        <div class="voortgang-label">Voortgang — ${pct}%</div>
+        <div class="voortgang-bar"><div class="voortgang-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="stg-fases">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <span style="font-size:12px;font-weight:800;color:var(--text-mid)">Faseverloop</span>
+          <button class="fase-btn edit" onclick="openModal('${s.id}')">✏️ Bewerken</button>
+        </div>
+        <div class="fase-tijdlijn">${fasesHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCard(id){
+  const card = document.getElementById('card-'+id);
+  card.classList.toggle('open');
+}
+
+// ── Modal ─────────────────────────────────────────────────────────
+function openModal(id){
+  editingId = id || null;
+  const modal = document.getElementById('modal-overlay');
+  document.getElementById('modal-title').textContent = id ? 'Stagiair bewerken' : 'Stagiair toevoegen';
+  document.getElementById('m-delete').style.display = id ? '' : 'none';
+
+  if(id){
+    const s = stagiairs.find(x=>x.id===id);
+    if(s){
+      document.getElementById('m-naam').value       = s.naam||'';
+      document.getElementById('m-kamer').value      = s.kamer||'';
+      document.getElementById('m-begeleider').value = s.begeleider||'';
+      document.getElementById('m-school').value     = s.school||'';
+      document.getElementById('m-start').value      = s.start||'';
+      document.getElementById('m-eind').value       = s.eind||'';
+      document.getElementById('m-status').value     = s.fases.find(f=>f.status==='lopend')?.status || s.fases[0].status;
+      FASES.forEach((f,i)=>{
+        document.getElementById(f.id+'-datum').value = s.fases[i].datum||'';
+        document.getElementById(f.id+'-link').value  = s.fases[i].link||'';
+      });
+    }
+  } else {
+    ['m-naam','m-kamer','m-begeleider','m-school','m-start','m-eind'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('m-status').value='open';
+    FASES.forEach(f=>{
+      document.getElementById(f.id+'-datum').value='';
+      document.getElementById(f.id+'-link').value='';
+    });
+  }
+  modal.classList.add('open');
+  setTimeout(()=>document.getElementById('m-naam').focus(), 300);
+}
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingId = null;
+}
+
+document.getElementById('modal-overlay').addEventListener('click', e=>{
+  if(e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+function saveStagiair(){
+  const naam = document.getElementById('m-naam').value.trim();
+  if(!naam){ document.getElementById('m-naam').focus(); return; }
+
+  const status = document.getElementById('m-status').value;
+  const fases = FASES.map((f,i)=>({
+    code:  f.code,
+    label: f.label,
+    datum: document.getElementById(f.id+'-datum').value,
+    link:  document.getElementById(f.id+'-link').value.trim(),
+    status: i === 0 ? status : (i < FASES.findIndex(x=>x.id===FASES.find((_,j)=>j===0)?.id) ? 'ok' : 'open'),
+  }));
+
+  // Verdeelde status: eerste lopende fase krijgt de status, eerder = ok, later = open
+  const lopendIdx = ['f1','f2','f3','f4'].indexOf(
+    FASES.find((_,i)=> document.getElementById('m-status').value !== 'open' ? i===0 : false)?.id || 'f1'
+  );
+
+  if(editingId){
+    const idx = stagiairs.findIndex(s=>s.id===editingId);
+    if(idx>=0){
+      stagiairs[idx] = { ...stagiairs[idx], naam,
+        kamer:      document.getElementById('m-kamer').value.trim(),
+        begeleider: document.getElementById('m-begeleider').value.trim(),
+        school:     document.getElementById('m-school').value.trim(),
+        start:      document.getElementById('m-start').value,
+        eind:       document.getElementById('m-eind').value,
+        fases:      FASES.map((f,i)=>({
+          code: f.code, label: f.label,
+          datum: document.getElementById(f.id+'-datum').value,
+          link:  document.getElementById(f.id+'-link').value.trim(),
+          status: stagiairs[idx].fases[i].status, // status behouden
+        }))
+      };
+    }
+  } else {
+    stagiairs.push({
+      id: uid(), naam,
+      kamer:      document.getElementById('m-kamer').value.trim(),
+      begeleider: document.getElementById('m-begeleider').value.trim(),
+      school:     document.getElementById('m-school').value.trim(),
+      start:      document.getElementById('m-start').value,
+      eind:       document.getElementById('m-eind').value,
+      fases: FASES.map((f,i)=>({
+        code: f.code, label: f.label,
+        datum: document.getElementById(f.id+'-datum').value,
+        link:  document.getElementById(f.id+'-link').value.trim(),
+        status: i===0 ? status : 'open',
+      })),
+      aangemaaktOp: new Date().toISOString(),
+    });
+  }
+
+  save();
+  closeModal();
+}
+
+function deleteStagiair(){
+  if(!editingId) return;
+  const s = stagiairs.find(x=>x.id===editingId);
+  if(!s) return;
+  if(!confirm(`${s.naam} verwijderen?`)) return;
+  stagiairs = stagiairs.filter(x=>x.id!==editingId);
+  save();
+  closeModal();
+}
+
+// ── Fase-status snel wijzigen ─────────────────────────────────────
+function editFaseStatus(stgId, faseIdx){
+  const s = stagiairs.find(x=>x.id===stgId);
+  if(!s) return;
+  const fase = s.fases[faseIdx];
+  const opties = ['open','lopend','ok','warn','alert'];
+  const labels = ['Gepland','Lopend','Afgerond','Aandacht','Probleem'];
+  const huidig = opties.indexOf(fase.status);
+  const keuze = prompt(
+    `Status van ${fase.code} — ${fase.label}:\n` +
+    opties.map((o,i)=>`${i+1}. ${labels[i]}${o===fase.status?' ✓':''}`).join('\n') +
+    `\n\nTyp 1-5:`
+  );
+  if(!keuze) return;
+  const idx = parseInt(keuze)-1;
+  if(idx>=0 && idx<opties.length){
+    s.fases[faseIdx].status = opties[idx];
+    save();
+  }
+}
+
+// ── Banner ────────────────────────────────────────────────────────
+function showBanner(msg){
+  let b = document.getElementById('stg-banner');
+  if(!b){
+    b = document.createElement('div');
+    b.id = 'stg-banner';
+    b.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);'+
+      'background:#2a2520;color:#fff;padding:8px 20px;border-radius:20px;'+
+      'font-size:13px;font-weight:700;font-family:Nunito,sans-serif;z-index:100;'+
+      'pointer-events:none;opacity:0;transition:opacity .2s';
+    document.body.appendChild(b);
+  }
+  b.textContent = msg;
+  b.style.opacity = '1';
+  clearTimeout(b._t);
+  b._t = setTimeout(()=>b.style.opacity='0', 2500);
+}
+
+// ── Sync-URL instelling (klein tandwiel rechtsbovenin) ─────────────
+(function(){
+  const btn = document.createElement('button');
+  btn.textContent = '⚙️';
+  btn.title = 'Sync-instellingen';
+  btn.style.cssText = 'position:fixed;top:14px;right:16px;z-index:20;'+
+    'background:none;border:none;font-size:18px;cursor:pointer;opacity:0.5;padding:4px';
+  btn.onclick = ()=>{
+    const url = prompt('GAS Web App URL (zelfde als andere apps):', GASWA);
+    if(url !== null){ saveSyncConfig(url.trim()); showBanner('URL opgeslagen'); if(GASWA) pullStagiairs(); }
+  };
+  document.body.appendChild(btn);
+})();
+
+// ── Init ──────────────────────────────────────────────────────────
+loadSyncConfig();
+load();
+render();
+if(GASWA) setTimeout(pullStagiairs, 1000);
+</script>
+</body>
+</html>
