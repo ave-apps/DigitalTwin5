@@ -2327,6 +2327,7 @@ async function fetchStagiairs() {
     const data = await res.json();
     if (data.ok && Array.isArray(data.stagiairs)) {
       stgData = data.stagiairs;
+      stgLabelDivs = [];           // forceer herbouw zodat tooltip/lijn actueel is
       if (activeLayers.stage) renderStagelijn();
     }
   } catch(e) { console.warn('fetchStagiairs fout:', e); }
@@ -2626,8 +2627,9 @@ updateLabelDivs = function() {
   if (activeLayers.stage) updateStagelijnPosities();
 };
 
-// ── Data ophalen bij start ────────────────────────────────────────────────
+// ── Data ophalen bij start + periodiek verversen ─────────────────────────
 fetchStagiairs();
+setInterval(fetchStagiairs, 60000);  // elke minuut opnieuw ophalen
 
 
 </script>
