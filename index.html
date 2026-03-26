@@ -2266,14 +2266,11 @@ async function fetchChatBerichten(){
 
 
 // ── STAGELIJN PATCH ──────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════
-// STAGELIJN — DT5 in-scene visualisatie
-// Floating tijdlijn-panel per stagiair, verbonden via lijn naar koppelkamer
-// ═══════════════════════════════════════════════════════════════════════════
 
 // ── Data ─────────────────────────────────────────────────────────────────
-let stgData = [];            // array van stagiair-objecten uit GAS
-let stgLabelDivs = [];       // { div, svgLine, stg, anchorX, anchorZ, anchorFloor }
+let stgData = [];
+let stgLabelDivs = [];   // { div, line }  — idx correspondeert met stgData[idx]
+let stgFetching = false; // guard: voorkomt parallelle fetches
 
 // ── SVG overlay voor verbindingslijnen ───────────────────────────────────
 const stgSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -2286,30 +2283,20 @@ const STG_FASE_KLEUR = { ok:'#4cdd8a', lopend:'#64b4ff', warn:'#ffaa44', alert:'
 const STG_FASE_LABEL = { ok:'goed', lopend:'loopt', warn:'aandacht', alert:'probleem', open:'gepland' };
 
 // ── Kamer-string → 3D coördinaten ────────────────────────────────────────
-// kamer = "etage.nr" bijv. "2.08"
 function kamerNaarPos(kamer) {
   const delen = String(kamer).split('.');
   if (delen.length < 2) return null;
   const etage = parseInt(delen[0]);
   const nr    = parseInt(delen[1]);
   if (isNaN(etage) || isNaN(nr)) return null;
-
-  const s = K * (3 - etage) / 3;  // offset voor bredere vloer op lagere etages
-
-  // Kamer-nr → x,z (zelfde mapping als allLabels)
+  const s = K * (3 - etage) / 3;
   const kamerMap = {
-    11: { x: (xL5+xL4)/2 - s, z: zAc },
-    12: { x: (xL4+xL3)/2 - s, z: zAc },
-    31: { x: (xR4+xR5)/2 + s, z: zAc },
-    32: { x: (xR3+xR4)/2 + s, z: zAc },
-    10: { x: (xL4+xL3)/2 - s, z: zVc },
-    9:  { x: (xL3+xL2)/2 - s, z: zVc },
-    8:  { x: (xL2+xL1)/2 - s, z: zVc },
-    7:  { x: (xL1+xM1)/2 - s, z: zVc },
-    27: { x: (xM2+xR1)/2 + s, z: zVc },
-    28: { x: (xR1+xR2)/2 + s, z: zVc },
-    29: { x: (xR2+xR3)/2 + s, z: zVc },
-    30: { x: (xR3+xR4)/2 + s, z: zVc },
+    11:{x:(xL5+xL4)/2-s,z:zAc}, 12:{x:(xL4+xL3)/2-s,z:zAc},
+    31:{x:(xR4+xR5)/2+s,z:zAc}, 32:{x:(xR3+xR4)/2+s,z:zAc},
+    10:{x:(xL4+xL3)/2-s,z:zVc},  9:{x:(xL3+xL2)/2-s,z:zVc},
+     8:{x:(xL2+xL1)/2-s,z:zVc},  7:{x:(xL1+xM1)/2-s,z:zVc},
+    27:{x:(xM2+xR1)/2+s,z:zVc}, 28:{x:(xR1+xR2)/2+s,z:zVc},
+    29:{x:(xR2+xR3)/2+s,z:zVc}, 30:{x:(xR3+xR4)/2+s,z:zVc},
   };
   const pos = kamerMap[nr];
   if (!pos) return null;
@@ -2318,35 +2305,50 @@ function kamerNaarPos(kamer) {
 
 // ── Data ophalen ──────────────────────────────────────────────────────────
 async function fetchStagiairs() {
+  if (stgFetching) return;          // voorkom parallelle fetches
+  stgFetching = true;
   try {
     const res  = await fetch(GASWA, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain'},
+      method:'POST', headers:{'Content-Type':'text/plain'},
       body: JSON.stringify({ action:'pullStagiairs' })
     });
     const data = await res.json();
     if (data.ok && Array.isArray(data.stagiairs)) {
       stgData = data.stagiairs;
-      stgLabelDivs = [];           // forceer herbouw zodat tooltip/lijn actueel is
-      if (activeLayers.stage) renderStagelijn();
+      herbouwStagelijnDivs();   // altijd DOM herbouwen na nieuwe data
     }
   } catch(e) { console.warn('fetchStagiairs fout:', e); }
+  finally { stgFetching = false; }
 }
 
-// ── Tijdlijn-div bouwen ───────────────────────────────────────────────────
-function bouwStagelijnDiv(stg, idx) {
-  const div = document.createElement('div');
-  div.style.cssText = `
-    position:absolute;
-    pointer-events:auto;
-    display:none;
-    user-select:none;
-    font-family:'Segoe UI',sans-serif;
-    min-width:120px;
-    cursor:pointer;
-  `;
+// ── DOM herbouwen (eenmalig per fetch) ───────────────────────────────────
+function herbouwStagelijnDivs() {
+  // Verwijder ALLE stagelijn-elementen — ook eventuele wezen die niet in stgLabelDivs staan
+  labelContainer.querySelectorAll('.stg-label-div').forEach(el => el.remove());
+  stgSvg.querySelectorAll('.stg-line').forEach(el => el.remove());
+  stgLabelDivs = [];
 
-  // Custom tooltip helper (zelfde als bestaande kamer-labels)
+  stgData.forEach((stg, idx) => {
+    const div  = maakStagelijnDiv(idx);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.classList.add('stg-line');
+    line.setAttribute('stroke','rgba(255,255,255,0.7)');
+    line.setAttribute('stroke-width','1.5');
+    line.setAttribute('stroke-dasharray','4 3');
+    line.style.display = 'none';
+    stgSvg.appendChild(line);
+    labelContainer.appendChild(div);
+    stgLabelDivs.push({ div, line });
+  });
+}
+
+// ── Div aanmaken (zonder stg-snapshot — alles live via stgData[idx]) ──────
+function maakStagelijnDiv(idx) {
+  const div = document.createElement('div');
+  div.className = 'stg-label-div';
+  div.style.cssText = 'position:absolute;pointer-events:auto;display:none;user-select:none;font-family:Segoe UI,sans-serif;min-width:120px;cursor:pointer;';
+
+  // Tooltip helpers
   function stgTip(e, html) {
     const tip = document.getElementById('tooltip');
     tip.innerHTML = html;
@@ -2359,34 +2361,20 @@ function bouwStagelijnDiv(stg, idx) {
     tip.style.left = (e.clientX + 14) + 'px';
     tip.style.top  = (e.clientY - 10) + 'px';
   }
-  function stgTipHide() {
-    document.getElementById('tooltip').style.display = 'none';
-  }
+  function stgTipHide() { document.getElementById('tooltip').style.display = 'none'; }
 
-  // Naamtag bovenaan
+  // Naamtag
   const naamTag = document.createElement('div');
-  naamTag.style.cssText = `
-    background:#22c55e;
-    color:#fff;
-    font-size:12px;
-    font-weight:800;
-    padding:3px 10px;
-    border-radius:4px;
-    margin-bottom:8px;
-    display:inline-block;
-    letter-spacing:.5px;
-    border:2px solid #fff;
-    cursor:pointer;
-  `;
+  naamTag.style.cssText = 'background:#22c55e;color:#fff;font-size:12px;font-weight:800;padding:3px 10px;border-radius:4px;margin-bottom:8px;display:inline-block;letter-spacing:.5px;border:2px solid #fff;cursor:pointer;';
   naamTag.textContent = 'STG' + (idx + 1);
 
-  // Custom tooltip op naamtag — altijd live uit stgData lezen
+  // Tooltip op naamtag: altijd live uit stgData
   naamTag.onmouseenter = (e) => {
-    const live = stgData[idx] || stg;
-    const liveFases   = Array.isArray(live.fases) ? live.fases : [];
-    const liveFase    = liveFases.find(f=>f.status==='lopend') || liveFases[0];
-    const liveKleur   = STG_FASE_KLEUR[liveFase?.status||'open'] || '#888';
-    const livePct     = liveFases.length ? Math.round(liveFases.filter(f=>f.status==='ok').length / liveFases.length * 100) : 0;
+    const live      = stgData[idx]; if (!live) return;
+    const liveFases = Array.isArray(live.fases) ? live.fases : [];
+    const liveFase  = liveFases.find(f=>f.status==='lopend') || liveFases[0];
+    const liveKleur = STG_FASE_KLEUR[liveFase?.status||'open'] || '#888';
+    const livePct   = liveFases.length ? Math.round(liveFases.filter(f=>f.status==='ok').length/liveFases.length*100) : 0;
     stgTip(e,
       `<b style="color:#22c55e">STG${idx+1} — ${live.naam}</b><br>` +
       `📍 kamer ${live.kamer||'?'} &nbsp;·&nbsp; 👤 ${live.begeleider||'?'}<br>` +
@@ -2400,111 +2388,51 @@ function bouwStagelijnDiv(stg, idx) {
   naamTag.onmouseleave = stgTipHide;
   div.appendChild(naamTag);
 
-  // Tijdlijn-verticale lijn + fase-knooppunten
+  // Tijdlijn — fases worden ingevuld bij eerste positionering (zie updateStagelijnPosities)
+  // We bouwen de fases direct in vanuit stgData[idx] op dit moment
+  const stg = stgData[idx];
   const tl = document.createElement('div');
-  tl.style.cssText = `
-    display:flex;
-    flex-direction:column;
-    gap:0;
-    padding-left:8px;
-    border-left:2px solid rgba(255,255,255,0.25);
-    margin-left:10px;
-  `;
+  tl.style.cssText = 'display:flex;flex-direction:column;gap:0;padding-left:8px;border-left:2px solid rgba(255,255,255,0.25);margin-left:10px;';
 
   const fases = Array.isArray(stg.fases) ? stg.fases : [];
-  // Voeg start/eind toe als pseudo-fase als niet aanwezig
   const toTonen = fases.length > 0 ? fases : [
-    { code:'ST-00', label:'Start stage', datum: stg.start, status:'ok' },
-    { code:'ST-99', label:'Einde stage', datum: stg.eind,  status:'open' },
+    {code:'ST-00',label:'Start stage',datum:stg.start,status:'ok'},
+    {code:'ST-99',label:'Einde stage',datum:stg.eind,status:'open'},
   ];
 
   toTonen.forEach(fase => {
-    const rij = document.createElement('div');
-    rij.style.cssText = `
-      display:flex;
-      align-items:flex-start;
-      gap:8px;
-      margin-bottom:10px;
-      position:relative;
-    `;
-
-    // Knooppunt (cirkel)
-    const knoop = document.createElement('div');
+    const rij   = document.createElement('div');
+    rij.style.cssText = 'display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;position:relative;';
     const kleur = STG_FASE_KLEUR[fase.status] || '#888';
     const icoon = STG_FASE_ICON[fase.status] || '○';
-    knoop.style.cssText = `
-      width:24px;
-      height:24px;
-      border-radius:50%;
-      background:${kleur};
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:12px;
-      font-weight:900;
-      color:#fff;
-      flex-shrink:0;
-      margin-left:-13px;
-      border:2px solid rgba(255,255,255,0.6);
-      cursor:${fase.link ? 'pointer' : 'default'};
-    `;
+
+    const knoop = document.createElement('div');
+    knoop.style.cssText = `width:24px;height:24px;border-radius:50%;background:${kleur};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0;margin-left:-13px;border:2px solid rgba(255,255,255,0.6);cursor:${fase.link?'pointer':'default'};`;
     knoop.textContent = icoon;
-    // Custom tooltip op fase-knooppunten
     knoop.onmouseenter = (e) => stgTip(e,
       `<b style="color:${kleur}">${fase.code||''} — ${fase.label||''}</b><br>` +
       `📅 ${fase.datum||'?'}<br>` +
       `<span style="color:${kleur};font-size:10px">${STG_FASE_LABEL[fase.status]||fase.status||'?'}</span>` +
-      (fase.link ? `<br><span style="color:#aaddff;font-size:10px">📄 klik voor document</span>` : '')
+      (fase.link?`<br><span style="color:#aaddff;font-size:10px">📄 klik voor document</span>`:'')
     );
     knoop.onmousemove = stgTipMove;
     knoop.onmouseleave = stgTipHide;
-    if (fase.link) {
-      knoop.onclick = (e) => { e.stopPropagation(); window.open(fase.link, '_blank'); };
-      knoop.style.cursor = 'pointer';
-    }
+    if (fase.link) knoop.onclick = (e) => { e.stopPropagation(); window.open(fase.link,'_blank'); };
 
-    // Tekstblok naast knooppunt
     const tekst = document.createElement('div');
     tekst.style.cssText = 'line-height:1.3;';
-
     const labelEl = document.createElement('div');
-    labelEl.style.cssText = `
-      background:rgba(10,14,40,0.85);
-      color:#fff;
-      font-size:11px;
-      font-weight:600;
-      padding:2px 7px;
-      border-radius:4px;
-      border:1px solid rgba(255,255,255,0.2);
-      white-space:nowrap;
-    `;
+    labelEl.style.cssText = 'background:rgba(10,14,40,0.85);color:#fff;font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);white-space:nowrap;';
     labelEl.textContent = fase.label || fase.code;
-
-    const datumEl = document.createElement('div');
-    datumEl.style.cssText = `
-      color:rgba(255,255,255,0.6);
-      font-size:10px;
-      padding-left:2px;
-      margin-top:1px;
-    `;
-    datumEl.textContent = fase.datum || '';
-
-    // .docx link badge als aanwezig
     if (fase.link) {
       const badge = document.createElement('span');
-      badge.style.cssText = `
-        background:rgba(255,255,255,0.12);
-        color:#aaddff;
-        font-size:9px;
-        padding:1px 5px;
-        border-radius:3px;
-        margin-left:4px;
-        border:1px solid rgba(100,180,255,0.3);
-      `;
+      badge.style.cssText = 'background:rgba(255,255,255,0.12);color:#aaddff;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;border:1px solid rgba(100,180,255,0.3);';
       badge.textContent = '.docx';
       labelEl.appendChild(badge);
     }
-
+    const datumEl = document.createElement('div');
+    datumEl.style.cssText = 'color:rgba(255,255,255,0.6);font-size:10px;padding-left:2px;margin-top:1px;';
+    datumEl.textContent = fase.datum || '';
     tekst.appendChild(labelEl);
     tekst.appendChild(datumEl);
     rij.appendChild(knoop);
@@ -2513,130 +2441,65 @@ function bouwStagelijnDiv(stg, idx) {
   });
 
   div.appendChild(tl);
-
-  // SVG lijn (wordt later gepositioneerd)
-  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-  line.setAttribute('stroke','rgba(255,255,255,0.7)');
-  line.setAttribute('stroke-width','1.5');
-  line.setAttribute('stroke-dasharray','4 3');
-  line.style.display = 'none';
-  stgSvg.appendChild(line);
-
-  labelContainer.appendChild(div);
-  return { div, line };
+  return div;
 }
 
-// ── Labels aanmaken (eenmalig) ────────────────────────────────────────────
-function initialiseerStagelijnDivs() {
-  // Verwijder bestaande
-  stgLabelDivs.forEach(({ div, line }) => {
-    div.remove();
-    line.remove();
-  });
-  stgLabelDivs = [];
+// ── Tonen / verbergen ─────────────────────────────────────────────────────
+function toonStagelijn()  { stgLabelDivs.forEach(({div,line})=>{ div.style.display='block'; line.style.display=''; }); }
+function hideStagelijn()  { stgLabelDivs.forEach(({div,line})=>{ div.style.display='none';  line.style.display='none'; }); }
 
-  stgData.forEach((stg, idx) => {
-    const pos = kamerNaarPos(stg.kamer);
-    const { div, line } = bouwStagelijnDiv(stg, idx);
-    stgLabelDivs.push({ div, line, stg, pos });
-  });
-}
-
-// ── Render / positioneer ──────────────────────────────────────────────────
-function renderStagelijn() {
-  if (!activeLayers.stage) return hideStagelijn();
-
-  // Als data nog leeg, ophalen triggeren
-  if (!stgData.length) {
-    fetchStagiairs();
-    return;
-  }
-
-  // Divs aanmaken als nog niet bestaat of data gewijzigd
-  if (stgLabelDivs.length !== stgData.length) {
-    initialiseerStagelijnDivs();
-  }
-
-  updateStagelijnPosities();
-}
-
+// ── Positioneren elke frame ───────────────────────────────────────────────
 function updateStagelijnPosities() {
   if (!activeLayers.stage) return;
 
   stgLabelDivs.forEach(({ div, line }, idx) => {
-    // Altijd live lezen uit stgData zodat kamerwissel direct zichtbaar is
     const stg = stgData[idx];
     if (!stg) { div.style.display='none'; line.style.display='none'; return; }
+
     const pos = kamerNaarPos(stg.kamer);
-
-    // Ankerpunt in 3D → scherm
     let ankerScherm = null;
-
     if (pos) {
-      const floorY = pos.floor * FLOOR_GAP;
-      const p = proj2D(pos.x, pos.z, floorY);
+      const p = proj2D(pos.x, pos.z, pos.floor * FLOOR_GAP);
       if (p.visible) ankerScherm = p;
     }
 
-    if (!ankerScherm) {
-      div.style.display = 'none';
-      line.style.display = 'none';
-      return;
-    }
+    if (!ankerScherm) { div.style.display='none'; line.style.display='none'; return; }
 
     div.style.display = 'block';
-    line.style.display = '';
-
-    // Positie van panel: links van het gebouw, gestapeld op basis van idx
-    // We plaatsen het label links van het ankerpunt, maar geankerd aan de 3D positie
     const panelX = Math.max(10, ankerScherm.sx - 260 - idx * 10);
     const panelY = Math.max(60, ankerScherm.sy - 80 - idx * 30);
-
     div.style.left = panelX + 'px';
     div.style.top  = panelY + 'px';
 
-    // Lijn van rechterkant van div naar ankerpunt
     const divRect = div.getBoundingClientRect();
-    const lineX1 = panelX + divRect.width;
-    const lineY1 = panelY + 20; // top van naamtag
-    const lineX2 = ankerScherm.sx;
-    const lineY2 = ankerScherm.sy;
-
-    line.setAttribute('x1', lineX1);
-    line.setAttribute('y1', lineY1);
-    line.setAttribute('x2', lineX2);
-    line.setAttribute('y2', lineY2);
+    line.setAttribute('x1', panelX + divRect.width);
+    line.setAttribute('y1', panelY + 20);
+    line.setAttribute('x2', ankerScherm.sx);
+    line.setAttribute('y2', ankerScherm.sy);
     line.style.display = '';
   });
 }
 
-function hideStagelijn() {
-  stgLabelDivs.forEach(({ div, line }) => {
-    div.style.display = 'none';
-    line.style.display = 'none';
-  });
-}
-
-// ── Koppeling aan toggleLayer ─────────────────────────────────────────────
-// (overschrijft de stub in drawZorgkoppels)
-const _origDrawZorgkoppels = drawZorgkoppels;
-drawZorgkoppels = function() {
-  _origDrawZorgkoppels();
-  if (activeLayers.stage) renderStagelijn();
-  else hideStagelijn();
-};
-
-// ── Integreer in render-loop: updateStagelijnPosities() aanroepen ─────────
-// Sluit aan op de bestaande animate() of updateLabelDivs()
+// ── Integreer in render-loop ──────────────────────────────────────────────
 const _origUpdateLabelDivs = updateLabelDivs;
 updateLabelDivs = function() {
   _origUpdateLabelDivs();
   if (activeLayers.stage) updateStagelijnPosities();
+  else hideStagelijn();
 };
 
-// ── Data ophalen bij start + periodiek verversen ─────────────────────────
+// ── Stage-laag aan/uit via bestaande toggleLayer ──────────────────────────
+const _origDrawZorgkoppels = drawZorgkoppels;
+drawZorgkoppels = function() {
+  _origDrawZorgkoppels();
+  // Alleen tonen/verbergen — GEEN fetch hier (fetchStagiairs loopt via interval)
+  if (activeLayers.stage) toonStagelijn();
+  else hideStagelijn();
+};
+
+// ── Data ophalen bij start + periodiek verversen ──────────────────────────
 fetchStagiairs();
-setInterval(fetchStagiairs, 60000);  // elke minuut opnieuw ophalen
+setInterval(fetchStagiairs, 60000);
 
 
 </script>
