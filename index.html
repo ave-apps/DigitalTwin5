@@ -403,6 +403,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
     <span class="layer-dot" style="background:#ffaa22"></span>
     Zorgkoppels + stage
   </label>
+  <button onclick="fetchStagiairs()" title="Stagiairdata verversen" style="background:rgba(255,170,34,0.15);border:1px solid rgba(255,170,34,0.35);color:#ffaa22;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:-4px;">↺</button>
   <label class="layer-toggle" id="layer-dienst">
     <input type="checkbox" onchange="toggleLayer('dienst',this.checked)">
     <span class="layer-dot" style="background:#ff88cc"></span>
@@ -2499,7 +2500,7 @@ drawZorgkoppels = function() {
 
 // ── Data ophalen bij start + periodiek verversen ──────────────────────────
 fetchStagiairs();
-setInterval(fetchStagiairs, 60000);
+setInterval(fetchStagiairs, 15000);  // elke 15s — snel genoeg voor kamerwijzigingen
 
 
 </script>
