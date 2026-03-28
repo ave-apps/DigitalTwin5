@@ -2582,6 +2582,333 @@ fetchStagiairs();
 setInterval(fetchStagiairs, 15000);  // elke 15s — snel genoeg voor kamerwijzigingen
 
 
+// ══════════════════════════════════════════════════════════════════════════
+// ZIEKMELDING  — icoon in dienst-panel → formulier → GAS → mail + sheet
+// Rode knipperende dots per etage in de Twin
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── State ─────────────────────────────────────────────────────────────────
+var ziekmeldingen = [];           // actieve meldingen vandaag
+var ziekDots = [];                // {mesh, light, etage}
+var ziekBlinkT = 0;               // blink-animatie teller
+
+// ── Ziekmelding-formulier (modal) ─────────────────────────────────────────
+(function(){
+  var modal = document.createElement('div');
+  modal.id  = 'ziek-modal';
+  modal.style.cssText = `
+    display:none; position:fixed; inset:0; z-index:60;
+    background:rgba(0,0,0,0.7); align-items:center; justify-content:center;
+    font-family:'Segoe UI',sans-serif;
+  `;
+  modal.innerHTML = `
+    <div style="background:#0d121f;border:1px solid rgba(255,255,255,0.15);border-radius:16px;
+      padding:24px;width:min(380px,90vw);box-shadow:0 12px 48px rgba(0,0,0,0.8)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+        <span style="font-size:22px">🤒</span>
+        <span style="color:#ff5555;font-size:15px;font-weight:800">Ziekmelding indienen</span>
+        <button onclick="sluitZiekModal()"
+          style="margin-left:auto;background:none;border:none;color:#666;cursor:pointer;font-size:18px">✕</button>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label style="font-size:10px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:4px">Je naam</label>
+        <input id="ziek-naam" placeholder="Volledige naam…"
+          style="width:100%;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);
+          border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box">
+      </div>
+
+      <div style="margin-bottom:12px">
+        <label style="font-size:10px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:4px">E-mailadres (thuis)</label>
+        <input id="ziek-email" type="email" placeholder="naam@voorbeeld.nl"
+          style="width:100%;background:rgba(255,255,255,0.08);border:1.5px solid rgba(255,255,255,0.15);
+          border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box">
+        <div style="font-size:10px;color:#666;margin-top:3px">Je ontvangt een bevestiging</div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:10px;font-weight:800;color:#888;text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:6px">Op welke verdieping(en) ben je ingepland?</label>
+        <div style="display:flex;gap:8px">
+          ${['BG','1e','2e','3e'].map((e,i)=>`
+            <button class="ziek-etage-btn" data-etage="${i}"
+              onclick="toggleZiekEtage(${i},this)"
+              style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.2);
+              background:rgba(255,255,255,0.05);color:#aaa;font-size:12px;font-weight:700;cursor:pointer">${e}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <button onclick="verstuurZiekmelding()"
+        style="width:100%;padding:11px;background:#ff5555;border:none;border-radius:10px;
+        color:#fff;font-size:13px;font-weight:800;cursor:pointer">
+        🤒 Ziekmelding versturen
+      </button>
+      <div id="ziek-status" style="margin-top:10px;font-size:12px;color:#888;text-align:center;min-height:18px"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+})();
+
+var _ziekEtages = new Set();
+
+function toggleZiekEtage(idx, btn){
+  if(_ziekEtages.has(idx)){ _ziekEtages.delete(idx); btn.style.background='rgba(255,255,255,0.05)'; btn.style.color='#aaa'; btn.style.borderColor='rgba(255,255,255,0.2)'; }
+  else { _ziekEtages.add(idx); btn.style.background='rgba(255,85,85,0.25)'; btn.style.color='#ff5555'; btn.style.borderColor='#ff5555'; }
+}
+
+function openZiekModal(){
+  _ziekEtages.clear();
+  document.querySelectorAll('.ziek-etage-btn').forEach(b=>{
+    b.style.background='rgba(255,255,255,0.05)'; b.style.color='#aaa'; b.style.borderColor='rgba(255,255,255,0.2)';
+  });
+  document.getElementById('ziek-naam').value  = '';
+  document.getElementById('ziek-email').value = '';
+  document.getElementById('ziek-status').textContent = '';
+  document.getElementById('ziek-modal').style.display = 'flex';
+}
+function sluitZiekModal(){
+  document.getElementById('ziek-modal').style.display = 'none';
+}
+
+function verstuurZiekmelding(){
+  const naam  = document.getElementById('ziek-naam').value.trim();
+  const email = document.getElementById('ziek-email').value.trim();
+  const status= document.getElementById('ziek-status');
+  if(!naam){ status.style.color='#ff5555'; status.textContent='Voer je naam in.'; return; }
+  if(!email){ status.style.color='#ff5555'; status.textContent='Voer een e-mailadres in.'; return; }
+  if(![...email].includes('@')){ status.style.color='#ff5555'; status.textContent='Ongeldig e-mailadres.'; return; }
+  if(_ziekEtages.size===0){ status.style.color='#ff5555'; status.textContent='Selecteer minimaal één verdieping.'; return; }
+
+  const ziekmelding = {
+    id:     'ziek-' + Date.now().toString(36),
+    naam, email,
+    etages: [..._ziekEtages],
+    tijdIn: nlTijd(),
+    datum:  nlDatum(),
+  };
+
+  status.style.color='#aaa'; status.textContent='Bezig met verzenden…';
+
+  fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify({action:'pushZiekmelding', ziekmelding})})
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.ok){
+        status.style.color='#4cdd8a'; status.textContent='✓ Ziekmelding verzonden. Check je e-mail.';
+        // Lokaal toevoegen (niet wachten op poll)
+        ziekmeldingen.push({...ziekmelding, status:'actief'});
+        buildZiekDots();
+        setTimeout(sluitZiekModal, 2000);
+      } else {
+        status.style.color='#ff5555'; status.textContent='Fout: '+(d.error||'onbekend');
+      }
+    })
+    .catch(()=>{ status.style.color='#ff5555'; status.textContent='Netwerkfout. Probeer opnieuw.'; });
+}
+
+// ── Ziek-icoon in het beheer-panel ────────────────────────────────────────
+// Voeg ziek-knop toe aan het dienst-panel (na de "In dienst zetten" knop)
+(function(){
+  const checkPanel = setInterval(()=>{
+    const panel = document.getElementById('rachel-panel');
+    if(!panel || panel.style.display==='none') return;
+    if(panel.querySelector('#ziek-panel-btn')) return;
+    const bestaandeBtn = panel.querySelector('button[onclick="rachelPanelVoegToe()"]');
+    if(!bestaandeBtn) return;
+    clearInterval(checkPanel);
+
+    const ziekBtn = document.createElement('button');
+    ziekBtn.id = 'ziek-panel-btn';
+    ziekBtn.textContent = '🤒 Ziekmelding indienen';
+    ziekBtn.style.cssText = `width:100%;padding:10px;background:rgba(255,85,85,0.2);
+      border:1.5px solid #ff5555;border-radius:10px;color:#ff5555;
+      font-family:'Segoe UI',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px`;
+    ziekBtn.onclick = openZiekModal;
+    bestaandeBtn.parentNode.insertBefore(ziekBtn, bestaandeBtn.nextSibling);
+  }, 500);
+})();
+
+// Voeg ook ziek-knop toe via Alt+Shift+Z panel, met een aparte shortcut
+document.addEventListener('keydown', e=>{
+  if(e.altKey && e.shiftKey && e.key === 'I') openZiekModal(); // Alt+Shift+I = zIek
+});
+
+// ── Rode knipperende dots per etage ───────────────────────────────────────
+function buildZiekDots(){
+  // Verwijder oude
+  ziekDots.forEach(d=>{ scene.remove(d.mesh); scene.remove(d.light); });
+  ziekDots.length = 0;
+
+  // Groepeer actieve meldingen per etage
+  const perEtage = {};
+  ziekmeldingen.forEach(z=>{
+    if(z.status === 'opgelost') return;
+    (z.etages || []).forEach(e=>{
+      if(!perEtage[e]) perEtage[e] = [];
+      perEtage[e].push(z);
+    });
+  });
+
+  Object.entries(perEtage).forEach(([etage, lijst])=>{
+    const f   = parseInt(etage);
+    // Positie: rechts naast de teampost-stip
+    const tp  = teampostPos(f);
+    const x   = tp.x + 4;  // iets rechts van teampost
+    const y   = tp.y;
+    const z   = tp.z;
+
+    const geo  = new THREE.SphereGeometry(0.7, 12, 12);
+    const mat  = new THREE.MeshBasicMaterial({color: 0xff3333});
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    // Bewaar metadata voor tooltip
+    mesh.userData = { type:'ziekmelding', etage:f, meldingen: lijst };
+    scene.add(mesh);
+
+    const light = new THREE.PointLight(0xff2222, 1.2, 8);
+    light.position.set(x, y, z);
+    scene.add(light);
+
+    ziekDots.push({mesh, light, etage:f, x, y, z});
+  });
+}
+
+// Blink-animatie in render-loop koppelen
+(function(){
+  const origAnimate = window._origAnimateZiek || null;
+  // We injecteren in de bestaande animate()-loop via een periodieke timer
+  setInterval(()=>{
+    ziekBlinkT += 0.08;
+    const v = 0.4 + 0.6 * Math.abs(Math.sin(ziekBlinkT));
+    ziekDots.forEach(d=>{
+      d.mesh.material.opacity = 1; // geen alpha nodig
+      d.mesh.scale.setScalar(v);
+      d.light.intensity = v * 1.5;
+    });
+  }, 50);
+})();
+
+// ── Ziekmelding-popup (klik op rode dot) ──────────────────────────────────
+var ziekPopup = document.createElement('div');
+ziekPopup.id = 'ziek-popup';
+ziekPopup.style.cssText = `
+  display:none; position:fixed; z-index:40;
+  background:rgba(10,14,30,0.97); border:1px solid rgba(255,85,85,0.4);
+  border-radius:14px; padding:16px; min-width:240px; max-width:300px;
+  font-family:'Segoe UI',sans-serif; box-shadow:0 8px 32px rgba(0,0,0,0.6);
+`;
+ziekPopup.innerHTML = `
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <span style="color:#ff5555;font-size:13px;font-weight:700">🤒 Ziekmeldingen</span>
+    <span id="zp-etage" style="color:#888;font-size:11px"></span>
+    <button onclick="document.getElementById('ziek-popup').style.display='none'"
+      style="margin-left:auto;background:none;border:none;color:#666;cursor:pointer;font-size:16px">✕</button>
+  </div>
+  <div id="zp-lijst" style="margin-bottom:12px"></div>
+`;
+document.body.appendChild(ziekPopup);
+
+function openZiekPopup(etage, meldingen, screenX, screenY){
+  const ETAGES = ['BG','1e','2e','3e'];
+  document.getElementById('zp-etage').textContent = ETAGES[etage] || '';
+  const lijst = document.getElementById('zp-lijst');
+  lijst.innerHTML = meldingen.map(z=>`
+    <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="color:#ff5555;font-size:12px;font-weight:700">🤒 ${z.naam}</span>
+        <span style="color:#888;font-size:10px;margin-left:auto">${z.tijdIn}</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${z.status !== 'aandacht' && z.status !== 'opgelost' ? `
+          <button onclick="ziekActie('${z.id}','aandacht',this.closest('.zp-item')||this.parentNode.parentNode)"
+            style="flex:1;padding:5px;background:rgba(255,200,80,0.2);border:1px solid #ffc850;border-radius:6px;
+            color:#ffc850;font-size:10px;font-weight:700;cursor:pointer">👁 Heeft aandacht</button>
+        ` : z.status === 'aandacht' ? `
+          <div style="flex:1;padding:5px;background:rgba(255,200,80,0.1);border-radius:6px;
+            color:#ffc850;font-size:10px;text-align:center">👁 In behandeling</div>
+        ` : ''}
+        ${z.status !== 'opgelost' ? `
+          <button onclick="ziekActie('${z.id}','opgelost',this.closest('.zp-item')||this.parentNode.parentNode)"
+            style="flex:1;padding:5px;background:rgba(76,221,138,0.2);border:1px solid #4cdd8a;border-radius:6px;
+            color:#4cdd8a;font-size:10px;font-weight:700;cursor:pointer">✓ Opgelost</button>
+        ` : `
+          <div style="flex:1;padding:5px;background:rgba(76,221,138,0.1);border-radius:6px;
+            color:#4cdd8a;font-size:10px;text-align:center">✓ Opgelost</div>
+        `}
+      </div>
+    </div>
+  `).join('');
+
+  const pop = document.getElementById('ziek-popup');
+  pop.style.display = 'block';
+  pop.style.left = Math.min(screenX, window.innerWidth-310)+'px';
+  pop.style.top  = Math.min(screenY+10, window.innerHeight-300)+'px';
+}
+
+function ziekActie(id, status, el){
+  // Lokale update
+  const z = ziekmeldingen.find(m=>m.id===id);
+  if(z){ z.status = status; }
+  // Push naar GAS
+  fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
+    body: JSON.stringify({action:'updateZiekmelding', id, status})})
+    .catch(e=>console.warn('updateZiekmelding fout:', e));
+
+  // Na 'opgelost': verwijder dot na 60 seconden
+  if(status === 'opgelost'){
+    setTimeout(()=>{ buildZiekDots(); }, 60000);
+    // Verberg popup direct
+    document.getElementById('ziek-popup').style.display='none';
+    // Toon kort bevestiging
+    const tip = document.createElement('div');
+    tip.style.cssText='position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#4cdd8a;color:#0a0e1e;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99';
+    tip.textContent = '✓ Ziekmelding als opgelost gemarkeerd';
+    document.body.appendChild(tip);
+    setTimeout(()=>tip.remove(), 2500);
+  } else {
+    // Herlaad popup
+    const meldingen = ziekmeldingen.filter(m=>(m.etages||[]).includes(
+      ziekDots.find(d=>d.meldingen&&d.meldingen.find(x=>x.id===id))?.etage ?? -1
+    ));
+    buildZiekDots();
+  }
+  buildZiekDots();
+}
+
+// ── Klik op rode dot (raycaster uitbreiden) ───────────────────────────────
+// Hergebruik bestaande raycaster via canvas click-listener
+canvas.addEventListener('click', function(ev){
+  if(ev._ziekHandled) return;
+  const rect = canvas.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((ev.clientX - rect.left) / rect.width)  * 2 - 1,
+    -((ev.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  raycaster3D.setFromCamera(mouse, camera);
+  const hits = raycaster3D.intersectObjects(ziekDots.map(d=>d.mesh));
+  if(hits.length){
+    ev._ziekHandled = true;
+    const hit = hits[0].object;
+    openZiekPopup(hit.userData.etage, hit.userData.meldingen, ev.clientX, ev.clientY);
+  }
+}, true);
+
+// ── Ziekmeldingen ophalen (poll) ──────────────────────────────────────────
+function fetchZiekmeldingen(){
+  fetch(GASWA + '?action=pullZiekmeldingen')
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.ok){
+        ziekmeldingen = d.ziekmeldingen || [];
+        buildZiekDots();
+      }
+    })
+    .catch(e=>console.warn('pullZiekmeldingen fout:', e));
+}
+
+fetchZiekmeldingen();
+setInterval(fetchZiekmeldingen, 30000);  // elke 30s
+
 
 </script>
 
