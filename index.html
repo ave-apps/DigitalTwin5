@@ -2820,7 +2820,7 @@ function openZiekPopup(etage, meldingen, screenX, screenY){
     <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <span style="color:#ff5555;font-size:12px;font-weight:700">🤒 ${z.naam}</span>
-        <span style="color:#888;font-size:10px;margin-left:auto">${z.tijdIn}</span>
+        <span style="color:#888;font-size:10px;margin-left:auto">${parseTijdIn(z.tijdIn)}</span>
       </div>
       <div style="display:flex;gap:6px">
         ${z.status !== 'aandacht' && z.status !== 'opgelost' ? `
@@ -2914,6 +2914,7 @@ function buildZiekOverlay(){
   var overlay = document.getElementById('ziek-overlay');
   if(!overlay) return;
   overlay.innerHTML = '';
+
   var perEtage = {};
   ziekmeldingen.forEach(function(z){
     if(z.status === 'opgelost') return;
@@ -2922,10 +2923,26 @@ function buildZiekOverlay(){
       perEtage[e].push(z);
     });
   });
+
+  // Etages 0-3 doorlopen; column-reverse zorgt dat 3e bovenaan staat, BG onderaan
   [0,1,2,3].forEach(function(etage){
     var lijst = perEtage[etage];
     if(!lijst || lijst.length === 0) return;
-    var namen = lijst.map(function(z){ return z.naam.split(' ')[0]; }).join(', ');
+
+    // Wrapper per etage: label + dot naast elkaar
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;gap:8px;pointer-events:all';
+
+    // Etage-label links van de dot
+    var lbl = document.createElement('div');
+    lbl.style.cssText = [
+      'font-family:Segoe UI,sans-serif','font-size:10px','font-weight:800',
+      'color:rgba(255,100,100,0.7)','min-width:20px','text-align:right',
+      'letter-spacing:.5px'
+    ].join(';');
+    lbl.textContent = ETAGES[etage];
+
+    // De dot zelf
     var dot = document.createElement('div');
     dot.style.cssText = [
       'display:flex','align-items:center','gap:7px',
@@ -2933,17 +2950,21 @@ function buildZiekOverlay(){
       'border-radius:20px','padding:5px 10px 5px 8px',
       'font-family:Segoe UI,sans-serif','font-size:11px',
       'font-weight:700','color:#ff7777','white-space:nowrap',
-      'cursor:pointer','pointer-events:all',
+      'cursor:pointer',
       'box-shadow:0 2px 12px rgba(255,50,50,0.25)'
     ].join(';');
-    dot.title = lijst.map(function(z){ return z.naam+' ('+z.tijdIn+')'; }).join('\n');
+    dot.title = lijst.map(function(z){ return z.naam+' ('+parseTijdIn(z.tijdIn)+')'; }).join('\n');
     var pulseSpan = '<span style="width:9px;height:9px;border-radius:50%;background:#ff3333;flex-shrink:0;animation:ziekPuls 1s ease-in-out infinite;box-shadow:0 0 6px #ff3333;display:inline-block"></span>';
-    dot.innerHTML = pulseSpan + '<span>'+ETAGES[etage]+'</span><span style="color:#ff5555;font-size:10px">'+namen+'</span>';
+    var namen = lijst.map(function(z){ return z.naam.split(' ')[0]; }).join(', ');
+    dot.innerHTML = pulseSpan + '<span style="color:#ff5555;font-size:10px">' + namen + '</span>';
     dot.onclick = (function(et, lj){ return function(ev){
       ev.stopPropagation();
       openZiekPopup(et, lj, Math.max(40, ev.clientX - 310), ev.clientY);
     }; })(etage, lijst);
-    overlay.appendChild(dot);
+
+    wrap.appendChild(lbl);
+    wrap.appendChild(dot);
+    overlay.appendChild(wrap);
   });
 }
 

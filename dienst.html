@@ -37,6 +37,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
   transition:all .15s; min-width:60px;
 }
 .etage-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.etage-tab.selected { color:var(--accent); border-bottom-color:var(--accent); background:rgba(180,120,50,0.08); }
+.etage-tab-hint { font-size:10px; color:var(--text-dim); text-align:center; padding:2px 16px 0; font-style:italic; }
 
 /* In-dienst strook */
 .strook-area {
@@ -186,17 +188,20 @@ body { padding-bottom:90px; }
   <span id="sync-label">Lokaal</span>
 </div>
 
-<!-- Etage tabs -->
-<div class="etage-tabs">
-  <div class="etage-tab active" data-etage="0" onclick="selectEtage(0,this)">BG</div>
-  <div class="etage-tab" data-etage="1" onclick="selectEtage(1,this)">1e</div>
-  <div class="etage-tab" data-etage="2" onclick="selectEtage(2,this)">2e</div>
-  <div class="etage-tab" data-etage="3" onclick="selectEtage(3,this)">3e</div>
+<!-- Etage tabs (multi-select) -->
+<div style="font-size:10px;color:var(--text-dim);text-align:center;padding:6px 16px 2px;font-style:italic">
+  Tik een of meerdere etages aan
+</div>
+<div class="etage-tabs" id="etage-tabs">
+  <div class="etage-tab selected" data-etage="0" onclick="toggleEtage(0,this)">BG</div>
+  <div class="etage-tab" data-etage="1" onclick="toggleEtage(1,this)">1e</div>
+  <div class="etage-tab" data-etage="2" onclick="toggleEtage(2,this)">2e</div>
+  <div class="etage-tab" data-etage="3" onclick="toggleEtage(3,this)">3e</div>
 </div>
 
 <!-- In dienst strook -->
 <div class="strook-area" id="strook">
-  <div class="strook-label">▸ In dienst op deze etage</div>
+  <div class="strook-label" id="strook-label">▸ In dienst op geselecteerde etage(s)</div>
   <div class="strook-empty" id="strook-empty">Nog niemand in dienst gesleept</div>
 </div>
 
@@ -273,7 +278,8 @@ const KAMERS_B = ['27','28','29','30','31','32'];
 const STG_NRS  = ['01','02','03','04','05','06','07','08','09','10'];
 const ETAGES   = ['BG','1e','2e','3e'];
 
-let activeEtage = 0;
+let activeEtage = 0;           // voor weergave strook (eerste geselecteerde etage)
+let selectedEtages = new Set([0]); // multi-select: welke etages zijn actief
 let selectedKleur = KLEUREN[0];
 let selectedKoppels = new Set();
 let isStageToggle = false;
@@ -367,23 +373,42 @@ function toggleStage(){
 }
 
 // ── Etage selectie ────────────────────────────────────────────────────────
-function selectEtage(idx, el){
-  activeEtage = idx;
-  document.querySelectorAll('.etage-tab').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
+function toggleEtage(idx, el){
+  if(selectedEtages.has(idx)){
+    // Minimaal 1 etage moet geselecteerd blijven
+    if(selectedEtages.size === 1) return;
+    selectedEtages.delete(idx);
+    el.classList.remove('selected','active');
+  } else {
+    selectedEtages.add(idx);
+    el.classList.add('selected');
+  }
+  // activeEtage = laagste geselecteerde (voor strook-weergave)
+  activeEtage = Math.min(...selectedEtages);
   buildKoppels();
   renderStrook();
 }
+// Behoud backward-compat voor code die nog selectEtage aanroept
+function selectEtage(idx, el){ toggleEtage(idx, el); }
 
 // ── Strook renderen ───────────────────────────────────────────────────────
 function renderStrook(){
   const strook = document.getElementById('strook');
   const empty  = document.getElementById('strook-empty');
-  // Verwijder bestaande chips
   strook.querySelectorAll('.dienst-chip').forEach(c=>c.remove());
 
-  const records = dienstRecords[activeEtage] || [];
-  empty.style.display = records.length ? 'none' : '';
+  // Toon records van ALLE geselecteerde etages
+  const ETAGES = ['BG','1e','2e','3e'];
+  const etLbl = [...selectedEtages].sort().map(e=>ETAGES[e]).join(' + ');
+  const lbl = document.getElementById('strook-label');
+  if(lbl) lbl.textContent = '▸ In dienst op ' + etLbl;
+
+  let allRecords = [];
+  [...selectedEtages].sort().forEach(et => {
+    (dienstRecords[et] || []).forEach(r => allRecords.push({...r, _etage: et}));
+  });
+  empty.style.display = allRecords.length ? 'none' : '';
+  const records = allRecords; // hergebruik resterende code
 
   records.forEach(r => {
     const chip = document.createElement('div');
@@ -393,7 +418,15 @@ function renderStrook(){
       <span>${r.naam.split(' ')[0]}</span>
       <span style="font-size:10px;color:var(--text-dim)">${r.functie}</span>
       <span onclick="uitDienstId('${r.id}')" style="margin-left:4px;color:#c42a2a;font-size:14px;font-weight:900;cursor:pointer;line-height:1" title="Uit dienst">×</span>`;
-    chip.title = `${r.naam} — ${ETAGES[r.etage]}\nKoppels: ${[...r.koppels].join(', ')||'geen'}`;
+    const etLbl2 = ETAGES[r._etage !== undefined ? r._etage : r.etage] || '';
+    chip.title = `${r.naam} — ${etLbl2}\nKoppels: ${[...r.koppels].join(', ')||'geen'}`;
+    // Etage-badge in chip als meerdere etages geselecteerd
+    if(selectedEtages.size > 1){
+      const badge = document.createElement('span');
+      badge.style.cssText = 'font-size:9px;background:rgba(0,0,0,0.2);border-radius:4px;padding:1px 4px;color:#fff;font-weight:900;flex-shrink:0';
+      badge.textContent = etLbl2;
+      chip.insertBefore(badge, chip.querySelector('span'));
+    }
     strook.appendChild(chip);
   });
 }
@@ -402,31 +435,47 @@ function renderStrook(){
 function startSleep(e){
   const naam = document.getElementById('naam').value.trim();
   if(!naam){ showBanner('Vul eerst je naam in'); return; }
-  // Controleer of naam al in strook voorkomt
-  const bestaand = (dienstRecords[activeEtage]||[]).find(r=>r.naam===naam);
-  if(bestaand){ showBanner(`${naam.split(' ')[0]} staat al in dienst op deze etage`); return; }
+  // Controleer per geselecteerde etage of naam al in dienst staat
+  const ETLBLS = ['BG','1e','2e','3e'];
+  const dubbel = [...selectedEtages].filter(et =>
+    (dienstRecords[et]||[]).find(r=>r.naam===naam)
+  );
+  if(dubbel.length === selectedEtages.size){
+    showBanner(`${naam.split(' ')[0]} staat al in dienst op ${dubbel.map(e=>ETLBLS[e]).join(' + ')}`);
+    return;
+  }
 
   const afk = maakAfkorting(naam);
-  const record = {
-    id:        uid(),
-    naam,
-    afkorting: afk,
-    functie:   document.getElementById('functie').value,
-    kleur:     selectedKleur,
-    etage:     activeEtage,
-    koppels:   [...selectedKoppels],
-    stgBegeleider: isStageToggle,
-    stgNrs:    [...selectedStg],
-    tijdIn:    new Date().toTimeString().slice(0,5),
-    datum:     new Date().toISOString().split('T')[0],
-  };
+  const baseTijdIn = new Date().toTimeString().slice(0,5);
+  const baseDatum  = new Date().toISOString().split('T')[0];
 
-  if(!dienstRecords[activeEtage]) dienstRecords[activeEtage] = [];
-  dienstRecords[activeEtage].push(record);
+  // Maak een record per geselecteerde etage
+  const nieuweEtages = [...selectedEtages].filter(et =>
+    !(dienstRecords[et]||[]).find(r=>r.naam===naam)
+  );
 
+  nieuweEtages.forEach(et => {
+    const record = {
+      id:        uid(),
+      naam,
+      afkorting: afk,
+      functie:   document.getElementById('functie').value,
+      kleur:     selectedKleur,
+      etage:     et,
+      koppels:   [...selectedKoppels],
+      stgBegeleider: isStageToggle,
+      stgNrs:    [...selectedStg],
+      tijdIn:    baseTijdIn,
+      datum:     baseDatum,
+    };
+    if(!dienstRecords[et]) dienstRecords[et] = [];
+    dienstRecords[et].push(record);
+    pushDienst(record);
+  });
+
+  const etLblStr = nieuweEtages.map(e=>ETLBLS[e]).join(' + ');
   renderStrook();
-  pushDienst(record);
-  showBanner(`✓ ${naam.split(' ')[0]} — ${ETAGES[activeEtage]} in dienst`);
+  showBanner(`✓ ${naam.split(' ')[0]} — ${etLblStr} in dienst`);
 
   // Formulier resetten voor volgende collega
   document.getElementById('naam').value = '';
