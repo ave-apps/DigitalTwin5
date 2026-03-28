@@ -2809,105 +2809,164 @@ function buildZiekDots(){
 })();
 
 // ── Ziekmelding-popup (klik op rode dot) ──────────────────────────────────
+// ── Ziekmelding popup ─────────────────────────────────────────────────────
+// Één popup per MELDER, toont alle betrokken etages met eigen statusrij.
+// Per etage: badge + knoppen; klik op BG-dot of 2e-dot → zelfde kaart.
+
 var ziekPopup = document.createElement('div');
 ziekPopup.id = 'ziek-popup';
 ziekPopup.style.cssText = `
   display:none; position:fixed; z-index:40;
   background:rgba(10,14,30,0.97); border:1px solid rgba(255,85,85,0.4);
-  border-radius:14px; padding:16px; min-width:240px; max-width:300px;
+  border-radius:14px; padding:16px; min-width:280px; max-width:340px;
   font-family:'Segoe UI',sans-serif; box-shadow:0 8px 32px rgba(0,0,0,0.6);
 `;
 ziekPopup.innerHTML = `
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-    <span style="color:#ff5555;font-size:13px;font-weight:700">🤒 Ziekmeldingen</span>
-    <span id="zp-etage" style="color:#888;font-size:11px"></span>
+    <span style="color:#ff5555;font-size:13px;font-weight:700">🤒 Ziekmelding</span>
     <button onclick="document.getElementById('ziek-popup').style.display='none'"
       style="margin-left:auto;background:none;border:none;color:#666;cursor:pointer;font-size:16px">✕</button>
   </div>
-  <div id="zp-lijst" style="margin-bottom:12px"></div>
+  <div id="zp-lijst"></div>
 `;
 document.body.appendChild(ziekPopup);
 
+// etageStatus: { meldingId: { etage: 'actief'|'aandacht'|'opgelost' } }
+// Wordt lokaal bijgehouden zodat popup direct bijwerkt zonder nieuwe pull
+var etageStatus = {};
+
+function getEtageStatus(id, etage){
+  return (etageStatus[id] && etageStatus[id][etage]) || 'actief';
+}
+function setEtageStatus(id, etage, status){
+  if(!etageStatus[id]) etageStatus[id] = {};
+  etageStatus[id][etage] = status;
+}
+
+// openZiekPopup: toont ALLE meldingen die deze etage bevatten,
+// maar elke melding als één kaart met álle etages van die melder.
 function openZiekPopup(etage, meldingen, screenX, screenY){
   const ETAGES = ['BG','1e','2e','3e'];
-  const etLbl = ETAGES[etage] || '';
-  document.getElementById('zp-etage').textContent = etLbl;
-  // Sla huidige etage op voor actieknoppen
-  document.getElementById('ziek-popup').dataset.etage = etage;
+
+  // Dedupliceer: een melder kan maar 1 kaart hebben
+  // (meldingen is al gefilterd op etage; we tonen de hele melding incl. andere etages)
+  const gezien = new Set();
+  const uniek = meldingen.filter(z => {
+    if(gezien.has(z.id)) return false;
+    gezien.add(z.id);
+    return true;
+  });
+
   const lijst = document.getElementById('zp-lijst');
-  lijst.innerHTML = meldingen.map(z=>`
-    <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="color:#ff5555;font-size:12px;font-weight:700">🤒 ${z.naam}</span>
-        <span style="color:#888;font-size:10px;margin-left:auto">${parseTijdIn(z.tijdIn)}</span>
-      </div>
-      <div style="display:flex;gap:6px">
-        ${z.status !== 'aandacht' && z.status !== 'opgelost' ? `
-          <button onclick="ziekActie('${z.id}','aandacht',document.getElementById('ziek-popup').dataset.etage)"
-            style="flex:1;padding:5px;background:rgba(255,200,80,0.2);border:1px solid #ffc850;border-radius:6px;
-            color:#ffc850;font-size:10px;font-weight:700;cursor:pointer">👁 Aandacht</button>
-        ` : z.status === 'aandacht' ? `
-          <div style="flex:1;padding:5px;background:rgba(255,200,80,0.1);border-radius:6px;
+  lijst.innerHTML = uniek.map(z => {
+    // Alle etages van deze melder, gesorteerd
+    const etages = (z.etages || []).map(e=>parseInt(e,10)).filter(n=>!isNaN(n)).sort();
+    const etageRijen = etages.map(et => {
+      const st = getEtageStatus(z.id, et);
+      const etLbl = ETAGES[et] || et;
+      const badge = `<span style="
+        display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;
+        font-weight:900;background:rgba(255,85,85,0.18);color:#ff7777;
+        border:1px solid rgba(255,85,85,0.4);min-width:24px;text-align:center;
+        flex-shrink:0">${etLbl}</span>`;
+      let knoppen = '';
+      if(st === 'actief'){
+        knoppen = `
+          <button onclick="ziekActie('${z.id}','aandacht',${et})"
+            style="flex:1;padding:4px 6px;background:rgba(255,200,80,0.2);border:1px solid #ffc850;
+            border-radius:6px;color:#ffc850;font-size:10px;font-weight:700;cursor:pointer">👁 Aandacht</button>
+          <button onclick="ziekActie('${z.id}','opgelost',${et})"
+            style="flex:1;padding:4px 6px;background:rgba(76,221,138,0.2);border:1px solid #4cdd8a;
+            border-radius:6px;color:#4cdd8a;font-size:10px;font-weight:700;cursor:pointer">✓ Opgelost</button>`;
+      } else if(st === 'aandacht'){
+        knoppen = `
+          <div style="flex:1;padding:4px 6px;background:rgba(255,200,80,0.1);border-radius:6px;
             color:#ffc850;font-size:10px;text-align:center">👁 In behandeling</div>
-        ` : ''}
-        ${z.status !== 'opgelost' ? `
-          <button onclick="ziekActie('${z.id}','opgelost',document.getElementById('ziek-popup').dataset.etage)"
-            style="flex:1;padding:5px;background:rgba(76,221,138,0.2);border:1px solid #4cdd8a;border-radius:6px;
-            color:#4cdd8a;font-size:10px;font-weight:700;cursor:pointer">✓ Opgelost</button>
-        ` : `
-          <div style="flex:1;padding:5px;background:rgba(76,221,138,0.1);border-radius:6px;
-            color:#4cdd8a;font-size:10px;text-align:center">✓ Opgelost</div>
-        `}
-      </div>
-    </div>
-  `).join('');
+          <button onclick="ziekActie('${z.id}','opgelost',${et})"
+            style="flex:1;padding:4px 6px;background:rgba(76,221,138,0.2);border:1px solid #4cdd8a;
+            border-radius:6px;color:#4cdd8a;font-size:10px;font-weight:700;cursor:pointer">✓ Opgelost</button>`;
+      } else {
+        knoppen = `
+          <div style="flex:1;padding:4px 6px;background:rgba(76,221,138,0.1);border-radius:6px;
+            color:#4cdd8a;font-size:10px;text-align:center">✓ Opgelost</div>`;
+      }
+      return `
+        <div style="display:flex;align-items:center;gap:6px;padding:5px 0;
+          border-top:1px solid rgba(255,255,255,0.06)">
+          ${badge}
+          <div style="display:flex;gap:5px;flex:1">${knoppen}</div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div style="padding:8px 0 4px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="color:#ff5555;font-size:12px;font-weight:700">🤒 ${z.naam}</span>
+          <span style="color:#888;font-size:10px;margin-left:auto">${parseTijdIn(z.tijdIn)}</span>
+        </div>
+        ${etageRijen}
+      </div>`;
+  }).join('');
 
   const pop = document.getElementById('ziek-popup');
   pop.style.display = 'block';
-  pop.style.left = Math.min(screenX, window.innerWidth-310)+'px';
-  pop.style.top  = Math.min(screenY+10, window.innerHeight-300)+'px';
+  pop.style.left = Math.min(screenX, window.innerWidth-350)+'px';
+  pop.style.top  = Math.min(screenY+10, window.innerHeight-320)+'px';
 }
 
-function ziekActie(id, status, etageCtx){
-  const etage = parseInt(etageCtx, 10);
-  const ETAGES = ['BG','1e','2e','3e'];
+// Heropen popup na actie (refresh in-place)
+function herOpenPopup(){
+  // Zoek de actieve popup-positie en herlaad met zelfde etage-context
+  const pop = document.getElementById('ziek-popup');
+  if(pop.style.display !== 'block') return;
+  // Pak alle actieve meldingen opnieuw
+  const alleMeldingen = ziekmeldingen.filter(z => z.status !== 'opgelost' || (z.etages||[]).length > 0);
+  if(alleMeldingen.length){
+    openZiekPopup(-1, alleMeldingen,
+      parseInt(pop.style.left), parseInt(pop.style.top) - 10);
+  } else {
+    pop.style.display = 'none';
+  }
+}
 
-  // Lokale update: 'opgelost' verwijdert melding ALLEEN van deze etage
+function ziekActie(id, status, etage){
+  etage = parseInt(etage, 10);
+  const ETAGES = ['BG','1e','2e','3e'];
+  const etLbl = ETAGES[etage] || '';
+
+  // Lokale status bijhouden
+  setEtageStatus(id, etage, status);
+
+  // Lokale melding bijwerken
   const z = ziekmeldingen.find(m=>m.id===id);
-  if(z){
-    if(status === 'opgelost'){
-      // Verwijder etage uit de melding's etage-lijst
-      z.etages = (z.etages||[]).filter(e=>parseInt(e,10)!==etage);
-      // Pas als alle etages verwijderd zijn, melding als geheel opgelost
-      if(z.etages.length === 0) z.status = 'opgelost';
-    } else {
-      z.status = status;
-    }
+  if(z && status === 'opgelost'){
+    z.etages = (z.etages||[]).filter(e=>parseInt(e,10)!==etage);
+    if(z.etages.length === 0) z.status = 'opgelost';
+  } else if(z && status === 'aandacht'){
+    z.status = 'aandacht';
   }
 
-  // Push naar GAS (met etage-context)
+  // Push naar GAS
   fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
     body: JSON.stringify({action:'updateZiekmelding', id, status, etage})})
     .catch(e=>console.warn('updateZiekmelding fout:', e));
 
-  const etLbl = ETAGES[etage] || '';
-
+  // Toast
+  const tip = document.createElement('div');
+  tip.style.cssText='position:fixed;bottom:120px;left:50%;transform:translateX(-50%);padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99';
   if(status === 'opgelost'){
-    document.getElementById('ziek-popup').style.display='none';
-    const tip = document.createElement('div');
-    tip.style.cssText='position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#4cdd8a;color:#0a0e1e;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99';
+    tip.style.background='#4cdd8a'; tip.style.color='#0a0e1e';
     tip.textContent = '✓ Opgelost voor ' + etLbl;
-    document.body.appendChild(tip);
-    setTimeout(()=>tip.remove(), 2500);
   } else {
-    document.getElementById('ziek-popup').style.display='none';
-    const tip = document.createElement('div');
-    tip.style.cssText='position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#ffc850;color:#0a0e1e;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99';
+    tip.style.background='#ffc850'; tip.style.color='#0a0e1e';
     tip.textContent = '👁 Aandacht voor ' + etLbl;
-    document.body.appendChild(tip);
-    setTimeout(()=>tip.remove(), 2500);
   }
+  document.body.appendChild(tip);
+  setTimeout(()=>tip.remove(), 2500);
+
+  // Heropen popup met nieuwe status (zonder te sluiten)
   buildZiekDots();
+  setTimeout(herOpenPopup, 60);
 }
 
 // Ziek-dot klik is verplaatst naar checkStipHit (heeft prioriteit over teampost)
