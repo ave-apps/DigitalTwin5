@@ -2763,8 +2763,9 @@ function buildZiekDots(){
   ziekmeldingen.forEach(z=>{
     if(z.status === 'opgelost') return;
     (z.etages || []).forEach(e=>{
-      if(!perEtage[e]) perEtage[e] = [];
-      perEtage[e].push(z);
+      const key = parseInt(e, 10);
+      if(!perEtage[key]) perEtage[key] = [];
+      perEtage[key].push(z);
     });
   });
 
@@ -2829,7 +2830,10 @@ document.body.appendChild(ziekPopup);
 
 function openZiekPopup(etage, meldingen, screenX, screenY){
   const ETAGES = ['BG','1e','2e','3e'];
-  document.getElementById('zp-etage').textContent = ETAGES[etage] || '';
+  const etLbl = ETAGES[etage] || '';
+  document.getElementById('zp-etage').textContent = etLbl;
+  // Sla huidige etage op voor actieknoppen
+  document.getElementById('ziek-popup').dataset.etage = etage;
   const lijst = document.getElementById('zp-lijst');
   lijst.innerHTML = meldingen.map(z=>`
     <div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
@@ -2839,15 +2843,15 @@ function openZiekPopup(etage, meldingen, screenX, screenY){
       </div>
       <div style="display:flex;gap:6px">
         ${z.status !== 'aandacht' && z.status !== 'opgelost' ? `
-          <button onclick="ziekActie('${z.id}','aandacht',this.closest('.zp-item')||this.parentNode.parentNode)"
+          <button onclick="ziekActie('${z.id}','aandacht',document.getElementById('ziek-popup').dataset.etage)"
             style="flex:1;padding:5px;background:rgba(255,200,80,0.2);border:1px solid #ffc850;border-radius:6px;
-            color:#ffc850;font-size:10px;font-weight:700;cursor:pointer">👁 Heeft aandacht</button>
+            color:#ffc850;font-size:10px;font-weight:700;cursor:pointer">👁 Aandacht</button>
         ` : z.status === 'aandacht' ? `
           <div style="flex:1;padding:5px;background:rgba(255,200,80,0.1);border-radius:6px;
             color:#ffc850;font-size:10px;text-align:center">👁 In behandeling</div>
         ` : ''}
         ${z.status !== 'opgelost' ? `
-          <button onclick="ziekActie('${z.id}','opgelost',this.closest('.zp-item')||this.parentNode.parentNode)"
+          <button onclick="ziekActie('${z.id}','opgelost',document.getElementById('ziek-popup').dataset.etage)"
             style="flex:1;padding:5px;background:rgba(76,221,138,0.2);border:1px solid #4cdd8a;border-radius:6px;
             color:#4cdd8a;font-size:10px;font-weight:700;cursor:pointer">✓ Opgelost</button>
         ` : `
@@ -2864,32 +2868,44 @@ function openZiekPopup(etage, meldingen, screenX, screenY){
   pop.style.top  = Math.min(screenY+10, window.innerHeight-300)+'px';
 }
 
-function ziekActie(id, status, el){
-  // Lokale update
+function ziekActie(id, status, etageCtx){
+  const etage = parseInt(etageCtx, 10);
+  const ETAGES = ['BG','1e','2e','3e'];
+
+  // Lokale update: 'opgelost' verwijdert melding ALLEEN van deze etage
   const z = ziekmeldingen.find(m=>m.id===id);
-  if(z){ z.status = status; }
-  // Push naar GAS
+  if(z){
+    if(status === 'opgelost'){
+      // Verwijder etage uit de melding's etage-lijst
+      z.etages = (z.etages||[]).filter(e=>parseInt(e,10)!==etage);
+      // Pas als alle etages verwijderd zijn, melding als geheel opgelost
+      if(z.etages.length === 0) z.status = 'opgelost';
+    } else {
+      z.status = status;
+    }
+  }
+
+  // Push naar GAS (met etage-context)
   fetch(GASWA, {method:'POST', headers:{'Content-Type':'text/plain'},
-    body: JSON.stringify({action:'updateZiekmelding', id, status})})
+    body: JSON.stringify({action:'updateZiekmelding', id, status, etage})})
     .catch(e=>console.warn('updateZiekmelding fout:', e));
 
-  // Na 'opgelost': verwijder dot na 60 seconden
+  const etLbl = ETAGES[etage] || '';
+
   if(status === 'opgelost'){
-    setTimeout(()=>{ buildZiekDots(); }, 60000);
-    // Verberg popup direct
     document.getElementById('ziek-popup').style.display='none';
-    // Toon kort bevestiging
     const tip = document.createElement('div');
     tip.style.cssText='position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#4cdd8a;color:#0a0e1e;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99';
-    tip.textContent = '✓ Ziekmelding als opgelost gemarkeerd';
+    tip.textContent = '✓ Opgelost voor ' + etLbl;
     document.body.appendChild(tip);
     setTimeout(()=>tip.remove(), 2500);
   } else {
-    // Herlaad popup
-    const meldingen = ziekmeldingen.filter(m=>(m.etages||[]).includes(
-      ziekDots.find(d=>d.meldingen&&d.meldingen.find(x=>x.id===id))?.etage ?? -1
-    ));
-    buildZiekDots();
+    document.getElementById('ziek-popup').style.display='none';
+    const tip = document.createElement('div');
+    tip.style.cssText='position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#ffc850;color:#0a0e1e;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99';
+    tip.textContent = '👁 Aandacht voor ' + etLbl;
+    document.body.appendChild(tip);
+    setTimeout(()=>tip.remove(), 2500);
   }
   buildZiekDots();
 }
@@ -2902,8 +2918,8 @@ function ziekActie(id, status, el){
   overlay.id = 'ziek-overlay';
   overlay.style.cssText = [
     'position:fixed','right:16px','top:130px',
-    'z-index:45','display:flex','flex-direction:column-reverse','gap:8px',
-    'pointer-events:none','max-height:calc(100vh - 180px)','overflow:visible'
+    'z-index:45','display:flex','flex-direction:column','gap:8px',
+    'pointer-events:none','max-height:calc(100vh - 200px)','overflow:visible'
   ].join(';');
   document.body.appendChild(overlay);
 })();
@@ -2918,13 +2934,14 @@ function buildZiekOverlay(){
   ziekmeldingen.forEach(function(z){
     if(z.status === 'opgelost') return;
     (z.etages || []).forEach(function(e){
-      if(!perEtage[e]) perEtage[e] = [];
-      perEtage[e].push(z);
+      var key = parseInt(e, 10); // altijd Number
+      if(!perEtage[key]) perEtage[key] = [];
+      perEtage[key].push(z);
     });
   });
 
-  // Etages 0-3 doorlopen; column-reverse zorgt dat 3e bovenaan staat, BG onderaan
-  [0,1,2,3].forEach(function(etage){
+  // Itereer 3→2→1→0 zodat 3e bovenaan staat, BG onderaan
+  [3,2,1,0].forEach(function(etage){
     var lijst = perEtage[etage];
     if(!lijst || lijst.length === 0) return;
 
