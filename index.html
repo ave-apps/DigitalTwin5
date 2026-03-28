@@ -2998,17 +2998,58 @@ buildZiekDots = function(){
   setTimeout(buildZiekOverlay, 50);
 };
 
+// ── Debug paneel (tijdelijk) ──────────────────────────────────────────────
+(function(){
+  const dbg = document.createElement('div');
+  dbg.id = 'ziek-debug';
+  dbg.style.cssText = [
+    'position:fixed','left:10px','bottom:10px','z-index:9999',
+    'background:rgba(0,0,0,0.85)','color:#0f0','font-size:10px',
+    'font-family:monospace','padding:8px 10px','border-radius:8px',
+    'max-width:420px','max-height:160px','overflow-y:auto',
+    'border:1px solid #0f0','pointer-events:none'
+  ].join(';');
+  dbg.textContent = 'Ziek-debug: wachten op data...';
+  document.body.appendChild(dbg);
+})();
+
+function ziekDebug(msg){
+  const el = document.getElementById('ziek-debug');
+  if(el) el.textContent = msg;
+}
+
 // ── Ziekmeldingen ophalen (poll) ──────────────────────────────────────────
 function fetchZiekmeldingen(){
   fetch(GASWA + '?action=pullZiekmeldingen')
     .then(r=>r.json())
     .then(d=>{
       if(d.ok){
-        ziekmeldingen = d.ziekmeldingen || [];
+        // Forceer etages altijd naar array van integers
+        ziekmeldingen = (d.ziekmeldingen || []).map(function(z){
+          var etgs = z.etages;
+          if(!Array.isArray(etgs)){
+            etgs = String(etgs||'').split(',').filter(function(x){return x.trim()!=='';});
+          }
+          z.etages = etgs.map(function(e){ return parseInt(e,10); }).filter(function(n){ return !isNaN(n); });
+          return z;
+        });
+
+        // Debug: toon wat we ontvangen hebben
+        var dbgLines = ziekmeldingen.map(function(z){
+          return z.naam.split(' ')[0]+': etages=['+z.etages.join(',')+'] status='+z.status+' tijdIn='+z.tijdIn;
+        });
+        ziekDebug('Meldingen ('+ziekmeldingen.length+'):\n'+dbgLines.join('\n'));
+
         buildZiekDots();
+        buildZiekOverlay(); // ook direct aanroepen, niet alleen via setTimeout
+      } else {
+        ziekDebug('GAS error: '+(d.error||'onbekend'));
       }
     })
-    .catch(e=>console.warn('pullZiekmeldingen fout:', e));
+    .catch(e=>{
+      ziekDebug('Fetch fout: '+e.toString());
+      console.warn('pullZiekmeldingen fout:', e);
+    });
 }
 
 fetchZiekmeldingen();
