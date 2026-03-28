@@ -1912,6 +1912,21 @@ function rebuildStipHitbollen(){
 }
 
 function checkStipHit(clientX, clientY, ev){
+  // Eerst controleren op ziekmelding-dot (heeft prioriteit)
+  if(ziekDots && ziekDots.length){
+    const rect2 = canvas.getBoundingClientRect();
+    const mx2 = ((clientX-rect2.left)/rect2.width)*2-1;
+    const my2 = -((clientY-rect2.top)/rect2.height)*2+1;
+    raycaster3D.setFromCamera(new THREE.Vector2(mx2,my2), camera);
+    const zHits = raycaster3D.intersectObjects(ziekDots.map(function(d){return d.mesh;}));
+    if(zHits.length){
+      if(ev) ev.stopImmediatePropagation();
+      const hit = zHits[0].object;
+      openZiekPopup(hit.userData.etage, hit.userData.meldingen, clientX, clientY);
+      return true;
+    }
+  }
+  // Dan teampost-stip
   if(!stipHitbollen.length) return false;
   const rect = canvas.getBoundingClientRect();
   const mx = ((clientX-rect.left)/rect.width)*2-1;
@@ -2879,32 +2894,16 @@ function ziekActie(id, status, el){
   buildZiekDots();
 }
 
-// ── Klik op rode dot (raycaster uitbreiden) ───────────────────────────────
-// Hergebruik bestaande raycaster via canvas click-listener
-canvas.addEventListener('click', function(ev){
-  if(ev._ziekHandled) return;
-  const rect = canvas.getBoundingClientRect();
-  const mouse = new THREE.Vector2(
-    ((ev.clientX - rect.left) / rect.width)  * 2 - 1,
-    -((ev.clientY - rect.top) / rect.height) * 2 + 1
-  );
-  raycaster3D.setFromCamera(mouse, camera);
-  const hits = raycaster3D.intersectObjects(ziekDots.map(d=>d.mesh));
-  if(hits.length){
-    ev._ziekHandled = true;
-    const hit = hits[0].object;
-    openZiekPopup(hit.userData.etage, hit.userData.meldingen, ev.clientX, ev.clientY);
-  }
-}, true);
+// Ziek-dot klik is verplaatst naar checkStipHit (heeft prioriteit over teampost)
 
 // ── 2D Overlay: rode dots per etage, altijd zichtbaar op scherm ───────────
 (function(){
   const overlay = document.createElement('div');
   overlay.id = 'ziek-overlay';
   overlay.style.cssText = [
-    'position:fixed','right:18px','top:50%','transform:translateY(-50%)',
-    'z-index:45','display:flex','flex-direction:column-reverse','gap:10px',
-    'pointer-events:none'
+    'position:fixed','right:16px','top:130px',
+    'z-index:45','display:flex','flex-direction:column-reverse','gap:8px',
+    'pointer-events:none','max-height:calc(100vh - 180px)','overflow:visible'
   ].join(';');
   document.body.appendChild(overlay);
 })();
@@ -2974,10 +2973,12 @@ function buildZiekOverlay(){
   document.head.appendChild(st);
 })();
 
+// buildZiekDots roept nu direct buildZiekOverlay aan (ingebakken)
 var _origBuildZiekDots = buildZiekDots;
 buildZiekDots = function(){
   _origBuildZiekDots();
-  buildZiekOverlay();
+  // Kleine delay zodat DOM/ziekDots array zeker bijgewerkt zijn
+  setTimeout(buildZiekOverlay, 50);
 };
 
 // ── Ziekmeldingen ophalen (poll) ──────────────────────────────────────────
