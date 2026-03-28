@@ -2897,6 +2897,68 @@ canvas.addEventListener('click', function(ev){
   }
 }, true);
 
+// ── 2D Overlay: rode dots per etage, altijd zichtbaar op scherm ───────────
+(function(){
+  const overlay = document.createElement('div');
+  overlay.id = 'ziek-overlay';
+  overlay.style.cssText = [
+    'position:fixed','right:18px','top:50%','transform:translateY(-50%)',
+    'z-index:45','display:flex','flex-direction:column-reverse','gap:10px',
+    'pointer-events:none'
+  ].join(';');
+  document.body.appendChild(overlay);
+})();
+
+function buildZiekOverlay(){
+  var ETAGES = ['BG','1e','2e','3e'];
+  var overlay = document.getElementById('ziek-overlay');
+  if(!overlay) return;
+  overlay.innerHTML = '';
+  var perEtage = {};
+  ziekmeldingen.forEach(function(z){
+    if(z.status === 'opgelost') return;
+    (z.etages || []).forEach(function(e){
+      if(!perEtage[e]) perEtage[e] = [];
+      perEtage[e].push(z);
+    });
+  });
+  [0,1,2,3].forEach(function(etage){
+    var lijst = perEtage[etage];
+    if(!lijst || lijst.length === 0) return;
+    var namen = lijst.map(function(z){ return z.naam.split(' ')[0]; }).join(', ');
+    var dot = document.createElement('div');
+    dot.style.cssText = [
+      'display:flex','align-items:center','gap:7px',
+      'background:rgba(10,14,30,0.88)','border:1px solid rgba(255,85,85,0.5)',
+      'border-radius:20px','padding:5px 10px 5px 8px',
+      'font-family:Segoe UI,sans-serif','font-size:11px',
+      'font-weight:700','color:#ff7777','white-space:nowrap',
+      'cursor:pointer','pointer-events:all',
+      'box-shadow:0 2px 12px rgba(255,50,50,0.25)'
+    ].join(';');
+    dot.title = lijst.map(function(z){ return z.naam+' ('+z.tijdIn+')'; }).join('\n');
+    var pulseSpan = '<span style="width:9px;height:9px;border-radius:50%;background:#ff3333;flex-shrink:0;animation:ziekPuls 1s ease-in-out infinite;box-shadow:0 0 6px #ff3333;display:inline-block"></span>';
+    dot.innerHTML = pulseSpan + '<span>'+ETAGES[etage]+'</span><span style="color:#ff5555;font-size:10px">'+namen+'</span>';
+    dot.onclick = (function(et, lj){ return function(ev){
+      ev.stopPropagation();
+      openZiekPopup(et, lj, Math.max(40, ev.clientX - 310), ev.clientY);
+    }; })(etage, lijst);
+    overlay.appendChild(dot);
+  });
+}
+
+(function(){
+  var st = document.createElement('style');
+  st.textContent = '@keyframes ziekPuls{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.55);opacity:0.65;}}';
+  document.head.appendChild(st);
+})();
+
+var _origBuildZiekDots = buildZiekDots;
+buildZiekDots = function(){
+  _origBuildZiekDots();
+  buildZiekOverlay();
+};
+
 // ── Ziekmeldingen ophalen (poll) ──────────────────────────────────────────
 function fetchZiekmeldingen(){
   fetch(GASWA + '?action=pullZiekmeldingen')
