@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DT5 Cinema</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --goud: #c8973a;
+    --goud2: #f0c060;
+    --rood: #8b1a1a;
+    --donker: #0a0806;
+    --fluweel: #1a0f08;
+    --cream: #f5ead8;
+    --dim: rgba(245,234,216,0.5);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--donker);
+    overflow: hidden;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--cream);
+  }
+
+  /* ── Bioscoop-zaal SVG achtergrond ────────────────────────────────────── */
+  #zaal {
+    position: fixed; inset: 0;
+    z-index: 0;
+  }
+
+  /* ── Opstartanimatie overlay ──────────────────────────────────────────── */
+  #curtain {
+    position: fixed; inset: 0; z-index: 50;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+    animation: curtainFade 3.2s ease-in-out forwards;
+  }
+  @keyframes curtainFade {
+    0%   { opacity: 1; }
+    70%  { opacity: 1; }
+    100% { opacity: 0; pointer-events: none; }
+  }
+  #curtain-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(28px, 5vw, 52px);
+    color: var(--goud);
+    letter-spacing: 8px;
+    opacity: 0;
+    animation: textIn 0.8s ease 0.4s forwards;
+  }
+  #curtain-sub {
+    font-size: 11px; letter-spacing: 4px; color: var(--dim);
+    text-transform: uppercase;
+    opacity: 0;
+    animation: textIn 0.6s ease 0.9s forwards;
+  }
+  @keyframes textIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  #flicker {
+    position: absolute; inset: 0;
+    background: rgba(255,240,180,0.06);
+    animation: flicker 0.15s steps(1) 0.3s 8 alternate;
+    pointer-events: none;
+  }
+  @keyframes flicker {
+    0%   { opacity: 0; }
+    50%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* ── Hoofd-interface ──────────────────────────────────────────────────── */
+  #app {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    padding-top: 24px;
+    gap: 0;
+    opacity: 0;
+    animation: appIn 0.8s ease 3s forwards;
+  }
+  @keyframes appIn {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+
+  /* ── Doek-frame (picture-in-picture effect) ──────────────────────────── */
+  #doek-wrap {
+    position: relative;
+    width: min(740px, 78vw);
+    aspect-ratio: 16/9;
+    background: #000;
+    border: 3px solid var(--goud);
+    box-shadow:
+      0 0 0 1px rgba(200,151,58,0.3),
+      0 0 60px rgba(200,151,58,0.15),
+      inset 0 0 30px rgba(0,0,0,0.8);
+    border-radius: 2px;
+  }
+
+  /* Gordijnranden */
+  #doek-wrap::before, #doek-wrap::after {
+    content: '';
+    position: absolute; top: -3px; bottom: -3px;
+    width: 32px; z-index: 5; pointer-events: none;
+  }
+  #doek-wrap::before {
+    left: -3px;
+    background: linear-gradient(to right, rgba(26,15,8,0.9), transparent);
+  }
+  #doek-wrap::after {
+    right: -3px;
+    background: linear-gradient(to left, rgba(26,15,8,0.9), transparent);
+  }
+
+  #doek-iframe {
+    width: 100%; height: 100%;
+    border: none; display: block;
+    background: #000;
+    transition: opacity 0.4s ease;
+  }
+
+  /* Geen video geselecteerd */
+  #doek-leeg {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 10px; color: rgba(200,151,58,0.3);
+    pointer-events: none;
+  }
+  #doek-leeg svg { opacity: 0.25; }
+  #doek-leeg span {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; letter-spacing: 4px;
+    color: rgba(200,151,58,0.25);
+  }
+
+  /* ── Afstandsbediening ───────────────────────────────────────────────── */
+  #remote {
+    margin-top: 14px;
+    width: min(320px, 80vw);
+    background: linear-gradient(160deg, #1c1510 0%, #0e0b08 100%);
+    border: 1px solid rgba(200,151,58,0.25);
+    border-radius: 20px;
+    padding: 18px 20px 20px;
+    box-shadow:
+      0 12px 48px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      inset 0 -1px 0 rgba(0,0,0,0.5);
+    position: relative;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  /* Gouden streep bovenaan */
+  #remote::before {
+    content: '';
+    position: absolute; top: 0; left: 20px; right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--goud), transparent);
+  }
+
+  /* Logo easter egg */
+  #remote-logo {
+    text-align: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px; letter-spacing: 5px;
+    color: rgba(200,151,58,0.25);
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(200,151,58,0.1);
+    cursor: default;
+    user-select: none;
+    transition: color 0.3s;
+  }
+  #remote-logo:hover { color: rgba(200,151,58,0.55); }
+  #remote-logo span { 
+    display: inline-block;
+    border: 1px dashed rgba(200,151,58,0.2);
+    padding: 2px 10px; border-radius: 3px;
+    transition: border-color 0.3s;
+  }
+  #remote-logo:hover span { border-color: rgba(200,151,58,0.45); }
+
+  /* Aan/uit knop */
+  #btn-power {
+    align-self: center;
+    width: 48px; height: 48px; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #2a0f0f, #1a0808);
+    border: 2px solid var(--rood);
+    color: #ff4444;
+    font-size: 18px; cursor: pointer;
+    box-shadow: 0 0 12px rgba(139,26,26,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #btn-power:hover {
+    box-shadow: 0 0 24px rgba(255,68,68,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+    border-color: #ff4444;
+  }
+  #btn-power.aan {
+    background: radial-gradient(circle at 40% 35%, #0f1a0f, #080e08);
+    border-color: rgba(68,255,136,0.18);
+    color: rgba(68,255,136,0.18);
+    box-shadow: none;
+    opacity: 0.35;
+    transition: all 1.4s ease;   /* langzaam dimmen */
+  }
+  #btn-power.aan:hover {
+    opacity: 0.75;
+    border-color: rgba(68,255,136,0.45);
+    color: rgba(68,255,136,0.45);
+    box-shadow: 0 0 8px rgba(68,255,136,0.12);
+    transition: all 0.3s ease;   /* snel terugkomen bij hover */
+  }
+  /* Spaarstand-pulsje: heel subtiel, bijna onzichtbaar */
+  #btn-power.aan svg {
+    animation: spaarpuls 4s ease-in-out infinite;
+  }
+  @keyframes spaarpuls {
+    0%,100% { opacity: 0.18; }
+    50%      { opacity: 0.32; }
+  }
+
+  /* Netwerk-label */
+  #net-label {
+    text-align: center;
+    font-size: 9px; letter-spacing: 3px;
+    color: rgba(245,234,216,0.25);
+    text-transform: uppercase;
+  }
+
+  /* Netwerk-knoppen */
+  #netten {
+    display: flex; gap: 10px;
+  }
+  .net-btn {
+    flex: 1; padding: 10px 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(200,151,58,0.2);
+    border-radius: 10px;
+    color: var(--dim);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px; letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+  }
+  .net-btn::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200,151,58,0.3), transparent);
+  }
+  .net-btn:hover {
+    border-color: rgba(200,151,58,0.5);
+    color: var(--goud2);
+    background: rgba(200,151,58,0.06);
+  }
+  .net-btn.actief {
+    border-color: var(--goud);
+    color: var(--goud2);
+    background: rgba(200,151,58,0.1);
+    box-shadow: 0 0 12px rgba(200,151,58,0.15);
+  }
+  .net-btn .net-sub {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 8px; letter-spacing: 1px;
+    color: rgba(245,234,216,0.35);
+    font-weight: 300; text-transform: uppercase;
+  }
+  .net-btn.actief .net-sub { color: rgba(200,151,58,0.6); }
+
+  /* Video-lijst per net */
+  #video-lijst {
+    display: none;
+    flex-direction: column; gap: 6px;
+    max-height: 140px; overflow-y: auto;
+    padding-right: 4px;
+  }
+  #video-lijst::-webkit-scrollbar { width: 3px; }
+  #video-lijst::-webkit-scrollbar-thumb {
+    background: rgba(200,151,58,0.3); border-radius: 2px;
+  }
+  #video-lijst.zichtbaar { display: flex; }
+
+  .video-item {
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    font-size: 12px; color: var(--dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .video-item:hover {
+    background: rgba(200,151,58,0.08);
+    border-color: rgba(200,151,58,0.3);
+    color: var(--cream);
+  }
+  .video-item.actief {
+    background: rgba(200,151,58,0.12);
+    border-color: rgba(200,151,58,0.5);
+    color: var(--goud2);
+  }
+  .video-item::before {
+    content: '▶';
+    font-size: 9px; color: var(--goud);
+    opacity: 0.5; flex-shrink: 0;
+  }
+  .video-item.actief::before { opacity: 1; }
+
+  /* Terug-link */
+  #terug {
+    position: fixed; top: 16px; left: 16px; z-index: 20;
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: rgba(200,151,58,0.4); text-decoration: none;
+    transition: color 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #terug:hover { color: var(--goud); }
+
+  /* Status-indicator rechtsboven */
+  #status-dot {
+    position: fixed; top: 18px; right: 20px; z-index: 20;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; letter-spacing: 2px; color: rgba(245,234,216,0.25);
+    text-transform: uppercase;
+  }
+  #status-dot::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #333;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  #status-dot.live::before {
+    background: #ff4444;
+    box-shadow: 0 0 8px #ff4444;
+    animation: livePuls 1s ease-in-out infinite;
+  }
+  #status-dot.playing::before {
+    background: #44ff88;
+    box-shadow: 0 0 8px #44ff88;
+  }
+  @keyframes livePuls {
+    0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Opstartanimatie ─────────────────────────────────────────────────── -->
+<div id="curtain">
+  <div id="flicker"></div>
+  <div id="curtain-text">DT5 · CINEMA</div>
+  <div id="curtain-sub">Gebouw 5B · Informatiekanaal</div>
+</div>
+
+<!-- ── Bioscoop-zaal SVG ───────────────────────────────────────────────── -->
+<svg id="zaal" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice"
+     xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="schermgloed" cx="50%" cy="5%" r="55%">
+      <stop offset="0%" stop-color="#c8973a" stop-opacity="0.14"/>
+      <stop offset="55%" stop-color="#c8973a" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="zaallicht" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#1e1508" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.92"/>
+    </radialGradient>
+    <linearGradient id="vloergrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1208"/>
+      <stop offset="100%" stop-color="#0c0a06"/>
+    </linearGradient>
+    <filter id="b1"><feGaussianBlur stdDeviation="0.8"/></filter>
+    <filter id="b2"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <filter id="b3"><feGaussianBlur stdDeviation="2.4"/></filter>
+  </defs>
+
+  <!-- Zaalvloer -->
+  <rect width="1200" height="700" fill="#070503"/>
+  <polygon points="120,700 1080,700 820,310 380,310" fill="url(#vloergrad)"/>
+
+  <!-- Zijwanden perspectief -->
+  <polygon points="0,700 120,700 380,310 0,310" fill="#090704" opacity="0.95"/>
+  <polygon points="1200,700 1080,700 820,310 1200,310" fill="#090704" opacity="0.95"/>
+
+  <!-- ═══ SILHOUETTEN ═══════════════════════════════════════════════════════ -->
+  <!-- Perspectief: wij zitten achteraan, kijken over hoofden naar het doek.  -->
+  <!-- Rij 5 — verst weg, bovenaan, klein en wazig                            -->
+
+  <!-- Helper macro: silhouet van achter = afgeronde rechthoek (schouders)   -->
+  <!--               + ovaal achterhoofd erboven                              -->
+
+  <!-- RIJ 5 — y=310, schaal ~0.38 -->
+  <g fill="#241a0c" opacity="0.55" filter="url(#b3)">
+    <!-- schouderblok + achterhoofd per persoon -->
+    <rect x="390" y="288" width="28" height="16" rx="5"/><ellipse cx="404" cy="285" rx="10" ry="12"/>
+    <rect x="432" y="287" width="28" height="16" rx="5"/><ellipse cx="446" cy="284" rx="10" ry="12"/>
+    <rect x="475" y="289" width="28" height="16" rx="5"/><ellipse cx="489" cy="286" rx="10" ry="12"/>
+    <!-- lege stoel -->
+    <rect x="561" y="288" width="28" height="16" rx="5"/><ellipse cx="575" cy="285" rx="10" ry="12"/>
+    <rect x="603" y="287" width="28" height="16" rx="5"/><ellipse cx="617" cy="283" rx="10" ry="12"/>
+    <rect x="646" y="289" width="28" height="16" rx="5"/><ellipse cx="660" cy="286" rx="10" ry="12"/>
+    <!-- hoofd licht opzij -->
+    <rect x="688" y="287" width="28" height="16" rx="5"/><ellipse cx="706" cy="284" rx="10" ry="12"/>
+    <rect x="731" y="288" width="28" height="16" rx="5"/><ellipse cx="745" cy="285" rx="10" ry="12"/>
+  </g>
+
+  <!-- RIJ 4 — iets lager, iets groter -->
+  <g fill="#2e2010" opacity="0.60" filter="url(#b2)">
+    <rect x="350" y="326" width="40" height="22" rx="6"/><ellipse cx="370" cy="322" rx="14" ry="16"/>
+    <rect x="405" y="325" width="40" height="22" rx="6"/><ellipse cx="425" cy="321" rx="14" ry="16"/>
+    <rect x="460" y="327" width="40" height="22" rx="6"/><ellipse cx="480" cy="323" rx="14" ry="16"/>
+    <!-- lege stoel -->
+    <rect x="570" y="326" width="40" height="22" rx="6"/><ellipse cx="590" cy="322" rx="14" ry="16"/>
+    <!-- hoofd voorover -->
+    <rect x="625" y="328" width="40" height="22" rx="6"/><ellipse cx="648" cy="319" rx="13" ry="15"/>
+    <rect x="680" y="325" width="40" height="22" rx="6"/><ellipse cx="700" cy="321" rx="14" ry="16"/>
+    <rect x="735" y="327" width="40" height="22" rx="6"/><ellipse cx="755" cy="323" rx="14" ry="16"/>
+    <rect x="790" y="325" width="40" height="22" rx="6"/><ellipse cx="810" cy="321" rx="14" ry="16"/>
+    <!-- lege stoel -->
+    <rect x="855" y="326" width="40" height="22" rx="6"/><ellipse cx="875" cy="322" rx="14" ry="16"/>
+  </g>
+
+  <!-- RIJ 3 — midden -->
+  <g fill="#332314" opacity="0.68" filter="url(#b1)">
+    <rect x="270" y="378" width="54" height="30" rx="8"/><ellipse cx="297" cy="372" rx="19" ry="22"/>
+    <rect x="338" y="376" width="54" height="30" rx="8"/><ellipse cx="365" cy="370" rx="19" ry="22"/>
+    <!-- hoofd opzij (fluistert) -->
+    <rect x="406" y="377" width="54" height="30" rx="8"/><ellipse cx="437" cy="370" rx="18" ry="21"/>
+    <!-- lege stoel -->
+    <rect x="544" y="378" width="54" height="30" rx="8"/><ellipse cx="571" cy="372" rx="19" ry="22"/>
+    <rect x="612" y="376" width="54" height="30" rx="8"/><ellipse cx="639" cy="370" rx="19" ry="22"/>
+    <rect x="680" y="377" width="54" height="30" rx="8"/><ellipse cx="707" cy="371" rx="19" ry="22"/>
+    <rect x="748" y="378" width="54" height="30" rx="8"/><ellipse cx="775" cy="372" rx="19" ry="22"/>
+    <!-- hoofd voorover -->
+    <rect x="816" y="375" width="54" height="30" rx="8"/><ellipse cx="846" cy="366" rx="18" ry="21"/>
+    <rect x="884" y="377" width="54" height="30" rx="8"/><ellipse cx="911" cy="371" rx="19" ry="22"/>
+  </g>
+
+  <!-- RIJ 2 — nabij, duidelijk -->
+  <g fill="#3a2818" opacity="0.78">
+    <rect x="140" y="452" width="74" height="42" rx="10"/><ellipse cx="177" cy="444" rx="26" ry="30"/>
+    <rect x="234" y="450" width="74" height="42" rx="10"/><ellipse cx="271" cy="442" rx="26" ry="30"/>
+    <!-- lege stoel -->
+    <rect x="412" y="453" width="74" height="42" rx="10"/><ellipse cx="449" cy="445" rx="26" ry="30"/>
+    <!-- hoofd voorover -->
+    <rect x="504" y="450" width="74" height="42" rx="10"/><ellipse cx="545" cy="438" rx="25" ry="28"/>
+    <rect x="596" y="452" width="74" height="42" rx="10"/><ellipse cx="633" cy="444" rx="26" ry="30"/>
+    <!-- hoofd op schouder -->
+    <rect x="688" y="450" width="74" height="42" rx="10"/><ellipse cx="720" cy="441" rx="26" ry="30"/>
+    <rect x="780" y="452" width="74" height="42" rx="10"/><ellipse cx="817" cy="444" rx="26" ry="30"/>
+    <!-- lege stoel -->
+    <rect x="960" y="451" width="74" height="42" rx="10"/><ellipse cx="997" cy="443" rx="26" ry="30"/>
+    <rect x="1048" y="452" width="74" height="42" rx="10"/><ellipse cx="1085" cy="444" rx="26" ry="30"/>
+  </g>
+
+  <!-- RIJ 1 — voorste rij, groot, donkere massa onderaan scherm -->
+  <g fill="#2e2010" opacity="0.90">
+    <rect x="10"  y="548" width="96" height="55" rx="12"/><ellipse cx="58"  cy="537" rx="34" ry="40"/>
+    <rect x="130" y="545" width="96" height="55" rx="12"/><ellipse cx="178" cy="534" rx="34" ry="40"/>
+    <!-- hoofd voorover -->
+    <rect x="250" y="542" width="96" height="55" rx="12"/><ellipse cx="302" cy="527" rx="33" ry="38"/>
+    <rect x="370" y="547" width="96" height="55" rx="12"/><ellipse cx="418" cy="536" rx="34" ry="40"/>
+    <!-- lege stoel -->
+    <rect x="580" y="547" width="96" height="55" rx="12"/><ellipse cx="628" cy="536" rx="34" ry="40"/>
+    <!-- hoofd opzij -->
+    <rect x="698" y="544" width="96" height="55" rx="12"/><ellipse cx="752" cy="532" rx="33" ry="39"/>
+    <rect x="816" y="547" width="96" height="55" rx="12"/><ellipse cx="864" cy="536" rx="34" ry="40"/>
+    <rect x="934" y="544" width="96" height="55" rx="12"/><ellipse cx="984" cy="533" rx="33" ry="39"/>
+    <rect x="1090" y="547" width="96" height="55" rx="12"/><ellipse cx="1138" cy="536" rx="34" ry="40"/>
+  </g>
+
+  <!-- Schermgloed van boven (het doek werpt warm licht op de koppen) -->
+  <rect width="1200" height="700" fill="url(#schermgloed)"/>
+
+  <!-- Sfeeroverlay zaal -->
+  <rect width="1200" height="700" fill="url(#zaallicht)"/>
+</svg>
+
+<!-- ── Status indicator ────────────────────────────────────────────────── -->
+<div id="status-dot">Standby</div>
+
+<!-- ── Terug naar Twin ─────────────────────────────────────────────────── -->
+<a id="terug" href="index.html">← Twin</a>
+
+<!-- ── Hoofd interface ─────────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- Doek -->
+  <div id="doek-wrap">
+    <iframe id="doek-iframe" src="about:blank" allowfullscreen
+            allow="autoplay; fullscreen"></iframe>
+    <div id="doek-leeg">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect x="4" y="10" width="40" height="28" rx="2" stroke="#c8973a" stroke-width="2"/>
+        <polygon points="20,18 20,30 32,24" fill="#c8973a"/>
+      </svg>
+      <span>Kies een kanaal</span>
+    </div>
+  </div>
+
+  <!-- Afstandsbediening -->
+  <div id="remote">
+
+    <!-- Easter egg logo -->
+    <div id="remote-logo">
+      <span>[ hier kan uw logo staan ]</span>
+    </div>
+
+    <!-- Aan/uit -->
+    <button id="btn-power" onclick="togglePower()" title="Aan/uit">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="12" y1="2" x2="12" y2="12"/>
+        <path d="M6.3 4.8A9 9 0 1 0 17.7 4.8"/>
+      </svg>
+    </button>
+
+    <!-- Net selectie -->
+    <div id="net-label">Kanaal selectie</div>
+    <div id="netten">
+      <button class="net-btn" id="btn-dt1" onclick="selectNet('DT5-1')" disabled>
+        DT5·1
+        <span class="net-sub">Instructie</span>
+      </button>
+      <button class="net-btn" id="btn-dt2" onclick="selectNet('DT5-2')" disabled>
+        DT5·2
+        <span class="net-sub">Mededelingen</span>
+      </button>
+    </div>
+
+    <!-- Video-lijst -->
+    <div id="video-lijst"></div>
+
+  </div>
+</div>
+
+<script>
+// ── Configuratie: video's per kanaal ──────────────────────────────────────
+// Voeg hier Drive embed-links toe als:
+// { titel: 'Naam video', url: 'https://drive.google.com/file/d/FILE_ID/preview' }
+// Of YouTube Live: { titel: 'Live uitzending', url: 'https://www.youtube.com/embed/STREAM_ID', live: true }
+
+const KANALEN = {
+  'DT5-1': {
+    label: 'Instructie & Protocollen',
+    videos: [
+      // Voorbeelden — vervang FILE_ID door echte Drive-id's:
+      // { titel: 'Introductie Vocht & Voeding', url: 'https://drive.google.com/file/d/FILE_ID/preview' },
+      // { titel: 'Ziekmelding registreren', url: 'https://drive.google.com/file/d/FILE_ID/preview' },
+          { titel: 'DigitalTwin5', url: 'https://drive.google.com/file/d/164jrNCfSCfFa9TkhdR-cQgyQe0V1XUZU/preview' },   
+    ]
+  },
+  'DT5-2': {
+    label: 'Mededelingen & Nieuws',
+    videos: [
+      // { titel: 'Teamupdate maart 2026', url: 'https://drive.google.com/file/d/FILE_ID/preview' },
+      // { titel: 'Zomerfeest livestream', url: 'https://www.youtube.com/embed/STREAM_ID', live: true },
+    ]
+  }
+};
+
+// ── State ─────────────────────────────────────────────────────────────────
+let aan = false;
+let huidigNet = null;
+let huidigVideo = null;
+
+// ── Aan/uit ───────────────────────────────────────────────────────────────
+function togglePower(){
+  aan = !aan;
+  const btn = document.getElementById('btn-power');
+  const netten = document.querySelectorAll('.net-btn');
+  const leeg = document.getElementById('doek-leeg');
+  const statusEl = document.getElementById('status-dot');
+
+  if(aan){
+    // Even fel groen tonen als bevestiging, dan wegdimmen
+    btn.classList.remove('aan');
+    btn.style.cssText = 'border-color:#44ff88;color:#44ff88;box-shadow:0 0 20px rgba(68,255,136,0.5);transition:all 0.15s';
+    setTimeout(()=>{
+      btn.style.cssText = '';
+      btn.classList.add('aan');
+    }, 600);
+    netten.forEach(b => b.disabled = false);
+    statusEl.textContent = 'Aan';
+    statusEl.className = 'playing';
+  } else {
+    btn.classList.remove('aan');
+    netten.forEach(b => { b.disabled = true; b.classList.remove('actief'); });
+    document.getElementById('video-lijst').classList.remove('zichtbaar');
+    document.getElementById('video-lijst').innerHTML = '';
+    laadVideo(null);
+    huidigNet = null;
+    huidigVideo = null;
+    statusEl.textContent = 'Standby';
+    statusEl.className = '';
+  }
+}
+
+// ── Kanaal selecteren ─────────────────────────────────────────────────────
+function selectNet(net){
+  if(!aan) return;
+  huidigNet = net;
+
+  document.querySelectorAll('.net-btn').forEach(b => b.classList.remove('actief'));
+  document.getElementById('btn-' + net.toLowerCase().replace('dt5-','dt').replace('·','')).classList.add('actief');
+
+  // Video-lijst tonen
+  const lijst = document.getElementById('video-lijst');
+  const videos = KANALEN[net]?.videos || [];
+  lijst.innerHTML = '';
+
+  if(videos.length === 0){
+    lijst.innerHTML = '<div style="font-size:11px;color:rgba(245,234,216,0.2);text-align:center;padding:10px;letter-spacing:1px">Nog geen video\'s geconfigureerd</div>';
+  } else {
+    videos.forEach((v, i) => {
+      const el = document.createElement('div');
+      el.className = 'video-item' + (huidigVideo === v.url ? ' actief' : '');
+      el.textContent = v.titel;
+      if(v.live) el.textContent = '🔴 ' + v.titel;
+      el.onclick = () => kiesVideo(v, el);
+      lijst.appendChild(el);
+    });
+  }
+  lijst.classList.add('zichtbaar');
+}
+
+// ── Video laden ───────────────────────────────────────────────────────────
+function kiesVideo(video, el){
+  document.querySelectorAll('.video-item').forEach(v => v.classList.remove('actief'));
+  el.classList.add('actief');
+  huidigVideo = video.url;
+  laadVideo(video);
+}
+
+function laadVideo(video){
+  const iframe = document.getElementById('doek-iframe');
+  const leeg = document.getElementById('doek-leeg');
+  const statusEl = document.getElementById('status-dot');
+
+  if(!video){
+    iframe.src = 'about:blank';
+    leeg.style.display = 'flex';
+    iframe.style.opacity = '0';
+    statusEl.textContent = aan ? 'Aan' : 'Standby';
+    statusEl.className = aan ? 'playing' : '';
+    return;
+  }
+
+  leeg.style.display = 'none';
+  iframe.style.opacity = '0';
+  iframe.src = video.url;
+  setTimeout(() => { iframe.style.opacity = '1'; }, 300);
+
+  if(video.live){
+    statusEl.textContent = 'Live';
+    statusEl.className = 'live';
+  } else {
+    statusEl.textContent = 'Afspeelend';
+    statusEl.className = 'playing';
+  }
+}
+
+// ── Curtain verwijderen na animatie ───────────────────────────────────────
+setTimeout(() => {
+  const curtain = document.getElementById('curtain');
+  if(curtain) curtain.remove();
+}, 3300);
+
+// ── Easter egg: logo tooltip ───────────────────────────────────────────────
+document.getElementById('remote-logo').title =
+  'DT5 Cinema · Gebouw 5B · Zijn Epilepsiezorg';
+</script>
+</body>
+</html>
