@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beheer — Gebouw 5B</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#1a1a2e; font-family:'Segoe UI',sans-serif; color:#fff; min-height:100vh; }
+header {
+  background:rgba(0,0,0,0.4); border-bottom:1px solid rgba(255,255,255,0.1);
+  padding:14px 24px; display:flex; align-items:center; justify-content:space-between;
+  backdrop-filter:blur(8px); position:sticky; top:0; z-index:10;
+}
+header h1 { font-size:18px; color:#ffe066; }
+header .sub { font-size:12px; color:#888; margin-top:2px; }
+.btn-terug {
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+  color:#ccc; padding:7px 16px; border-radius:8px; cursor:pointer;
+  font-size:13px; font-family:'Segoe UI',sans-serif; text-decoration:none;
+  transition:background 0.2s;
+}
+.btn-terug:hover { background:rgba(255,255,255,0.16); }
+.btn-logout {
+  background:rgba(255,80,80,0.15); border:1px solid rgba(255,80,80,0.3);
+  color:#ff8080; padding:7px 16px; border-radius:8px; cursor:pointer;
+  font-size:13px; font-family:'Segoe UI',sans-serif; margin-left:8px;
+}
+.btn-logout:hover { background:rgba(255,80,80,0.25); }
+main { max-width:900px; margin:0 auto; padding:24px 16px; }
+.section {
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+  border-radius:12px; padding:20px 24px; margin-bottom:20px;
+}
+.section h2 { font-size:15px; color:#ffe066; margin-bottom:16px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; color:#888; font-weight:600; padding:6px 10px; border-bottom:1px solid rgba(255,255,255,0.1); }
+td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.05); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,0.03); }
+.badge {
+  display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;
+}
+.badge-beheerder  { background:rgba(255,100,100,0.2); color:#ff8080; }
+.badge-begeleider { background:rgba(80,180,120,0.2); color:#80d8a0; }
+.badge-stagebegeleider { background:rgba(120,120,255,0.2); color:#a0a0ff; }
+.badge-stagiair   { background:rgba(255,200,80,0.2); color:#ffd060; }
+.badge-ciop       { background:rgba(160,160,160,0.2); color:#bbb; }
+.btn-sm {
+  background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+  color:#ccc; padding:4px 10px; border-radius:6px; cursor:pointer;
+  font-size:12px; font-family:'Segoe UI',sans-serif; margin-right:4px;
+}
+.btn-sm:hover { background:rgba(255,255,255,0.16); }
+.btn-sm.rood { border-color:rgba(255,80,80,0.3); color:#ff8080; }
+.btn-sm.rood:hover { background:rgba(255,80,80,0.15); }
+.btn-sm.groen { border-color:rgba(80,200,120,0.4); color:#80d8a0; }
+.btn-sm.groen:hover { background:rgba(80,200,120,0.15); }
+/* Formulier nieuw account */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+label { display:block; font-size:12px; color:#aaa; margin-bottom:4px; }
+input, select {
+  width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+  color:#fff; border-radius:8px; padding:8px 10px; font-size:13px;
+  font-family:'Segoe UI',sans-serif; outline:none;
+}
+input:focus, select:focus { border-color:#4a90d9; }
+select option { background:#1a1a2e; }
+.btn-aanmaken {
+  background:#2a6fc4; border:none; color:#fff; padding:9px 20px;
+  border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;
+  font-family:'Segoe UI',sans-serif;
+}
+.btn-aanmaken:hover { background:#3a80d4; }
+#melding {
+  margin-top:10px; font-size:13px; min-height:18px;
+}
+.melding-ok  { color:#80d8a0; }
+.melding-err { color:#ff8080; }
+.spinner {
+  display:inline-block; width:12px; height:12px;
+  border:2px solid rgba(255,255,255,0.3); border-top-color:#fff;
+  border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+#laden { text-align:center; color:#888; padding:20px; font-size:13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🏢 Beheer — Gebouw 5B</h1>
+    <div class="sub" id="hdr-user">Laden…</div>
+  </div>
+  <div>
+    <a href="index.html" class="btn-terug">← Twin</a>
+    <button class="btn-logout" onclick="uitloggen()">Uitloggen</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- Gebruikersoverzicht -->
+  <div class="section">
+    <h2>👥 Gebruikers</h2>
+    <div id="laden"><span class="spinner"></span> Laden…</div>
+    <table id="tbl-users" style="display:none">
+      <thead>
+        <tr>
+          <th>Naam</th>
+          <th>Weergavenaam</th>
+          <th>Rol</th>
+          <th>Actief</th>
+          <th>Acties</th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Nieuw account aanmaken -->
+  <div class="section">
+    <h2>➕ Nieuw account aanmaken</h2>
+    <div class="form-grid">
+      <div>
+        <label>Gebruikersnaam (login)</label>
+        <input type="text" id="n-naam" placeholder="jansen" autocapitalize="none">
+      </div>
+      <div>
+        <label>Weergavenaam</label>
+        <input type="text" id="n-weergave" placeholder="Rachel Jansen">
+      </div>
+      <div>
+        <label>Wachtwoord</label>
+        <input type="password" id="n-ww" placeholder="tijdelijk wachtwoord">
+      </div>
+      <div>
+        <label>Rol</label>
+        <select id="n-rol">
+          <option value="begeleider">Begeleider</option>
+          <option value="stagebegeleider">Stagebegeleider</option>
+          <option value="stagiair">Stagiair</option>
+          <option value="ciop">CIOP</option>
+          <option value="beheerder">Beheerder</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-aanmaken" onclick="accountAanmaken()">Account aanmaken</button>
+    <div id="melding"></div>
+  </div>
+
+</main>
+
+<script>
+const GAS = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
+
+// Auth-check: alleen beheerder mag hier komen
+(function(){
+  const u = JSON.parse(sessionStorage.getItem('ave_user')||'null');
+  if(!u){ window.location.href='inloggen.html'; return; }
+  if(u.rol !== 'beheerder'){
+    document.body.innerHTML = '<div style="text-align:center;padding:80px 20px;color:#ff8080;font-size:16px;">⛔ Geen toegang. Alleen beheerders mogen deze pagina zien.</div>';
+    return;
+  }
+  document.getElementById('hdr-user').textContent = u.weergavenaam + ' · Beheerder';
+  laadGebruikers();
+})();
+
+function uitloggen(){
+  sessionStorage.removeItem('ave_user');
+  window.location.href = 'inloggen.html';
+}
+
+async function laadGebruikers(){
+  try {
+    const res  = await fetch(GAS + '?action=listUsers');
+    const data = await res.json();
+    document.getElementById('laden').style.display = 'none';
+    if(!data.ok){ toonFout('Kon gebruikers niet laden: ' + (data.error||'?')); return; }
+    const tbody = document.getElementById('tbl-body');
+    tbody.innerHTML = '';
+    (data.users||[]).forEach(u => {
+      const rolBadge = `<span class="badge badge-${u.rol}">${u.rol}</span>`;
+      const actief   = u.actief ? '✅' : '⛔';
+      tbody.innerHTML += `<tr>
+        <td>${escHtml(u.naam)}</td>
+        <td>${escHtml(u.weergavenaam||'—')}</td>
+        <td>${rolBadge}</td>
+        <td style="text-align:center">${actief}</td>
+        <td>
+          <button class="btn-sm" onclick="resetWW('${escHtml(u.naam)}')">Reset WW</button>
+          ${u.actief
+            ? `<button class="btn-sm rood" onclick="toggleActief('${escHtml(u.naam)}',false)">Deactiveren</button>`
+            : `<button class="btn-sm groen" onclick="toggleActief('${escHtml(u.naam)}',true)">Activeren</button>`}
+        </td>
+      </tr>`;
+    });
+    document.getElementById('tbl-users').style.display = '';
+  } catch(e){
+    document.getElementById('laden').textContent = 'Fout bij laden: ' + e.message;
+  }
+}
+
+async function accountAanmaken(){
+  const naam     = document.getElementById('n-naam').value.trim().toLowerCase();
+  const weergave = document.getElementById('n-weergave').value.trim();
+  const ww       = document.getElementById('n-ww').value;
+  const rol      = document.getElementById('n-rol').value;
+  const melding  = document.getElementById('melding');
+
+  melding.textContent = '';
+  if(!naam||!weergave||!ww){ melding.className='melding-err'; melding.textContent='Vul alle velden in.'; return; }
+
+  melding.innerHTML = '<span class="spinner"></span> Aanmaken…';
+  try {
+    const res  = await fetch(GAS, { method:'POST', body: JSON.stringify({ action:'createUser', naam, weergavenaam:weergave, wachtwoord:ww, rol }) });
+    const data = await res.json();
+    if(data.ok){
+      melding.className='melding-ok'; melding.textContent='✓ Account aangemaakt voor ' + weergave;
+      document.getElementById('n-naam').value='';
+      document.getElementById('n-weergave').value='';
+      document.getElementById('n-ww').value='';
+      laadGebruikers();
+    } else {
+      melding.className='melding-err'; melding.textContent= data.error || 'Mislukt.';
+    }
+  } catch(e){
+    melding.className='melding-err'; melding.textContent='Verbindingsfout.';
+  }
+}
+
+async function resetWW(naam){
+  const nieuw = prompt('Nieuw wachtwoord voor ' + naam + ':');
+  if(!nieuw) return;
+  try {
+    const res  = await fetch(GAS, { method:'POST', body: JSON.stringify({ action:'updateUser', naam, wachtwoord:nieuw }) });
+    const data = await res.json();
+    alert(data.ok ? '✓ Wachtwoord gewijzigd.' : 'Fout: ' + (data.error||'?'));
+  } catch(e){ alert('Verbindingsfout.'); }
+}
+
+async function toggleActief(naam, actief){
+  try {
+    const res  = await fetch(GAS, { method:'POST', body: JSON.stringify({ action:'updateUser', naam, actief }) });
+    const data = await res.json();
+    if(data.ok) laadGebruikers();
+    else alert('Fout: ' + (data.error||'?'));
+  } catch(e){ alert('Verbindingsfout.'); }
+}
+
+function toonFout(msg){ document.getElementById('laden').textContent = msg; }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>

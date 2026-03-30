@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inloggen — Gebouw 5B</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#1a1a2e; font-family:'Segoe UI',sans-serif;
+  display:flex; align-items:center; justify-content:center;
+  min-height:100vh; color:#fff;
+}
+.card {
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+  border-radius:16px; padding:40px 36px; width:340px;
+  backdrop-filter:blur(12px); box-shadow:0 8px 40px rgba(0,0,0,0.5);
+}
+.logo { text-align:center; margin-bottom:28px; }
+.logo h1 { font-size:20px; color:#ffe066; letter-spacing:0.5px; }
+.logo p  { font-size:13px; color:#888; margin-top:4px; }
+label { display:block; font-size:12px; color:#aaa; margin-bottom:5px; margin-top:16px; }
+input {
+  width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+  color:#fff; border-radius:8px; padding:10px 12px; font-size:14px;
+  font-family:'Segoe UI',sans-serif; outline:none; transition:border 0.2s;
+}
+input:focus { border-color:#4a90d9; }
+.btn-login {
+  width:100%; margin-top:24px; padding:12px; background:#2a6fc4;
+  border:none; color:#fff; border-radius:8px; font-size:15px;
+  font-weight:700; cursor:pointer; font-family:'Segoe UI',sans-serif;
+  transition:background 0.2s;
+}
+.btn-login:hover { background:#3a80d4; }
+.btn-login:disabled { background:#444; cursor:not-allowed; }
+#fout {
+  margin-top:14px; text-align:center; font-size:13px; color:#ff7070;
+  min-height:20px;
+}
+.spinner {
+  display:inline-block; width:14px; height:14px;
+  border:2px solid rgba(255,255,255,0.3); border-top-color:#fff;
+  border-radius:50%; animation:spin 0.7s linear infinite;
+  vertical-align:middle; margin-right:6px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>🏢 Gebouw 5B</h1>
+    <p>Digital Twin — Inloggen</p>
+  </div>
+  <label for="inp-naam">Gebruikersnaam</label>
+  <input type="text" id="inp-naam" placeholder="jouw naam" autocomplete="username" autocapitalize="none">
+  <label for="inp-ww">Wachtwoord</label>
+  <input type="password" id="inp-ww" placeholder="••••••" autocomplete="current-password">
+  <button class="btn-login" id="btn-log" onclick="doLogin()">Inloggen</button>
+  <div id="fout"></div>
+</div>
+
+<script>
+const GAS = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
+
+// Enter-toets support
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Enter') doLogin();
+});
+
+// Als al ingelogd, direct door
+(function(){
+  const u = JSON.parse(sessionStorage.getItem('ave_user')||'null');
+  if(u) window.location.href = 'index.html';
+})();
+
+async function doLogin(){
+  const naam = document.getElementById('inp-naam').value.trim();
+  const ww   = document.getElementById('inp-ww').value;
+  const fout = document.getElementById('fout');
+  const btn  = document.getElementById('btn-log');
+
+  fout.textContent = '';
+  if(!naam || !ww){ fout.textContent = 'Vul naam en wachtwoord in.'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Bezig…';
+
+  try {
+    const res = await fetch(GAS + '?action=getUser&naam=' + encodeURIComponent(naam) + '&ww=' + encodeURIComponent(ww));
+    const data = await res.json();
+    if(data.ok && data.user){
+      sessionStorage.setItem('ave_user', JSON.stringify(data.user));
+      window.location.href = 'index.html';
+    } else {
+      fout.textContent = data.error || 'Gebruikersnaam of wachtwoord onjuist.';
+      btn.disabled = false;
+      btn.textContent = 'Inloggen';
+    }
+  } catch(e){
+    fout.textContent = 'Verbindingsfout. Probeer opnieuw.';
+    btn.disabled = false;
+    btn.textContent = 'Inloggen';
+  }
+}
+</script>
+</body>
+</html>
