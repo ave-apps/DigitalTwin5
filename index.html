@@ -335,8 +335,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   <span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#888;flex-shrink:0"></span>
   <span id="sync-label" style="color:#aaa">Verbinden…</span>
 </div>
-
-<div id="app-launcher">
+<button onclick="aveLogout()" title="Uitloggen" style="position:fixed;top:100px;left:16px;margin-left:8px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.1);color:#aaa;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;font-family:'Segoe UI',sans-serif;cursor:pointer;z-index:30;backdrop-filter:blur(8px)">⎋ Uitloggen</button>
   <div class="app-btn">
     <span class="app-dot" style="background:#ff88cc"></span>
     👤 In dienst
@@ -460,6 +459,12 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+// ── Auth-check ─────────────────────────────────────────────────────────────
+(function(){
+  const user = window.AVE_USER = JSON.parse(sessionStorage.getItem('ave_user')||'null');
+  if(!user){ window.location.href='inloggen.html'; }
+})();
+
 // Globale state — vroeg declareren zodat label-divs er al bij kunnen
 let vvData={};
 let alarmState={}, alarmTimers={};
@@ -1839,6 +1844,10 @@ document.body.appendChild(rachelPopup);
 let rachelEtage = 0;
 
 function openRachelPopup(etage, screenX, screenY){
+  // CIOP kan geen dienst melden
+  var ciop = window.AVE_USER && window.AVE_USER.rol === 'ciop';
+  document.getElementById('rp-naam').style.display = ciop ? 'none' : '';
+  document.querySelector('#rachel-popup button[onclick="rachelVoegToe()"]').style.display = ciop ? 'none' : '';
   rachelEtage = etage;
   const ETAGES = ['BG','1e','2e','3e'];
   document.getElementById('rp-title').textContent = `● Teampost ${ETAGES[etage]}`;
@@ -1861,24 +1870,29 @@ function openRachelPopup(etage, screenX, screenY){
 }
 
 function rachelVoegToe(){
-  const naam = document.getElementById('rp-naam').value.trim();
+  const user = window.AVE_USER;
+  // Pre-fill naam vanuit sessie als invoerveld leeg is
+  const naamVeld = document.getElementById('rp-naam');
+  const naam = naamVeld.value.trim() || (user ? user.weergavenaam : '');
   if(!naam) return;
+  const functie = user ? user.rol.toUpperCase().slice(0,3) : 'BGL';
   const record = {
     id: Math.random().toString(36).slice(2,9),
     naam, afkorting: (naam.split(' ').map(w=>w[0]).join('').toUpperCase()).slice(0,2),
-    functie:'BGL', kleur:'#888888', etage:rachelEtage,
+    functie, kleur:'#888888', etage:rachelEtage,
     koppels:[], stgBegeleider:false, stgNrs:[],
     tijdIn: new Date().getHours().toString().padStart(2,'0')+':'+new Date().getMinutes().toString().padStart(2,'0'),
     datum: new Date().toISOString().split('T')[0],
   };
+  // CIOP mag niet in dienst gaan
+  if(user && user.rol === 'ciop') return;
   if(!dienstRecords[rachelEtage]) dienstRecords[rachelEtage]=[];
   dienstRecords[rachelEtage].push(record);
-  document.getElementById('rp-naam').value='';
+  naamVeld.value='';
   openRachelPopup(rachelEtage,
     parseInt(rachelPopup.style.left),
     parseInt(rachelPopup.style.top)-10);
   buildDienstVisualisatie();
-  // Push naar Sheet
   fetch(GASWA,{method:'POST',headers:{'Content-Type':'text/plain'},
     body:JSON.stringify({action:'pushDienst',record})});
 }
@@ -3096,6 +3110,8 @@ function fetchZiekmeldingen(){
       console.warn('pullZiekmeldingen fout:', e);
     });
 }
+
+function aveLogout(){ sessionStorage.removeItem('ave_user'); window.location.href='inloggen.html'; }
 
 fetchZiekmeldingen();
 setInterval(fetchZiekmeldingen, 30000);  // elke 30s
