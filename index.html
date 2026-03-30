@@ -336,7 +336,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
   <span id="sync-label" style="color:#aaa">Verbinden…</span>
 </div>
 <button onclick="aveLogout()" title="Uitloggen" style="position:fixed;top:100px;left:200px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.1);color:#aaa;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;font-family:'Segoe UI',sans-serif;cursor:pointer;z-index:30;backdrop-filter:blur(8px)">⎋ Uitloggen</button>
-  <div class="app-btn">
+ <div id="app-nav" style="position:fixed;top:56px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:30;"> <div class="app-btn">
     <span class="app-dot" style="background:#ff88cc"></span>
     👤 In dienst
     <div class="qr-popup" id="qr-dienst">
@@ -371,6 +371,7 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
     <span class="app-dot" style="background:#c8973a"></span>
     🎬 Cinema
   </div>
+</div> 
 </div>
 <div id="tooltip"></div>
 <div id="floorUI">
