@@ -2327,14 +2327,13 @@ function kamerNaarPos(kamer) {
   const etage = parseInt(delen[0]);
   const nr    = parseInt(delen[1]);
   if (isNaN(etage) || isNaN(nr)) return null;
-  const s = K * (3 - etage) / 3;
   const kamerMap = {
-    11:{x:(xL5+xL4)/2-s,z:zAc}, 12:{x:(xL4+xL3)/2-s,z:zAc},
-    31:{x:(xR4+xR5)/2+s,z:zAc}, 32:{x:(xR3+xR4)/2+s,z:zAc},
-    10:{x:(xL4+xL3)/2-s,z:zVc},  9:{x:(xL3+xL2)/2-s,z:zVc},
-     8:{x:(xL2+xL1)/2-s,z:zVc},  7:{x:(xL1+xM1)/2-s,z:zVc},
-    27:{x:(xM2+xR1)/2+s,z:zVc}, 28:{x:(xR1+xR2)/2+s,z:zVc},
-    29:{x:(xR2+xR3)/2+s,z:zVc}, 30:{x:(xR3+xR4)/2+s,z:zVc},
+    11:{x:(xL5+xL4)/2,z:zAc}, 12:{x:(xL4+xL3)/2,z:zAc},
+    31:{x:(xR4+xR5)/2,z:zAc}, 32:{x:(xR3+xR4)/2,z:zAc},
+    10:{x:(xL4+xL3)/2,z:zVc},  9:{x:(xL3+xL2)/2,z:zVc},
+     8:{x:(xL2+xL1)/2,z:zVc},  7:{x:(xL1+xM1)/2,z:zVc},
+    27:{x:(xM2+xR1)/2,z:zVc}, 28:{x:(xR1+xR2)/2,z:zVc},
+    29:{x:(xR2+xR3)/2,z:zVc}, 30:{x:(xR3+xR4)/2,z:zVc},
   };
   const pos = kamerMap[nr];
   if (!pos) return null;
