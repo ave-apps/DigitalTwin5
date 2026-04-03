@@ -69,10 +69,19 @@ document.addEventListener('keydown', function(e){
   if(e.key === 'Enter') doLogin();
 });
 
+// Bepaal terugkeer-URL
+function getRedirect(){
+  const ref = document.referrer;
+  if(ref && ref.includes('beheer')) return 'beheer.html';
+  const p = new URLSearchParams(window.location.search).get('terug');
+  if(p) return p;
+  return 'index.html';
+}
+
 // Als al ingelogd, direct door
 (function(){
   const u = JSON.parse(sessionStorage.getItem('ave_user')||'null');
-  if(u) window.location.href = 'index.html';
+  if(u) window.location.href = getRedirect();
 })();
 
 async function doLogin(){
@@ -92,7 +101,7 @@ async function doLogin(){
     const data = await res.json();
     if(data.ok && data.user){
       sessionStorage.setItem('ave_user', JSON.stringify(data.user));
-      window.location.href = 'index.html';
+      window.location.href = getRedirect();
     } else {
       fout.textContent = data.error || 'Gebruikersnaam of wachtwoord onjuist.';
       btn.disabled = false;
