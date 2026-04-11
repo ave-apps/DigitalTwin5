@@ -154,46 +154,13 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .sleep-btn.in-dienst { background:#2a9c4a; box-shadow:0 4px 20px rgba(42,156,74,0.35); }
 .sleep-btn.uit-dienst { background:#c42a2a; box-shadow:0 4px 20px rgba(196,42,42,0.35); }
 
-body { padding-bottom:32px; }
-
-/* ── Draggable icoon-knop ── */
-#drag-icoon {
-  display:flex; flex-direction:column; align-items:center; gap:6px;
-  cursor:grab; touch-action:none; user-select:none;
-  transition:transform .15s, opacity .15s;
+/* Sleep-knop sticky footer */
+#sleep-btn-wrap {
+  position:fixed; bottom:0; left:0; right:0;
+  background:linear-gradient(transparent, var(--bg) 40%);
+  padding:16px 0 20px; z-index:20;
 }
-#drag-icoon:active { cursor:grabbing; }
-#drag-icoon .drag-hint {
-  font-size:10px; font-weight:800; color:var(--text-dim);
-  text-transform:uppercase; letter-spacing:.6px;
-  display:flex; align-items:center; gap:4px;
-}
-#drag-icoon.dragging { opacity:.35; transform:scale(.9); }
-
-/* Drop-zone highlight op strook */
-.strook-area.drop-ready {
-  border-color:var(--accent);
-  background:linear-gradient(135deg,#eef4ff 0%,#f5f9ff 100%);
-  box-shadow:0 0 0 3px rgba(42,111,196,0.15);
-}
-
-/* Ghost die volgt tijdens sleep */
-#drag-ghost {
-  position:fixed; pointer-events:none; z-index:999;
-  opacity:0; transition:opacity .12s;
-  display:flex; align-items:center; gap:8px;
-  background:var(--surface); border:2px solid var(--accent);
-  border-radius:24px; padding:8px 16px 8px 8px;
-  box-shadow:0 8px 32px rgba(42,111,196,0.35);
-  font-family:'Nunito',sans-serif; font-size:13px; font-weight:800;
-  white-space:nowrap; transform:translate(-50%,-50%);
-}
-#drag-ghost .gh-avatar {
-  width:36px; height:36px; border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:900; color:#fff; flex-shrink:0;
-}
-#drag-ghost.visible { opacity:1; }
+body { padding-bottom:90px; }
 
 /* Uitdienst sectie */
 .uitdienst-section {
@@ -242,11 +209,7 @@ body { padding-bottom:32px; }
 <div class="mijn-icoon">
   <h2>Mijn icoon</h2>
 
-  <!-- Draggable icoon -->
-  <div id="drag-icoon">
-    <div class="avatar-preview" id="avatar-preview" style="background:#2a6fc4">AB</div>
-    <div class="drag-hint">☝️ sleep naar boven</div>
-  </div>
+  <div class="avatar-preview" id="avatar-preview" style="background:#2a6fc4">AB</div>
 
   <div class="field">
     <label>Volledige naam</label>
@@ -291,10 +254,11 @@ body { padding-bottom:32px; }
   </div>
 </div>
 
-<!-- Ghost element voor drag -->
-<div id="drag-ghost">
-  <div class="gh-avatar" id="gh-avatar"></div>
-  <span id="gh-naam"></span>
+<!-- Sleep/Uit dienst knop — sticky onderaan -->
+<div id="sleep-btn-wrap">
+  <button class="sleep-btn" id="sleep-btn" ontouchstart="startSleep(event)" onmousedown="startSleep(event)">
+    ☀️ Sleep naar in dienst
+  </button>
 </div>
 
 <!-- Uit dienst sectie -->
@@ -322,6 +286,7 @@ let isStageToggle = false;
 let selectedStg = new Set();
 let inDienstData = null; // eigen dienst-record
 let dienstRecords = {}; // alle records per etage
+let pullLock = false;  // tijdelijk pull blokkeren na eigen push
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
 
@@ -467,150 +432,61 @@ function renderStrook(){
   });
 }
 
-// ── Drag-engine ───────────────────────────────────────────────────────────
-let isDragging = false;
-let dragStartY = 0;
-
-const ghost    = document.getElementById('drag-ghost');
-const ghAvatar = document.getElementById('gh-avatar');
-const ghNaam   = document.getElementById('gh-naam');
-const strookEl = document.getElementById('strook');
-const dragIcoon = document.getElementById('drag-icoon');
-
-function ghostShow(x, y){
-  ghost.style.left = x + 'px';
-  ghost.style.top  = y + 'px';
-  ghost.classList.add('visible');
-}
-function ghostHide(){ ghost.classList.remove('visible'); }
-function ghostMove(x, y){
-  ghost.style.left = x + 'px';
-  ghost.style.top  = y + 'px';
-}
-
-function strookHighlight(on){
-  strookEl.classList.toggle('drop-ready', on);
-}
-
-function isOverStrook(x, y){
-  const r = strookEl.getBoundingClientRect();
-  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-}
-
-function commitInDienst(){
+// ── Sleep in dienst ───────────────────────────────────────────────────────
+function startSleep(e){
   const naam = document.getElementById('naam').value.trim();
-  if(!naam){ showBanner('Vul eerst je naam in'); return false; }
+  if(!naam){ showBanner('Vul eerst je naam in'); return; }
+  // Controleer per geselecteerde etage of naam al in dienst staat
   const ETLBLS = ['BG','1e','2e','3e'];
   const dubbel = [...selectedEtages].filter(et =>
     (dienstRecords[et]||[]).find(r=>r.naam===naam)
   );
   if(dubbel.length === selectedEtages.size){
-    showBanner(`${naam.split(' ')[0]} staat al in dienst`);
-    return false;
+    showBanner(`${naam.split(' ')[0]} staat al in dienst op ${dubbel.map(e=>ETLBLS[e]).join(' + ')}`);
+    return;
   }
+
   const afk = maakAfkorting(naam);
   const baseTijdIn = new Date().toTimeString().slice(0,5);
   const baseDatum  = new Date().toISOString().split('T')[0];
+
+  // Maak een record per geselecteerde etage
   const nieuweEtages = [...selectedEtages].filter(et =>
     !(dienstRecords[et]||[]).find(r=>r.naam===naam)
   );
+
   nieuweEtages.forEach(et => {
     const record = {
-      id: uid(), naam, afkorting: afk,
-      functie: document.getElementById('functie').value,
-      kleur: selectedKleur, etage: et,
-      koppels: [...selectedKoppels],
+      id:        uid(),
+      naam,
+      afkorting: afk,
+      functie:   document.getElementById('functie').value,
+      kleur:     selectedKleur,
+      etage:     et,
+      koppels:   [...selectedKoppels],
       stgBegeleider: isStageToggle,
-      stgNrs: [...selectedStg],
-      tijdIn: baseTijdIn, datum: baseDatum,
+      stgNrs:    [...selectedStg],
+      tijdIn:    baseTijdIn,
+      datum:     baseDatum,
     };
     if(!dienstRecords[et]) dienstRecords[et] = [];
     dienstRecords[et].push(record);
     pushDienst(record);
   });
+
   const etLblStr = nieuweEtages.map(e=>ETLBLS[e]).join(' + ');
   renderStrook();
   showBanner(`✓ ${naam.split(' ')[0]} — ${etLblStr} in dienst`);
+
+  // Formulier resetten voor volgende collega
   document.getElementById('naam').value = '';
-  selectedKoppels.clear(); selectedStg.clear();
+  selectedKoppels.clear();
+  selectedStg.clear();
   isStageToggle = false;
   document.getElementById('stage-toggle').classList.remove('on');
   document.getElementById('stg-grid-wrap').style.display = 'none';
   buildKoppels();
-  return true;
 }
-
-function updateGhostContent(){
-  const naam = document.getElementById('naam').value.trim() || '??';
-  ghAvatar.textContent = maakAfkorting(naam);
-  ghAvatar.style.background = selectedKleur;
-  ghNaam.textContent = naam.split(' ')[0] || naam;
-}
-
-// ── Touch handlers ────────────────────────────────────────────────────────
-dragIcoon.addEventListener('touchstart', e => {
-  const naam = document.getElementById('naam').value.trim();
-  if(!naam){ showBanner('Vul eerst je naam in'); return; }
-  e.preventDefault();
-  isDragging = true;
-  dragIcoon.classList.add('dragging');
-  updateGhostContent();
-  const t = e.touches[0];
-  ghostShow(t.clientX, t.clientY);
-  strookHighlight(false);
-}, {passive:false});
-
-dragIcoon.addEventListener('touchmove', e => {
-  if(!isDragging) return;
-  e.preventDefault();
-  const t = e.touches[0];
-  ghostMove(t.clientX, t.clientY);
-  strookHighlight(isOverStrook(t.clientX, t.clientY));
-}, {passive:false});
-
-dragIcoon.addEventListener('touchend', e => {
-  if(!isDragging) return;
-  isDragging = false;
-  dragIcoon.classList.remove('dragging');
-  ghostHide();
-  strookHighlight(false);
-  const t = e.changedTouches[0];
-  if(isOverStrook(t.clientX, t.clientY)) commitInDienst();
-  else showBanner('Sleep naar de strook bovenaan');
-});
-
-// ── Muis handlers ─────────────────────────────────────────────────────────
-dragIcoon.addEventListener('mousedown', e => {
-  const naam = document.getElementById('naam').value.trim();
-  if(!naam){ showBanner('Vul eerst je naam in'); return; }
-  e.preventDefault();
-  isDragging = true;
-  dragStartY = e.clientY;
-  dragIcoon.classList.add('dragging');
-  updateGhostContent();
-  ghostShow(e.clientX, e.clientY);
-});
-
-document.addEventListener('mousemove', e => {
-  if(!isDragging) return;
-  ghostMove(e.clientX, e.clientY);
-  strookHighlight(isOverStrook(e.clientX, e.clientY));
-});
-
-document.addEventListener('mouseup', e => {
-  if(!isDragging) return;
-  isDragging = false;
-  dragIcoon.classList.remove('dragging');
-  ghostHide();
-  strookHighlight(false);
-  if(isOverStrook(e.clientX, e.clientY)) commitInDienst();
-  else if(Math.abs(e.clientY - dragStartY) < 5){
-    // Korte tik (geen sleep) → gewoon committen als fallback
-    commitInDienst();
-  } else {
-    showBanner('Sleep naar de strook bovenaan');
-  }
-});
 
 // ── Uit dienst ────────────────────────────────────────────────────────────
 function uitDienst(){
@@ -622,6 +498,7 @@ function uitDienst(){
   inDienstData = null;
   try { localStorage.removeItem('dienst_actief'); } catch(e) {}
   renderStrook();
+  document.getElementById('sleep-btn').style.display = '';
   document.getElementById('uitdienst-section').style.display = 'none';
   showBanner(`🌙 ${naam.split(' ')[0]} — uit dienst`);
 }
@@ -638,6 +515,9 @@ function uitDienstId(id){
 
 // ── GASWA communicatie ────────────────────────────────────────────────────
 async function pushDienst(record){
+  pullLock = true;
+  clearTimeout(pushDienst._unlockTimer);
+  pushDienst._unlockTimer = setTimeout(() => { pullLock = false; }, 8000);
   setSyncStatus('busy');
   try{
     const res = await fetch(GASWA, {
@@ -659,6 +539,7 @@ async function pushUitDienst(id){
 }
 
 async function pullDienst(){
+  if(pullLock) return;
   try{
     const res = await fetch(GASWA, {
       method:'POST', headers:{'Content-Type':'text/plain'},
