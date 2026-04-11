@@ -162,7 +162,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 }
 body { padding-bottom:90px; }
 
-/* ── Draggable icoon-knop ── */
+/* ── Draggable icoon ── */
 #drag-icoon {
   display:flex; flex-direction:column; align-items:center; gap:6px;
   cursor:grab; touch-action:none; user-select:none;
@@ -174,24 +174,21 @@ body { padding-bottom:90px; }
   text-transform:uppercase; letter-spacing:.6px;
 }
 #drag-icoon.dragging { opacity:.35; transform:scale(.9); }
-
 .strook-area.drop-ready {
   border-color:var(--accent);
-  background:linear-gradient(135deg,#eef4ff 0%,#f5f9ff 100%);
+  background:linear-gradient(135deg,#eef4ff,#f5f9ff);
   box-shadow:0 0 0 3px rgba(42,111,196,0.15);
 }
-
 #drag-ghost {
-  position:fixed; pointer-events:none; z-index:999;
-  opacity:0; transition:opacity .12s;
-  display:flex; align-items:center; gap:8px;
+  position:fixed; pointer-events:none; z-index:999; opacity:0;
+  transition:opacity .12s; display:flex; align-items:center; gap:8px;
   background:var(--surface); border:2px solid var(--accent);
   border-radius:24px; padding:8px 16px 8px 8px;
   box-shadow:0 8px 32px rgba(42,111,196,0.35);
   font-family:'Nunito',sans-serif; font-size:13px; font-weight:800;
   white-space:nowrap; transform:translate(-50%,-50%);
 }
-#drag-ghost .gh-avatar {
+#drag-ghost .gh-av {
   width:36px; height:36px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
   font-size:12px; font-weight:900; color:#fff; flex-shrink:0;
@@ -293,11 +290,7 @@ body { padding-bottom:90px; }
   </div>
 </div>
 
-<!-- Ghost element voor drag -->
-<div id="drag-ghost">
-  <div class="gh-avatar" id="gh-avatar"></div>
-  <span id="gh-naam"></span>
-</div>
+<div id="drag-ghost"><div class="gh-av" id="gh-av"></div><span id="gh-naam"></span></div>
 
 <!-- Uit dienst sectie -->
 <div class="uitdienst-section" id="uitdienst-section">
@@ -324,7 +317,7 @@ let isStageToggle = false;
 let selectedStg = new Set();
 let inDienstData = null; // eigen dienst-record
 let dienstRecords = {}; // alle records per etage
-let pullLock = false;   // blokkeer pull direct na eigen push
+let pullLock = false;   // blokkeert pull direct na eigen push
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
 
@@ -471,28 +464,23 @@ function renderStrook(){
 }
 
 // ── Drag-engine ───────────────────────────────────────────────────────────
-let isDragging = false;
-let dragStartY = 0;
-
-const ghost     = document.getElementById('drag-ghost');
-const ghAvatar  = document.getElementById('gh-avatar');
-const ghNaam    = document.getElementById('gh-naam');
+let isDragging = false, dragStartY = 0;
+const ghost = document.getElementById('drag-ghost');
+const ghAv  = document.getElementById('gh-av');
+const ghNm  = document.getElementById('gh-naam');
 const strookEl  = document.getElementById('strook');
 const dragIcoon = document.getElementById('drag-icoon');
 
-function ghostMove(x,y){ ghost.style.left=x+'px'; ghost.style.top=y+'px'; }
-function ghostShow(x,y){ ghostMove(x,y); ghost.classList.add('visible'); }
-function ghostHide(){ ghost.classList.remove('visible'); }
+function gMove(x,y){ ghost.style.left=x+'px'; ghost.style.top=y+'px'; }
+function gShow(x,y){ gMove(x,y); ghost.classList.add('visible'); }
+function gHide(){ ghost.classList.remove('visible'); }
 function strookHL(on){ strookEl.classList.toggle('drop-ready',on); }
-function isOverStrook(x,y){
-  const r=strookEl.getBoundingClientRect();
-  return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
-}
-function updateGhostContent(){
-  const naam=document.getElementById('naam').value.trim()||'??';
-  ghAvatar.textContent=maakAfkorting(naam);
-  ghAvatar.style.background=selectedKleur;
-  ghNaam.textContent=naam.split(' ')[0]||naam;
+function overStrook(x,y){ const r=strookEl.getBoundingClientRect(); return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom; }
+
+function updateGhost(){
+  const naam=document.getElementById('naam').value.trim()||'?';
+  ghAv.textContent=maakAfkorting(naam); ghAv.style.background=selectedKleur;
+  ghNm.textContent=naam.split(' ')[0];
 }
 
 function commitInDienst(){
@@ -500,22 +488,13 @@ function commitInDienst(){
   if(!naam){ showBanner('Vul eerst je naam in'); return false; }
   const ETLBLS=['BG','1e','2e','3e'];
   const dubbel=[...selectedEtages].filter(et=>(dienstRecords[et]||[]).find(r=>r.naam===naam));
-  if(dubbel.length===selectedEtages.size){
-    showBanner(`${naam.split(' ')[0]} staat al in dienst`); return false;
-  }
-  const afk=maakAfkorting(naam);
-  const tijdIn=new Date().toTimeString().slice(0,5);
-  const datum=new Date().toISOString().split('T')[0];
+  if(dubbel.length===selectedEtages.size){ showBanner(`${naam.split(' ')[0]} staat al in dienst`); return false; }
+  const afk=maakAfkorting(naam), tijdIn=new Date().toTimeString().slice(0,5), datum=new Date().toISOString().split('T')[0];
   const nieuweEtages=[...selectedEtages].filter(et=>!(dienstRecords[et]||[]).find(r=>r.naam===naam));
   nieuweEtages.forEach(et=>{
-    const record={
-      id:uid(), naam, afkorting:afk,
-      functie:document.getElementById('functie').value,
-      kleur:selectedKleur, etage:et,
-      koppels:[...selectedKoppels],
-      stgBegeleider:isStageToggle, stgNrs:[...selectedStg],
-      tijdIn, datum,
-    };
+    const record={ id:uid(), naam, afkorting:afk, functie:document.getElementById('functie').value,
+      kleur:selectedKleur, etage:et, koppels:[...selectedKoppels],
+      stgBegeleider:isStageToggle, stgNrs:[...selectedStg], tijdIn, datum };
     if(!dienstRecords[et]) dienstRecords[et]=[];
     dienstRecords[et].push(record);
     pushDienst(record);
@@ -526,43 +505,31 @@ function commitInDienst(){
   selectedKoppels.clear(); selectedStg.clear(); isStageToggle=false;
   document.getElementById('stage-toggle').classList.remove('on');
   document.getElementById('stg-grid-wrap').style.display='none';
-  buildKoppels();
-  return true;
+  buildKoppels(); return true;
 }
 
-// Touch
 dragIcoon.addEventListener('touchstart',e=>{
   if(!document.getElementById('naam').value.trim()){ showBanner('Vul eerst je naam in'); return; }
-  e.preventDefault(); isDragging=true;
-  dragIcoon.classList.add('dragging'); updateGhostContent();
-  const t=e.touches[0]; ghostShow(t.clientX,t.clientY);
+  e.preventDefault(); isDragging=true; dragIcoon.classList.add('dragging'); updateGhost();
+  const t=e.touches[0]; gShow(t.clientX,t.clientY);
 },{passive:false});
 dragIcoon.addEventListener('touchmove',e=>{
   if(!isDragging) return; e.preventDefault();
-  const t=e.touches[0]; ghostMove(t.clientX,t.clientY); strookHL(isOverStrook(t.clientX,t.clientY));
+  const t=e.touches[0]; gMove(t.clientX,t.clientY); strookHL(overStrook(t.clientX,t.clientY));
 },{passive:false});
 dragIcoon.addEventListener('touchend',e=>{
-  if(!isDragging) return; isDragging=false;
-  dragIcoon.classList.remove('dragging'); ghostHide(); strookHL(false);
+  if(!isDragging) return; isDragging=false; dragIcoon.classList.remove('dragging'); gHide(); strookHL(false);
   const t=e.changedTouches[0];
-  if(isOverStrook(t.clientX,t.clientY)) commitInDienst();
-  else showBanner('Sleep naar de strook bovenaan');
+  if(overStrook(t.clientX,t.clientY)) commitInDienst(); else showBanner('Sleep naar de strook bovenaan');
 });
-
-// Muis
 dragIcoon.addEventListener('mousedown',e=>{
   if(!document.getElementById('naam').value.trim()){ showBanner('Vul eerst je naam in'); return; }
-  e.preventDefault(); isDragging=true; dragStartY=e.clientY;
-  dragIcoon.classList.add('dragging'); updateGhostContent(); ghostShow(e.clientX,e.clientY);
+  e.preventDefault(); isDragging=true; dragStartY=e.clientY; dragIcoon.classList.add('dragging'); updateGhost(); gShow(e.clientX,e.clientY);
 });
-document.addEventListener('mousemove',e=>{
-  if(!isDragging) return; ghostMove(e.clientX,e.clientY); strookHL(isOverStrook(e.clientX,e.clientY));
-});
+document.addEventListener('mousemove',e=>{ if(!isDragging) return; gMove(e.clientX,e.clientY); strookHL(overStrook(e.clientX,e.clientY)); });
 document.addEventListener('mouseup',e=>{
-  if(!isDragging) return; isDragging=false;
-  dragIcoon.classList.remove('dragging'); ghostHide(); strookHL(false);
-  if(isOverStrook(e.clientX,e.clientY)) commitInDienst();
-  else if(Math.abs(e.clientY-dragStartY)<5) commitInDienst(); // korte klik = ook commit
+  if(!isDragging) return; isDragging=false; dragIcoon.classList.remove('dragging'); gHide(); strookHL(false);
+  if(overStrook(e.clientX,e.clientY)||Math.abs(e.clientY-dragStartY)<5) commitInDienst();
   else showBanner('Sleep naar de strook bovenaan');
 });
 
@@ -594,7 +561,7 @@ function uitDienstId(id){
 async function pushDienst(record){
   pullLock = true;
   clearTimeout(pushDienst._t);
-  pushDienst._t = setTimeout(()=>{ pullLock=false; }, 10000);
+  pushDienst._t = setTimeout(()=>{ pullLock = false; }, 12000);
   setSyncStatus('busy');
   try{
     const res = await fetch(GASWA, {
@@ -624,11 +591,23 @@ async function pullDienst(){
     });
     const data = await res.json();
     if(data.ok && data.records){
-      dienstRecords = {};
+      // Merge: begin met lege set, maar bewaar lokale records die de Sheet nog niet kent
+      const nieuweRecords = {};
       data.records.forEach(r => {
-        if(!dienstRecords[r.etage]) dienstRecords[r.etage] = [];
-        dienstRecords[r.etage].push(r);
+        if(!nieuweRecords[r.etage]) nieuweRecords[r.etage] = [];
+        nieuweRecords[r.etage].push(r);
       });
+      // Voeg lokale records toe die nog niet in de Sheet staan (push nog onderweg)
+      Object.keys(dienstRecords).forEach(et => {
+        (dienstRecords[et]||[]).forEach(lokaal => {
+          const etInt = parseInt(et);
+          if(!nieuweRecords[etInt]) nieuweRecords[etInt] = [];
+          if(!nieuweRecords[etInt].find(r => r.id === lokaal.id)){
+            nieuweRecords[etInt].push(lokaal);
+          }
+        });
+      });
+      dienstRecords = nieuweRecords;
       renderStrook();
       setSyncStatus('ok');
     }
