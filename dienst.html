@@ -269,6 +269,19 @@ body { padding-bottom:90px; }
     <div class="kleur-row" id="kleur-row"></div>
   </div>
 
+  <!-- Mobiel nummer -->
+  <div class="field">
+    <label>Mobiel (optioneel)</label>
+    <input type="tel" id="mobiel" placeholder="bijv. 06-12345678" inputmode="tel" autocomplete="off">
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin:-4px 0 12px;padding:0 0 0 2px">
+    <div class="stage-toggle" id="mobiel-toggle" onclick="toggleMobielZichtbaar()" style="margin-bottom:0">
+      <div class="sw"></div>
+      <span style="font-size:12px;font-weight:700;color:var(--text-mid)">Zichtbaar voor collega's</span>
+    </div>
+    <span style="font-size:10px;color:var(--text-dim);font-style:italic">(manager ziet altijd)</span>
+  </div>
+
   <!-- Zorgkoppels -->
   <div class="koppel-section" id="koppel-section">
     <h3>Zorgkoppel — Vleugel A</h3>
@@ -309,15 +322,22 @@ const KAMERS_B = ['27','28','29','30','31','32'];
 const STG_NRS  = ['01','02','03','04','05','06','07','08','09','10'];
 const ETAGES   = ['BG','1e','2e','3e'];
 
-let activeEtage = 0;           // voor weergave strook (eerste geselecteerde etage)
-let selectedEtages = new Set([0]); // multi-select: welke etages zijn actief
+let activeEtage = 0;
+let selectedEtages = new Set([0]);
 let selectedKleur = KLEUREN[0];
 let selectedKoppels = new Set();
 let isStageToggle = false;
 let selectedStg = new Set();
-let inDienstData = null; // eigen dienst-record
-let dienstRecords = {}; // alle records per etage
-let pullLock = false;   // blokkeert pull direct na eigen push
+let inDienstData = null;
+let dienstRecords = {};
+let pullLock = false;
+let mobielZichtbaar = false;
+
+function toggleMobielZichtbaar(){
+  mobielZichtbaar = !mobielZichtbaar;
+  document.getElementById('mobiel-toggle').classList.toggle('on', mobielZichtbaar);
+  saveProfielLocaal();
+}
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
 
@@ -494,7 +514,9 @@ function commitInDienst(){
   nieuweEtages.forEach(et=>{
     const record={ id:uid(), naam, afkorting:afk, functie:document.getElementById('functie').value,
       kleur:selectedKleur, etage:et, koppels:[...selectedKoppels],
-      stgBegeleider:isStageToggle, stgNrs:[...selectedStg], tijdIn, datum };
+      stgBegeleider:isStageToggle, stgNrs:[...selectedStg], tijdIn, datum,
+      mobiel: document.getElementById('mobiel').value.trim(),
+      mobielZichtbaar };
     if(!dienstRecords[et]) dienstRecords[et]=[];
     dienstRecords[et].push(record);
     pushDienst(record);
@@ -631,13 +653,17 @@ function loadOpgeslagen(){
       const p = JSON.parse(saved);
       document.getElementById('naam').value = p.naam || '';
       document.getElementById('functie').value = p.functie || 'BGL';
-      // Kleur herstellen
       if(p.kleur){
         selectedKleur = p.kleur;
         document.querySelectorAll('.kleur-dot').forEach((d,i)=>{
           d.classList.toggle('selected', KLEUREN[i]===p.kleur);
         });
         document.getElementById('avatar-preview').style.background = p.kleur;
+      }
+      if(p.mobiel) document.getElementById('mobiel').value = p.mobiel;
+      if(p.mobielZichtbaar){
+        mobielZichtbaar = true;
+        document.getElementById('mobiel-toggle').classList.add('on');
       }
       updateAfkorting();
     }
@@ -650,6 +676,8 @@ function saveProfielLocaal(){
       naam: document.getElementById('naam').value,
       functie: document.getElementById('functie').value,
       kleur: selectedKleur,
+      mobiel: document.getElementById('mobiel').value.trim(),
+      mobielZichtbaar,
     }));
   } catch(e){}
 }
@@ -657,6 +685,7 @@ function saveProfielLocaal(){
 // Sla profiel op bij wijzigen
 document.getElementById('naam').addEventListener('change', saveProfielLocaal);
 document.getElementById('functie').addEventListener('change', ()=>{ updateAfkorting(); saveProfielLocaal(); });
+document.getElementById('mobiel').addEventListener('change', saveProfielLocaal);
 
 // ── Banner ────────────────────────────────────────────────────────────────
 let bannerTimer;
