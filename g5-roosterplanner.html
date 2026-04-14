@@ -297,10 +297,11 @@ function init(){
 
 // ── Week berekening ───────────────────────────────────────────────────────────
 function getMaandag(offset){
-  const nu = new Date();
-  const dag = nu.getDay() || 7; // 0=zo → 7
+  const nu  = new Date();
+  const dow = nu.getDay(); // 0=zo, 1=ma, ..., 6=za
+  const diffNaarMa = dow === 0 ? -6 : 1 - dow; // zo→-6, ma→0, di→-1, etc.
   const ma  = new Date(nu);
-  ma.setDate(nu.getDate() - dag + 1 + offset * 7);
+  ma.setDate(nu.getDate() + diffNaarMa + offset * 7);
   ma.setHours(0,0,0,0);
   return ma;
 }

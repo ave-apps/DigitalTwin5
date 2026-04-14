@@ -482,8 +482,10 @@ function handlePushDienst(body) {
     r.stgBegeleider ? 'ja' : 'nee',
     (r.stgNrs||[]).join(','),
     r.tijdIn, r.datum,
-    r.mobiel          || '',            // ← nieuw
-    r.mobielZichtbaar ? 'ja' : 'nee'   // ← nieuw
+    r.mobiel          || '',
+    r.mobielZichtbaar ? 'ja' : 'nee',
+    r.tijdUit         || '',
+    r.dienstType      || ''
   ]);
   return { ok: true };
 }
@@ -515,8 +517,10 @@ function handlePullDienst() {
       stgBegeleider:   row[7] === 'ja',
       stgNrs:          row[8] ? String(row[8]).split(',') : [],
       tijdIn:          String(row[9]),
-      mobiel:          String(row[11] || ''),          // ← nieuw
-      mobielZichtbaar: row[12] === 'ja'                // ← nieuw
+      mobiel:          String(row[11] || ''),
+      mobielZichtbaar: row[12] === 'ja',
+      tijdUit:         String(row[13] || ''),
+      dienstType:      String(row[14] || '')
     });
   }
   return { ok: true, records };
@@ -692,7 +696,7 @@ function handlePushRooster(body) {
   const sheet = getOrCreateSheet('InDienst', [
     'id','naam','afkorting','functie','kleur','etage',
     'koppels','stgBegeleider','stgNrs','tijdIn','datum',
-    'mobiel','mobielZichtbaar'
+    'mobiel','mobielZichtbaar','tijdUit','dienstType'
   ]);
   const data = sheet.getDataRange().getValues();
 
@@ -712,7 +716,8 @@ function handlePushRooster(body) {
       r.stgBegeleider ? 'ja' : 'nee',
       (r.stgNrs||[]).join(','),
       r.tijdIn||'07:00', r.datum,
-      r.mobiel||'', r.mobielZichtbaar ? 'ja' : 'nee'
+      r.mobiel||'', r.mobielZichtbaar ? 'ja' : 'nee',
+      r.tijdUit||'', r.dienstType||''
     ]);
   });
 
@@ -752,6 +757,8 @@ function handlePullRooster(params) {
       stgNrs:          row[8] ? String(row[8]).split(',') : [],
       tijdIn:          String(row[9]),
       datum,
+      tijdUit:         String(row[13] || ''),
+      dienstType:      String(row[14] || ''),
       mobiel:          String(row[11] || ''),
       mobielZichtbaar: row[12] === 'ja'
     });
