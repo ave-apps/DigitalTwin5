@@ -415,6 +415,14 @@ function buildMatrix(){
       const vTypes  = dienstTypes.filter(t => t.soort === 'V');
       const lTypes  = dienstTypes.filter(t => t.soort === 'L');
 
+      // Toon dropdown altijd als er een cel is; opties zijn de types van de actieve soort
+      const celSoort  = cel ? cel.soort : null;
+      const celTypes  = celSoort === 'V' ? vTypes : lTypes;
+      const toonSel   = !!cel && celTypes.length > 0;
+      const opties    = celTypes.map(t =>
+        `<option value="${t.id}" ${cel&&cel.typeId===t.id?'selected':''}>${t.naam} ${t.van}–${t.tot}</option>`
+      ).join('');
+
       html += `<td><div class="dienst-cel">
         <div class="dienst-type">
           <button class="dienst-btn ${cel&&cel.soort==='V'?'actief-V':''}"
@@ -425,10 +433,8 @@ function buildMatrix(){
         <select class="dienst-select ${cel?'actief-'+cel.soort:''}"
           id="sel-${activeEtage}-${di}-${ni}"
           onchange="selectType(${activeEtage},${di},'${naam}',this)"
-          style="${cel?'display:block':'display:none'}">
-          ${(cel&&cel.soort==='V'?vTypes:lTypes).map(t =>
-            `<option value="${t.id}" ${cel&&cel.typeId===t.id?'selected':''}>${t.naam} ${t.van}–${t.tot}</option>`
-          ).join('')}
+          style="${toonSel?'display:block':'display:none'}">
+          ${opties}
         </select>
       </div></td>`;
     });
