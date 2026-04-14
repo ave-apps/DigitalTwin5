@@ -20,12 +20,21 @@ body {
 .logo h1 { font-size:20px; color:#ffe066; letter-spacing:0.5px; }
 .logo p  { font-size:13px; color:#888; margin-top:4px; }
 label { display:block; font-size:12px; color:#aaa; margin-bottom:5px; margin-top:16px; }
-input {
+input, select {
   width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
   color:#fff; border-radius:8px; padding:10px 12px; font-size:14px;
   font-family:'Segoe UI',sans-serif; outline:none; transition:border 0.2s;
+  -webkit-appearance:none; appearance:none;
 }
-input:focus { border-color:#4a90d9; }
+input:focus, select:focus { border-color:#4a90d9; }
+select { cursor:pointer; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23888' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:32px; }
+select option { background:#1a1a2e; color:#fff; }
+
+/* Vervoer hint */
+.vervoer-hint {
+  font-size:10px; color:#666; margin-top:4px; font-style:italic;
+}
+
 .btn-login {
   width:100%; margin-top:24px; padding:12px; background:#2a6fc4;
   border:none; color:#fff; border-radius:8px; font-size:15px;
@@ -53,23 +62,65 @@ input:focus { border-color:#4a90d9; }
     <h1>🏢 Gebouw 5B</h1>
     <p>Digital Twin — Inloggen</p>
   </div>
+
   <label for="inp-naam">Gebruikersnaam</label>
-  <input type="text" id="inp-naam" placeholder="jouw naam" autocomplete="username" autocapitalize="none">
+  <input type="text" id="inp-naam" placeholder="jouw naam"
+    autocomplete="username" autocapitalize="none">
+
   <label for="inp-ww">Wachtwoord</label>
-  <input type="password" id="inp-ww" placeholder="••••••" autocomplete="current-password">
+  <input type="password" id="inp-ww" placeholder="••••••"
+    autocomplete="current-password">
+
+  <label for="inp-vervoer">Vervoer vandaag</label>
+  <select id="inp-vervoer">
+    <option value="">— kies vervoermiddel —</option>
+    <option value="auto">🚗 Auto</option>
+    <option value="carpool">🚗👥 Carpool</option>
+    <option value="e-auto">⚡🚗 E-auto</option>
+    <option value="e-bike">⚡🛵 E-bike / e-scooter</option>
+    <option value="fiets">🚲 Fiets</option>
+    <option value="hybride">🔋🚗 Hybride auto</option>
+    <option value="motor">🏍️ Motorfiets</option>
+    <option value="ov">🚌 Openbaar vervoer</option>
+    <option value="taxi-eigen">🚕 Taxi (eigen rekening)</option>
+    <option value="taxi-sein">🚕 Taxi (SEIN vergoedt)</option>
+    <option value="uber">📱 Uber</option>
+  </select>
+  <div class="vervoer-hint" id="vervoer-hint"></div>
+
   <button class="btn-login" id="btn-log" onclick="doLogin()">Inloggen</button>
   <div id="fout"></div>
 </div>
 
 <script>
-const GAS = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
+const GAS          = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
+const VERVOER_KEY  = 'ave_vervoer_default';
 
-// Enter-toets support
+// ── Herstel opgeslagen vervoerkeuze ──────────────────────────────────────────
+(function(){
+  const opgeslagen = localStorage.getItem(VERVOER_KEY);
+  if(opgeslagen){
+    const sel = document.getElementById('inp-vervoer');
+    sel.value = opgeslagen;
+    if(sel.value) toonVervoerHint(opgeslagen);
+  }
+})();
+
+function toonVervoerHint(val){
+  const hint = document.getElementById('vervoer-hint');
+  hint.textContent = val ? 'Vorige keuze hersteld — wijzig indien anders vandaag' : '';
+}
+
+document.getElementById('inp-vervoer').addEventListener('change', function(){
+  document.getElementById('vervoer-hint').textContent = '';
+});
+
+// ── Enter-toets support ───────────────────────────────────────────────────────
 document.addEventListener('keydown', function(e){
   if(e.key === 'Enter') doLogin();
 });
 
-// Bepaal terugkeer-URL
+// ── Bepaal terugkeer-URL ──────────────────────────────────────────────────────
 function getRedirect(){
   const ref = document.referrer;
   if(ref && ref.includes('beheer')) return 'beheer.html';
@@ -78,29 +129,36 @@ function getRedirect(){
   return 'index.html';
 }
 
-// Als al ingelogd, direct door
+// ── Als al ingelogd, direct door ──────────────────────────────────────────────
 (function(){
   const u = JSON.parse(sessionStorage.getItem('ave_user')||'null');
   if(u) window.location.href = getRedirect();
 })();
 
+// ── Login ─────────────────────────────────────────────────────────────────────
 async function doLogin(){
-  const naam = document.getElementById('inp-naam').value.trim();
-  const ww   = document.getElementById('inp-ww').value;
-  const fout = document.getElementById('fout');
-  const btn  = document.getElementById('btn-log');
+  const naam    = document.getElementById('inp-naam').value.trim();
+  const ww      = document.getElementById('inp-ww').value;
+  const vervoer = document.getElementById('inp-vervoer').value;
+  const fout    = document.getElementById('fout');
+  const btn     = document.getElementById('btn-log');
 
   fout.textContent = '';
   if(!naam || !ww){ fout.textContent = 'Vul naam en wachtwoord in.'; return; }
+  if(!vervoer){     fout.textContent = 'Kies een vervoermiddel.';    return; }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Bezig…';
 
   try {
-    const res = await fetch(GAS + '?action=getUser&naam=' + encodeURIComponent(naam) + '&ww=' + encodeURIComponent(ww));
+    const res  = await fetch(GAS + '?action=getUser&naam=' + encodeURIComponent(naam) + '&ww=' + encodeURIComponent(ww));
     const data = await res.json();
     if(data.ok && data.user){
-      sessionStorage.setItem('ave_user', JSON.stringify(data.user));
+      // Sla vervoerkeuze op als nieuw default
+      localStorage.setItem(VERVOER_KEY, vervoer);
+      // Bewaar vervoer in sessie zodat andere apps het kunnen uitlezen
+      const user = { ...data.user, vervoer, vervoerDatum: new Date().toISOString().split('T')[0] };
+      sessionStorage.setItem('ave_user', JSON.stringify(user));
       window.location.href = getRedirect();
     } else {
       fout.textContent = data.error || 'Gebruikersnaam of wachtwoord onjuist.';
