@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Telefoonbeheer — Gebouw 5</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg: #f5f3ee;
+  --surface: #ffffff;
+  --surface2: #ede9e0;
+  --border: #d8d2c4;
+  --text: #2a2520;
+  --text-mid: #7a7060;
+  --text-dim: #a89f90;
+  --accent: #2a6fc4;
+  --green: #2a9c4a;
+  --warn: #c47a2a;
+  --red: #c42a2a;
+  --stg: #6f2ac4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; }
+
+/* ── Header ── */
+.header {
+  background: var(--surface); border-bottom: 2px solid var(--border);
+  padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 2px 12px #00000010; position: sticky; top: 0; z-index: 10;
+}
+.header h1 { font-family: 'Space Mono', monospace; font-size: 15px; font-weight: 700; flex: 1; }
+.header-icon { font-size: 18px; }
+
+/* ── Pincode scherm ── */
+#pin-screen {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 20px; z-index: 100; padding: 24px;
+}
+.pin-title { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; text-align: center; }
+.pin-sub { font-size: 12px; color: var(--text-dim); text-align: center; }
+.pin-dots { display: flex; gap: 14px; margin: 8px 0; }
+.pin-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border); background: transparent;
+  transition: background .15s, border-color .15s;
+}
+.pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+.pin-dot.error  { background: var(--red);    border-color: var(--red); }
+.pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 240px; }
+.pin-btn {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 16px; font-family: 'Space Mono', monospace;
+  font-size: 20px; font-weight: 700; cursor: pointer; text-align: center;
+  transition: background .1s, transform .1s;
+  box-shadow: 0 2px 6px #00000010;
+}
+.pin-btn:active { background: var(--surface2); transform: scale(.95); }
+.pin-btn.del { font-size: 16px; color: var(--red); }
+.pin-btn.leeg { border-color: transparent; background: transparent; box-shadow: none; cursor: default; }
+.pin-error { color: var(--red); font-size: 12px; font-weight: 700; min-height: 18px; text-align: center; }
+
+/* ── Content ── */
+#main { display: none; padding-bottom: 32px; }
+
+/* ── Etage sectie ── */
+.etage-sectie {
+  background: var(--surface); margin: 12px 16px;
+  border-radius: 14px; border: 1.5px solid var(--border);
+  overflow: hidden; box-shadow: 0 2px 8px #00000008;
+}
+.etage-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.etage-badge {
+  font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+  background: var(--accent); color: #fff; padding: 3px 10px;
+  border-radius: 20px; white-space: nowrap;
+}
+.etage-label { font-size: 14px; font-weight: 800; flex: 1; }
+.etage-rows { display: flex; flex-direction: column; }
+
+/* ── Telefoon rij ── */
+.tel-rij {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.tel-rij:last-child { border-bottom: none; }
+.tel-kant {
+  font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+  color: var(--text-mid); width: 60px; flex-shrink: 0;
+}
+.tel-inputs { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+.tel-input-wrap { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 90px; }
+.tel-input-label {
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .6px;
+}
+.tel-input {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: 'Space Mono', monospace;
+  font-size: 14px; font-weight: 700; padding: 7px 10px; outline: none;
+  width: 100%; -webkit-appearance: none;
+}
+.tel-input:focus { border-color: var(--accent); background: #fff; }
+.tel-input.gevuld { border-color: var(--green); background: #f0fff5; }
+
+/* ── Algemeen nummer sectie ── */
+.algemeen-card {
+  background: var(--surface); margin: 12px 16px;
+  border-radius: 14px; border: 2px solid var(--accent);
+  padding: 16px; box-shadow: 0 2px 8px rgba(42,111,196,0.1);
+}
+.algemeen-title {
+  font-size: 11px; font-weight: 800; color: var(--accent);
+  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px;
+}
+.algemeen-rij { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.algemeen-rij:last-child { margin-bottom: 0; }
+.algemeen-naam { font-size: 13px; font-weight: 700; flex: 1; }
+.algemeen-num {
+  font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700;
+  color: var(--accent);
+}
+
+/* ── Opslaan knop ── */
+#opslaan-wrap {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, var(--bg) 40%);
+  padding: 16px 16px 24px; z-index: 20;
+}
+#opslaan-btn {
+  width: 100%; padding: 15px; background: var(--accent); color: #fff;
+  border: none; border-radius: 14px; font-family: 'Nunito', sans-serif;
+  font-size: 16px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(42,111,196,0.35);
+  transition: transform .1s, box-shadow .1s;
+}
+#opslaan-btn:active { transform: scale(.97); box-shadow: 0 2px 10px rgba(42,111,196,0.2); }
+#opslaan-btn.saved { background: var(--green); box-shadow: 0 4px 20px rgba(42,156,74,0.35); }
+
+body.main-open { padding-bottom: 90px; }
+
+/* ── Banner ── */
+#banner {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+  background: #2a2520; color: #fff; padding: 8px 20px; border-radius: 20px;
+  font-size: 13px; font-weight: 700; z-index: 200;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+  white-space: nowrap;
+}
+#banner.show { opacity: 1; }
+
+/* ── Export sectie ── */
+.export-card {
+  background: var(--surface); margin: 12px 16px;
+  border-radius: 14px; border: 1.5px solid var(--border);
+  padding: 16px;
+}
+.export-title {
+  font-size: 11px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 12px;
+}
+.export-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 9px 14px; font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text);
+  transition: background .15s;
+}
+.export-btn:hover { background: var(--border); }
+.json-box {
+  margin-top: 12px; background: #1a1a2e; color: #64d8a0;
+  border-radius: 10px; padding: 12px; font-family: 'Space Mono', monospace;
+  font-size: 11px; line-height: 1.5; overflow-x: auto; display: none;
+  white-space: pre; max-height: 200px; overflow-y: auto;
+}
+</style>
+</head>
+<body>
+
+<!-- ── Pincode scherm ── -->
+<div id="pin-screen">
+  <div class="pin-title">📞 Telefoonbeheer</div>
+  <div class="pin-sub">Gebouw 5 — Beheerder toegang</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+  <div class="pin-grid" id="pin-grid">
+    <button class="pin-btn" onclick="pinInput('1')">1</button>
+    <button class="pin-btn" onclick="pinInput('2')">2</button>
+    <button class="pin-btn" onclick="pinInput('3')">3</button>
+    <button class="pin-btn" onclick="pinInput('4')">4</button>
+    <button class="pin-btn" onclick="pinInput('5')">5</button>
+    <button class="pin-btn" onclick="pinInput('6')">6</button>
+    <button class="pin-btn" onclick="pinInput('7')">7</button>
+    <button class="pin-btn" onclick="pinInput('8')">8</button>
+    <button class="pin-btn" onclick="pinInput('9')">9</button>
+    <button class="pin-btn leeg"></button>
+    <button class="pin-btn" onclick="pinInput('0')">0</button>
+    <button class="pin-btn del" onclick="pinDel()">⌫</button>
+  </div>
+</div>
+
+<!-- ── Header ── -->
+<div class="header" style="display:none" id="main-header">
+  <span class="header-icon">📞</span>
+  <h1>Telefoonbeheer — G5</h1>
+  <span style="font-size:11px;color:var(--text-dim);font-family:'Space Mono',monospace" id="sync-label"></span>
+</div>
+
+<!-- ── Hoofdinhoud ── -->
+<div id="main">
+
+  <!-- Algemeen nummer -->
+  <div class="algemeen-card">
+    <div class="algemeen-title">📌 Vaste nummers</div>
+    <div class="algemeen-rij">
+      <span class="algemeen-naam">Algemeen SEIN</span>
+      <span class="algemeen-num">023 – 558 8000</span>
+    </div>
+    <div class="algemeen-rij">
+      <span class="algemeen-naam">Huisarts (intern)</span>
+      <span class="algemeen-num" style="color:var(--text-mid)" id="num-huisarts">—</span>
+    </div>
+  </div>
+
+  <!-- Etages worden hier ingeladen -->
+  <div id="etage-container"></div>
+
+  <!-- Export / JSON -->
+  <div class="export-card">
+    <div class="export-title">🔧 Data export</div>
+    <button class="export-btn" onclick="toggleJson()">📋 Bekijk JSON</button>
+    <button class="export-btn" style="margin-left:8px" onclick="kopieerJson()">📄 Kopieer JSON</button>
+    <div class="json-box" id="json-box"></div>
+  </div>
+
+</div>
+
+<!-- ── Opslaan knop ── -->
+<div id="opslaan-wrap" style="display:none">
+  <button id="opslaan-btn" onclick="opslaan()">💾 Opslaan</button>
+</div>
+
+<div id="banner"></div>
+
+<script>
+// ── Configuratie ────────────────────────────────────────────────────────────
+const ADMIN_PIN   = '5B-admin';   // zelfde als stagiair.html
+const STORAGE_KEY = 'g5_telefoon_v1';
+const GASWA       = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
+
+// Etage-definitie: index → label + naam
+const ETAGES = [
+  { idx: 0, code: 'BG',  label: 'Begane grond',  naam: '0.00' },
+  { idx: 1, code: '1e',  label: 'Eerste etage',  naam: '1.00' },
+  { idx: 2, code: '2e',  label: 'Tweede etage',  naam: '2.00' },
+  { idx: 3, code: '3e',  label: 'Derde etage',   naam: '3.00' },
+];
+
+// Data: per etage twee kanten (A en B), intern + extern nummer
+// Vooringevuld met bekende nummers
+let telefoonData = {
+  '0-A': { intern: '8606', extern: '' },
+  '0-B': { intern: '8604', extern: '' },
+  '1-A': { intern: '',     extern: '' },
+  '1-B': { intern: '',     extern: '' },
+  '2-A': { intern: '',     extern: '' },
+  '2-B': { intern: '',     extern: '' },
+  '3-A': { intern: '',     extern: '' },
+  '3-B': { intern: '',     extern: '' },
+};
+
+// ── Pincode logica ──────────────────────────────────────────────────────────
+let pinBuffer = '';
+
+function pinInput(c) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += c;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(checkPin, 120);
+}
+
+function pinDel() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+  document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('error'));
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    const d = document.getElementById('pd' + i);
+    d.classList.toggle('filled', i < pinBuffer.length);
+    d.classList.remove('error');
+  }
+}
+
+function checkPin() {
+  // Accepteer zowel numerieke pin als tekst-pin
+  const numeriekPin = '5825'; // fallback numeriek (= "5B-ad" onthoudbaar alternatief)
+  if (pinBuffer === numeriekPin || pinBuffer === ADMIN_PIN.replace(/\D/g,'').slice(0,4)) {
+    openMain();
+  } else {
+    document.querySelectorAll('.pin-dot').forEach(d => {
+      d.classList.remove('filled'); d.classList.add('error');
+    });
+    document.getElementById('pin-error').textContent = 'Onjuiste pincode';
+    setTimeout(() => {
+      document.querySelectorAll('.pin-dot').forEach(d => d.classList.remove('error'));
+      document.getElementById('pin-error').textContent = '';
+      pinBuffer = '';
+      updatePinDots();
+    }, 900);
+  }
+}
+
+function openMain() {
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('main-header').style.display = 'flex';
+  document.getElementById('main').style.display = 'block';
+  document.getElementById('opslaan-wrap').style.display = 'block';
+  document.body.classList.add('main-open');
+  laadOpgeslagen();
+  buildUI();
+  if (GASWA) setTimeout(pullTelefoon, 800);
+}
+
+// ── Data laden / opslaan ────────────────────────────────────────────────────
+function laadOpgeslagen() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      Object.keys(parsed).forEach(k => {
+        if (telefoonData.hasOwnProperty(k)) telefoonData[k] = parsed[k];
+      });
+    }
+  } catch(e) {}
+}
+
+function opslaan() {
+  // Lees alle inputs terug in telefoonData
+  ETAGES.forEach(et => {
+    ['A','B'].forEach(kant => {
+      const key = et.idx + '-' + kant;
+      const internEl = document.getElementById('intern-' + key);
+      const externEl = document.getElementById('extern-' + key);
+      if (internEl) telefoonData[key].intern = internEl.value.trim();
+      if (externEl) telefoonData[key].extern = externEl.value.trim();
+    });
+  });
+
+  // Lokaal opslaan
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(telefoonData)); } catch(e) {}
+
+  // Push naar GAS
+  if (GASWA) pushTelefoon();
+
+  // UI feedback
+  const btn = document.getElementById('opslaan-btn');
+  btn.textContent = '✓ Opgeslagen';
+  btn.classList.add('saved');
+  setTimeout(() => {
+    btn.textContent = '💾 Opslaan';
+    btn.classList.remove('saved');
+  }, 2000);
+
+  showBanner('✓ Telefoonnummers opgeslagen');
+  updateGevuld();
+}
+
+// ── UI bouwen ───────────────────────────────────────────────────────────────
+function buildUI() {
+  const container = document.getElementById('etage-container');
+  container.innerHTML = '';
+
+  ETAGES.forEach(et => {
+    const sectie = document.createElement('div');
+    sectie.className = 'etage-sectie';
+
+    sectie.innerHTML = `
+      <div class="etage-header">
+        <span class="etage-badge">${et.code}</span>
+        <span class="etage-label">${et.label}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text-dim)">${et.naam}</span>
+      </div>
+      <div class="etage-rows" id="rows-${et.idx}"></div>
+    `;
+
+    container.appendChild(sectie);
+
+    ['A','B'].forEach(kant => {
+      const key   = et.idx + '-' + kant;
+      const data  = telefoonData[key] || { intern: '', extern: '' };
+      const rij   = document.createElement('div');
+      rij.className = 'tel-rij';
+      rij.innerHTML = `
+        <span class="tel-kant">${et.naam}-${kant}</span>
+        <div class="tel-inputs">
+          <div class="tel-input-wrap">
+            <span class="tel-input-label">Intern (4-cijf.)</span>
+            <input type="tel" class="tel-input ${data.intern ? 'gevuld' : ''}"
+              id="intern-${key}" value="${data.intern}"
+              maxlength="6" placeholder="bijv. 8606"
+              oninput="markGevuld(this)" inputmode="numeric">
+          </div>
+          <div class="tel-input-wrap">
+            <span class="tel-input-label">Extern / GSM</span>
+            <input type="tel" class="tel-input ${data.extern ? 'gevuld' : ''}"
+              id="extern-${key}" value="${data.extern}"
+              maxlength="15" placeholder="bijv. 06-…"
+              oninput="markGevuld(this)" inputmode="tel">
+          </div>
+        </div>
+      `;
+      document.getElementById('rows-' + et.idx).appendChild(rij);
+    });
+  });
+}
+
+function markGevuld(el) {
+  el.classList.toggle('gevuld', el.value.trim().length > 0);
+}
+
+function updateGevuld() {
+  ETAGES.forEach(et => {
+    ['A','B'].forEach(kant => {
+      const key = et.idx + '-' + kant;
+      const el = document.getElementById('intern-' + key);
+      if (el) markGevuld(el);
+      const el2 = document.getElementById('extern-' + key);
+      if (el2) markGevuld(el2);
+    });
+  });
+}
+
+// ── GAS sync ────────────────────────────────────────────────────────────────
+async function pushTelefoon() {
+  try {
+    await fetch(GASWA, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'pushTelefoon', data: telefoonData })
+    });
+    document.getElementById('sync-label').textContent = 'Gesynchroniseerd';
+  } catch(e) {
+    document.getElementById('sync-label').textContent = 'Offline opgeslagen';
+  }
+}
+
+async function pullTelefoon() {
+  try {
+    const res  = await fetch(GASWA, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'pullTelefoon' })
+    });
+    const data = await res.json();
+    if (data.ok && data.telefoon) {
+      Object.keys(data.telefoon).forEach(k => {
+        if (telefoonData.hasOwnProperty(k)) telefoonData[k] = data.telefoon[k];
+      });
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(telefoonData)); } catch(e) {}
+      buildUI(); // herbouw met nieuwe data
+      document.getElementById('sync-label').textContent = 'Live';
+    }
+  } catch(e) {
+    document.getElementById('sync-label').textContent = 'Lokaal';
+  }
+}
+
+// ── JSON export ─────────────────────────────────────────────────────────────
+function toggleJson() {
+  const box = document.getElementById('json-box');
+  if (box.style.display === 'block') {
+    box.style.display = 'none';
+    return;
+  }
+  box.textContent = JSON.stringify(telefoonData, null, 2);
+  box.style.display = 'block';
+}
+
+function kopieerJson() {
+  const json = JSON.stringify(telefoonData, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    showBanner('📋 JSON gekopieerd');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = json;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showBanner('📋 JSON gekopieerd');
+  });
+}
+
+// ── Banner ───────────────────────────────────────────────────────────────────
+let bannerTimer;
+function showBanner(msg) {
+  const b = document.getElementById('banner');
+  b.textContent = msg;
+  b.classList.add('show');
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => b.classList.remove('show'), 2200);
+}
+
+// ── Pincode: ook keyboard support ───────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (document.getElementById('pin-screen').style.display === 'none') return;
+  if (e.key >= '0' && e.key <= '9') pinInput(e.key);
+  if (e.key === 'Backspace') pinDel();
+});
+</script>
+</body>
+</html>
