@@ -310,7 +310,10 @@ function datumVanDag(dagIdx){ // 0=ma
   const ma = getMaandag(weekOffset);
   const d  = new Date(ma);
   d.setDate(ma.getDate() + dagIdx);
-  return d.toISOString().split('T')[0]; // yyyy-mm-dd
+  // Gebruik lokale datum om UTC-offset probleem te vermijden
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
 }
 
 function weekNr(d){
