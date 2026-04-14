@@ -70,6 +70,9 @@ function handleRequest(params, body) {
     else if (action === 'pushZiekmelding')    result = handlePushZiekmelding(body);
     else if (action === 'pullZiekmeldingen')  result = handlePullZiekmeldingen();
     else if (action === 'updateZiekmelding')  result = handleUpdateZiekmelding(body);
+    // ── Roosterplanner ──────────────────────────────────────────────────────
+    else if (action === 'pushRooster')       result = handlePushRooster(body);
+    else if (action === 'pullRooster')        result = handlePullRooster(params);
     // ── Telefoon ─────────────────────────────────────────────────────────
     else if (action === 'pushTelefoon')       result = handlePushTelefoon(body);
     else if (action === 'pullTelefoon')       result = handlePullTelefoon();
