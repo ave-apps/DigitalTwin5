@@ -372,11 +372,13 @@ function renderAlles(){
     if(records.length === 0){
       body.innerHTML = `<div class="etage-leeg">Niemand in dienst</div>`;
     } else {
-      // Sorteer: MGR bovenaan, dan alfabetisch
+      // Sorteer: MGR bovenaan, dan op begintijd, dan alfabetisch
       const gesorteerd = [...records].sort((a,b) => {
         if(a.functie === 'MGR') return -1;
         if(b.functie === 'MGR') return 1;
-        return a.naam.localeCompare(b.naam);
+        const ta = parseTijdIn(a.tijdIn) || '99:99';
+        const tb = parseTijdIn(b.tijdIn) || '99:99';
+        return ta !== tb ? ta.localeCompare(tb) : a.naam.localeCompare(b.naam);
       });
       gesorteerd.forEach(r => {
         body.appendChild(bouwMwRij(r, et.idx));
@@ -425,7 +427,11 @@ function bouwMwRij(r, etageIdx){
     }
     return s;
   }
-  const tijdIn = r.tijdIn ? `<span class="mw-tijd">in dienst ${parseTijdIn(r.tijdIn)}</span>` : '';
+  const tijdInStr  = r.tijdIn  ? parseTijdIn(r.tijdIn)  : '';
+  const tijdUitStr = r.tijdUit ? parseTijdIn(r.tijdUit) : '';
+  const tijdIn = tijdInStr
+    ? `<span class="mw-tijd">in dienst ${tijdInStr}${tijdUitStr ? ' – ' + tijdUitStr : ''}</span>`
+    : '';
 
   // Bel-knoppen: mobiel alleen tonen als manager OF als zichtbaar=true
   const toonMobiel = r.mobiel && (huidigeRol === 'mgr' || r.mobielZichtbaar);
