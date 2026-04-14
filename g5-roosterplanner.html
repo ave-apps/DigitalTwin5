@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Roosterplanner — G5</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg: #f5f3ee; --surface: #ffffff; --surface2: #ede9e0;
+  --border: #d8d2c4; --text: #2a2520; --text-mid: #7a7060;
+  --text-dim: #a89f90; --accent: #2a6fc4; --green: #2a9c4a;
+  --warn: #c47a2a; --red: #c42a2a;
+  --vroeg: #2a6fc4; --laat: #6f2ac4;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; padding-bottom: 100px; }
+
+/* ── Header ── */
+.header {
+  background: var(--surface); border-bottom: 2px solid var(--border);
+  padding: 13px 16px; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 2px 12px #00000010; position: sticky; top: 0; z-index: 20;
+}
+.header h1 { font-family: 'Space Mono', monospace; font-size: 14px; font-weight: 700; flex: 1; }
+#sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+#sync-label { font-size: 10px; font-weight: 700; color: var(--text-dim); }
+
+/* ── Week navigatie ── */
+.week-nav {
+  display: flex; align-items: center; gap: 0;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 10px 16px; justify-content: space-between;
+}
+.week-btn {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 7px 14px; font-family: 'Space Mono', monospace;
+  font-size: 13px; font-weight: 700; cursor: pointer; color: var(--text);
+  transition: background .1s;
+}
+.week-btn:active { background: var(--border); }
+.week-label { font-family: 'Space Mono', monospace; font-size: 13px; font-weight: 700; text-align: center; }
+.week-sub { font-size: 10px; color: var(--text-dim); text-align: center; margin-top: 2px; }
+
+/* ── Tabs (etages) ── */
+.etage-tabs {
+  display: flex; background: var(--surface);
+  border-bottom: 2px solid var(--border); overflow-x: auto;
+}
+.etage-tab {
+  flex: 1; padding: 10px 6px; text-align: center; font-size: 12px;
+  font-weight: 800; color: var(--text-mid); cursor: pointer;
+  border-bottom: 3px solid transparent; white-space: nowrap; min-width: 60px;
+  transition: all .15s;
+}
+.etage-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Matrix ── */
+.matrix-wrap { padding: 12px 16px; overflow-x: auto; }
+.matrix {
+  width: 100%; border-collapse: collapse;
+  min-width: 500px;
+}
+.matrix th {
+  font-family: 'Space Mono', monospace; font-size: 10px; font-weight: 700;
+  color: var(--text-dim); padding: 6px 4px; text-align: center;
+  border-bottom: 2px solid var(--border);
+}
+.matrix th.naam-col { text-align: left; padding-left: 8px; min-width: 120px; }
+.matrix th.dag-col { min-width: 80px; }
+.matrix td { padding: 4px 3px; vertical-align: middle; }
+.matrix td.naam-cel {
+  font-size: 13px; font-weight: 700; padding: 6px 8px;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.matrix tr:last-child td { border-bottom: none; }
+
+/* ── Dienst-cel ── */
+.dienst-cel {
+  display: flex; flex-direction: column; gap: 2px;
+  border-bottom: 1px solid var(--border); padding: 3px 0;
+}
+.dienst-type {
+  display: flex; gap: 3px;
+}
+.dienst-btn {
+  flex: 1; padding: 5px 2px; border: 1.5px solid var(--border);
+  border-radius: 6px; font-family: 'Space Mono', monospace;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  background: var(--surface2); color: var(--text-mid);
+  transition: all .1s; text-align: center;
+}
+.dienst-btn.actief-V { background: #e8f0ff; border-color: var(--vroeg); color: var(--vroeg); }
+.dienst-btn.actief-L { background: #f0e8ff; border-color: var(--laat); color: var(--laat); }
+.dienst-select {
+  width: 100%; background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 6px; color: var(--text); font-family: 'Nunito', sans-serif;
+  font-size: 10px; padding: 3px 4px; outline: none; display: none;
+  -webkit-appearance: none;
+}
+.dienst-select.actief-V { border-color: var(--vroeg); background: #e8f0ff; color: var(--vroeg); }
+.dienst-select.actief-L { border-color: var(--laat); background: #f0e8ff; color: var(--laat); }
+
+/* ── Naam toevoegen ── */
+.naam-add-row td {
+  padding: 8px 4px; border-top: 2px dashed var(--border);
+}
+.naam-input {
+  width: 100%; background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: 'Nunito', sans-serif;
+  font-size: 13px; font-weight: 700; padding: 6px 10px; outline: none;
+}
+.naam-input:focus { border-color: var(--accent); }
+.naam-add-btn {
+  width: 100%; padding: 7px; background: var(--accent); color: #fff;
+  border: none; border-radius: 8px; font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 800; cursor: pointer;
+}
+
+/* ── Dienst-types beheer ── */
+.types-sectie {
+  margin: 12px 16px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+}
+.types-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; background: var(--surface2);
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.types-title { font-size: 13px; font-weight: 800; flex: 1; }
+.types-chevron { font-size: 12px; color: var(--text-dim); transition: transform .2s; }
+.types-chevron.open { transform: rotate(180deg); }
+.types-body { display: none; padding: 12px 16px; }
+.types-body.open { display: block; }
+
+.type-rij {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; border-bottom: 1px solid var(--border);
+}
+.type-rij:last-child { border-bottom: none; }
+.type-badge {
+  font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+  padding: 3px 8px; border-radius: 6px; flex-shrink: 0; min-width: 28px; text-align: center;
+}
+.type-badge.V { background: #e8f0ff; color: var(--vroeg); }
+.type-badge.L { background: #f0e8ff; color: var(--laat); }
+.type-naam { font-size: 12px; font-weight: 700; flex: 1; }
+.type-tijd { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-mid); }
+.type-del { background: none; border: none; color: var(--red); font-size: 16px; cursor: pointer; padding: 0 4px; }
+
+.type-add { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.type-input {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: 'Nunito', sans-serif;
+  font-size: 12px; padding: 6px 10px; outline: none; flex: 1; min-width: 80px;
+}
+.type-input:focus { border-color: var(--accent); }
+.type-soort-btn {
+  padding: 6px 12px; border-radius: 8px; border: 1.5px solid var(--border);
+  font-family: 'Space Mono', monospace; font-size: 11px; font-weight: 700;
+  cursor: pointer; background: var(--surface2); color: var(--text-mid);
+}
+.type-soort-btn.V { background: #e8f0ff; border-color: var(--vroeg); color: var(--vroeg); }
+.type-soort-btn.L { background: #f0e8ff; border-color: var(--laat); color: var(--laat); }
+.type-save-btn {
+  padding: 6px 14px; background: var(--green); color: #fff;
+  border: none; border-radius: 8px; font-family: 'Nunito', sans-serif;
+  font-size: 12px; font-weight: 800; cursor: pointer;
+}
+
+/* ── Opslaan footer ── */
+#opslaan-wrap {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, var(--bg) 40%);
+  padding: 16px 16px 24px; z-index: 10;
+}
+.opslaan-rij { display: flex; gap: 10px; }
+#opslaan-btn {
+  flex: 1; padding: 14px; background: var(--accent); color: #fff;
+  border: none; border-radius: 14px; font-family: 'Nunito', sans-serif;
+  font-size: 15px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(42,111,196,0.35); transition: transform .1s;
+}
+#opslaan-btn:active { transform: scale(.97); }
+#opslaan-btn.saved { background: var(--green); }
+#wis-btn {
+  padding: 14px 18px; background: var(--surface); color: var(--red);
+  border: 2px solid var(--red); border-radius: 14px;
+  font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800;
+  cursor: pointer; transition: background .1s;
+}
+#wis-btn:active { background: #ffe8e8; }
+
+/* ── Banner ── */
+#banner {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+  background: #2a2520; color: #fff; padding: 8px 20px; border-radius: 20px;
+  font-size: 13px; font-weight: 700; z-index: 200;
+  opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap;
+}
+#banner.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📅 Roosterplanner G5</h1>
+  <div id="sync-dot"></div>
+  <span id="sync-label">Lokaal</span>
+</div>
+
+<!-- Week navigatie -->
+<div class="week-nav">
+  <button class="week-btn" onclick="verschuifWeek(-1)">◀</button>
+  <div>
+    <div class="week-label" id="week-label">Week 15</div>
+    <div class="week-sub" id="week-sub">14 apr – 20 apr</div>
+  </div>
+  <button class="week-btn" onclick="verschuifWeek(1)">▶</button>
+</div>
+
+<!-- Etage tabs -->
+<div class="etage-tabs" id="etage-tabs">
+  <div class="etage-tab active" onclick="setEtage(0,this)">BG</div>
+  <div class="etage-tab" onclick="setEtage(1,this)">1e</div>
+  <div class="etage-tab" onclick="setEtage(2,this)">2e</div>
+  <div class="etage-tab" onclick="setEtage(3,this)">3e</div>
+</div>
+
+<!-- Matrix -->
+<div class="matrix-wrap">
+  <table class="matrix" id="matrix"></table>
+</div>
+
+<!-- Dienst-types beheer -->
+<div class="types-sectie">
+  <div class="types-header" onclick="toggleTypes()">
+    <span class="types-title">⚙️ Dienst-types beheren</span>
+    <span class="types-chevron" id="types-chev">▼</span>
+  </div>
+  <div class="types-body" id="types-body">
+    <div id="types-lijst"></div>
+    <div class="type-add">
+      <button class="type-soort-btn" id="type-soort-btn" onclick="toggleSoort()">V</button>
+      <input class="type-input" id="type-naam-inp" placeholder="Naam (bijv. Vroeg lang)">
+      <input class="type-input" id="type-van-inp" placeholder="Van 07:00" style="max-width:90px">
+      <input class="type-input" id="type-tot-inp" placeholder="Tot 15:00" style="max-width:90px">
+      <button class="type-save-btn" onclick="voegTypeToe()">+ Toevoegen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div id="opslaan-wrap">
+  <div class="opslaan-rij">
+    <button id="wis-btn" onclick="wisEtage()">🗑 Etage wissen</button>
+    <button id="opslaan-btn" onclick="opslaanNaarGAS()">☁️ Opslaan naar rooster</button>
+  </div>
+</div>
+
+<div id="banner"></div>
+
+<script>
+// ── Configuratie ──────────────────────────────────────────────────────────────
+const GASWA        = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
+const ETAGE_LBL    = ['BG','1e','2e','3e'];
+const DAGEN        = ['ma','di','wo','do','vr','za','zo'];
+const STORAGE_KEY  = 'g5_rooster_v1';
+const TYPES_KEY    = 'g5_dienst_types_v1';
+const NAMEN_KEY    = 'g5_namen_v1';
+const KLEUREN      = ['#2a6fc4','#c42a6f','#2a9c4a','#c47a2a','#6f2ac4','#2aafc4','#c4442a','#888888'];
+
+// ── Standaard dienst-types ────────────────────────────────────────────────────
+const DEFAULT_TYPES = [
+  { id:'V',  soort:'V', naam:'Vroeg',     van:'07:00', tot:'15:00' },
+  { id:'L',  soort:'L', naam:'Laat',      van:'14:45', tot:'22:45' },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let activeEtage  = 0;
+let weekOffset   = 0;   // 0 = huidige week, 1 = volgende week, etc.
+let rooster      = {};  // { 'etage-datum-naam': { soort, typeId } }
+let dienstTypes  = [];
+let namen        = {};  // { etage: ['Naam1', 'Naam2', ...] }
+let typeSoort    = 'V'; // voor het toevoeg-formulier
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init(){
+  laadTypes();
+  laadNamen();
+  laadRooster();
+  updateWeekLabel();
+  buildMatrix();
+}
+
+// ── Week berekening ───────────────────────────────────────────────────────────
+function getMaandag(offset){
+  const nu = new Date();
+  const dag = nu.getDay() || 7; // 0=zo → 7
+  const ma  = new Date(nu);
+  ma.setDate(nu.getDate() - dag + 1 + offset * 7);
+  ma.setHours(0,0,0,0);
+  return ma;
+}
+
+function datumVanDag(dagIdx){ // 0=ma
+  const ma = getMaandag(weekOffset);
+  const d  = new Date(ma);
+  d.setDate(ma.getDate() + dagIdx);
+  return d.toISOString().split('T')[0]; // yyyy-mm-dd
+}
+
+function weekNr(d){
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  dt.setUTCDate(dt.getUTCDate() + 4 - (dt.getUTCDay() || 7));
+  const jan1 = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+  return Math.ceil((((dt - jan1) / 86400000) + 1) / 7);
+}
+
+function fmtDatum(d){
+  return d.getDate() + ' ' + ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'][d.getMonth()];
+}
+
+function updateWeekLabel(){
+  const ma  = getMaandag(weekOffset);
+  const zo  = new Date(ma); zo.setDate(ma.getDate() + 6);
+  document.getElementById('week-label').textContent = 'Week ' + weekNr(ma);
+  document.getElementById('week-sub').textContent   = fmtDatum(ma) + ' – ' + fmtDatum(zo);
+}
+
+function verschuifWeek(d){
+  weekOffset += d;
+  updateWeekLabel();
+  buildMatrix();
+}
+
+// ── Etage ─────────────────────────────────────────────────────────────────────
+function setEtage(idx, el){
+  activeEtage = idx;
+  document.querySelectorAll('.etage-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  buildMatrix();
+}
+
+// ── Laden / opslaan ───────────────────────────────────────────────────────────
+function laadTypes(){
+  try {
+    const raw = localStorage.getItem(TYPES_KEY);
+    dienstTypes = raw ? JSON.parse(raw) : [...DEFAULT_TYPES];
+  } catch(e) { dienstTypes = [...DEFAULT_TYPES]; }
+}
+
+function slaanTypesOp(){
+  try { localStorage.setItem(TYPES_KEY, JSON.stringify(dienstTypes)); } catch(e) {}
+}
+
+function laadNamen(){
+  try {
+    const raw = localStorage.getItem(NAMEN_KEY);
+    namen = raw ? JSON.parse(raw) : {};
+  } catch(e) { namen = {}; }
+  // Zorg dat alle etages een array hebben
+  [0,1,2,3].forEach(e => { if(!namen[e]) namen[e] = []; });
+}
+
+function slaanNamenOp(){
+  try { localStorage.setItem(NAMEN_KEY, JSON.stringify(namen)); } catch(e) {}
+}
+
+function laadRooster(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    rooster = raw ? JSON.parse(raw) : {};
+  } catch(e) { rooster = {}; }
+}
+
+function slaanRoosterOp(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rooster)); } catch(e) {}
+}
+
+function roosterSleutel(etage, dagIdx, naam){
+  return etage + '|' + datumVanDag(dagIdx) + '|' + naam;
+}
+
+// ── Matrix bouwen ─────────────────────────────────────────────────────────────
+function buildMatrix(){
+  const tbl   = document.getElementById('matrix');
+  const namenE = namen[activeEtage] || [];
+
+  // Header
+  let html = '<thead><tr>';
+  html += '<th class="naam-col">Naam</th>';
+  DAGEN.forEach((d, i) => {
+    const datum = datumVanDag(i);
+    const isVandaag = datum === new Date().toISOString().split('T')[0];
+    html += `<th class="dag-col" style="${isVandaag?'color:var(--accent)':''}">${d}<br><span style="font-size:9px;font-weight:400">${fmtDatum(new Date(datum))}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  // Rijen per naam
+  namenE.forEach((naam, ni) => {
+    html += `<tr>`;
+    html += `<td class="naam-cel">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="width:26px;height:26px;border-radius:50%;background:${KLEUREN[ni%KLEUREN.length]};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;flex-shrink:0">${initialen(naam)}</div>
+        <span style="font-size:12px">${naam}</span>
+        <button onclick="verwijderNaam(${ni})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;margin-left:auto;padding:0 2px">×</button>
+      </div>
+    </td>`;
+    DAGEN.forEach((d, di) => {
+      const sleutel = roosterSleutel(activeEtage, di, naam);
+      const cel     = rooster[sleutel] || null;
+      const vTypes  = dienstTypes.filter(t => t.soort === 'V');
+      const lTypes  = dienstTypes.filter(t => t.soort === 'L');
+
+      html += `<td><div class="dienst-cel">
+        <div class="dienst-type">
+          <button class="dienst-btn ${cel&&cel.soort==='V'?'actief-V':''}"
+            onclick="toggleDienst(${activeEtage},${di},'${naam}','V',this)">V</button>
+          <button class="dienst-btn ${cel&&cel.soort==='L'?'actief-L':''}"
+            onclick="toggleDienst(${activeEtage},${di},'${naam}','L',this)">L</button>
+        </div>
+        <select class="dienst-select ${cel?'actief-'+cel.soort:''}"
+          id="sel-${activeEtage}-${di}-${ni}"
+          onchange="selectType(${activeEtage},${di},'${naam}',this)"
+          style="${cel?'display:block':'display:none'}">
+          ${(cel&&cel.soort==='V'?vTypes:lTypes).map(t =>
+            `<option value="${t.id}" ${cel&&cel.typeId===t.id?'selected':''}>${t.naam} ${t.van}–${t.tot}</option>`
+          ).join('')}
+        </select>
+      </div></td>`;
+    });
+    html += '</tr>';
+  });
+
+  // Naam toevoegen rij
+  html += `<tr class="naam-add-row">
+    <td><input class="naam-input" id="naam-input-${activeEtage}" placeholder="+ Naam toevoegen…" onkeydown="if(event.key==='Enter')voegNaamToe()"></td>
+    <td colspan="7"><button class="naam-add-btn" onclick="voegNaamToe()">Toevoegen</button></td>
+  </tr>`;
+
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+function initialen(naam){
+  return naam.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+}
+
+// ── Dienst knoppen ────────────────────────────────────────────────────────────
+function toggleDienst(etage, dagIdx, naam, soort, btn){
+  const sleutel = roosterSleutel(etage, dagIdx, naam);
+  const huidig  = rooster[sleutel];
+
+  if(huidig && huidig.soort === soort){
+    // Zelfde soort → wissen
+    delete rooster[sleutel];
+  } else {
+    // Nieuwe soort → eerste type van die soort als default
+    const types = dienstTypes.filter(t => t.soort === soort);
+    rooster[sleutel] = { soort, typeId: types[0]?.id || soort };
+  }
+  slaanRoosterOp();
+  buildMatrix();
+}
+
+function selectType(etage, dagIdx, naam, sel){
+  const sleutel = roosterSleutel(etage, dagIdx, naam);
+  const typeId  = sel.value;
+  const type    = dienstTypes.find(t => t.id === typeId);
+  if(type && rooster[sleutel]){
+    rooster[sleutel].typeId = typeId;
+    rooster[sleutel].soort  = type.soort;
+  }
+  slaanRoosterOp();
+}
+
+// ── Namen beheer ──────────────────────────────────────────────────────────────
+function voegNaamToe(){
+  const inp = document.getElementById('naam-input-' + activeEtage);
+  const naam = (inp?.value || '').trim();
+  if(!naam) return;
+  if(!namen[activeEtage]) namen[activeEtage] = [];
+  if(namen[activeEtage].includes(naam)){ showBanner(naam + ' staat er al'); return; }
+  namen[activeEtage].push(naam);
+  slaanNamenOp();
+  buildMatrix();
+  showBanner('✓ ' + naam + ' toegevoegd');
+}
+
+function verwijderNaam(idx){
+  const naam = namen[activeEtage][idx];
+  namen[activeEtage].splice(idx, 1);
+  // Verwijder ook rooster-entries voor die naam
+  Object.keys(rooster).forEach(k => {
+    if(k.endsWith('|' + naam) && k.startsWith(activeEtage + '|')) delete rooster[k];
+  });
+  slaanNamenOp();
+  slaanRoosterOp();
+  buildMatrix();
+}
+
+// ── Dienst-types beheer ───────────────────────────────────────────────────────
+function toggleTypes(){
+  const body = document.getElementById('types-body');
+  const chev = document.getElementById('types-chev');
+  const open = body.classList.toggle('open');
+  chev.classList.toggle('open', open);
+  if(open) buildTypesLijst();
+}
+
+function buildTypesLijst(){
+  const lijst = document.getElementById('types-lijst');
+  lijst.innerHTML = dienstTypes.map((t, i) => `
+    <div class="type-rij">
+      <span class="type-badge ${t.soort}">${t.soort}</span>
+      <span class="type-naam">${t.naam}</span>
+      <span class="type-tijd">${t.van} – ${t.tot}</span>
+      <button class="type-del" onclick="verwijderType(${i})">×</button>
+    </div>`).join('');
+}
+
+function toggleSoort(){
+  typeSoort = typeSoort === 'V' ? 'L' : 'V';
+  const btn = document.getElementById('type-soort-btn');
+  btn.textContent = typeSoort;
+  btn.className   = 'type-soort-btn ' + typeSoort;
+}
+
+function voegTypeToe(){
+  const naam = document.getElementById('type-naam-inp').value.trim();
+  const van  = document.getElementById('type-van-inp').value.trim();
+  const tot  = document.getElementById('type-tot-inp').value.trim();
+  if(!naam){ showBanner('Vul een naam in'); return; }
+  const id = typeSoort + '_' + Date.now();
+  dienstTypes.push({ id, soort: typeSoort, naam, van: van||'', tot: tot||'' });
+  slaanTypesOp();
+  buildTypesLijst();
+  document.getElementById('type-naam-inp').value = '';
+  document.getElementById('type-van-inp').value  = '';
+  document.getElementById('type-tot-inp').value  = '';
+  showBanner('✓ Type toegevoegd');
+}
+
+function verwijderType(idx){
+  dienstTypes.splice(idx, 1);
+  slaanTypesOp();
+  buildTypesLijst();
+}
+
+// ── Wis etage ─────────────────────────────────────────────────────────────────
+function wisEtage(){
+  const prefix = activeEtage + '|';
+  Object.keys(rooster).forEach(k => { if(k.startsWith(prefix)) delete rooster[k]; });
+  slaanRoosterOp();
+  buildMatrix();
+  showBanner('🗑 Etage ' + ETAGE_LBL[activeEtage] + ' gewist');
+}
+
+// ── Opslaan naar GAS ──────────────────────────────────────────────────────────
+async function opslaanNaarGAS(){
+  const btn = document.getElementById('opslaan-btn');
+  btn.textContent = '⏳ Bezig…'; btn.disabled = true;
+  setSyncStatus('busy');
+
+  const records = [];
+  const now     = new Date();
+
+  Object.entries(rooster).forEach(([sleutel, cel]) => {
+    const parts = sleutel.split('|');
+    if(parts.length < 3) return;
+    const etage = parseInt(parts[0]);
+    const datum = parts[1];
+    const naam  = parts.slice(2).join('|');
+    const type  = dienstTypes.find(t => t.id === cel.typeId) ||
+                  dienstTypes.find(t => t.soort === cel.soort) ||
+                  { van: cel.soort==='V'?'07:00':'14:45', tot: cel.soort==='V'?'15:00':'22:45', naam: cel.soort==='V'?'Vroeg':'Laat' };
+    const ni    = (namen[etage]||[]).indexOf(naam);
+
+    records.push({
+      id:           'rp_' + datum + '_' + etage + '_' + naam.replace(/\s/g,''),
+      naam,
+      afkorting:    initialen(naam),
+      functie:      'BGLB',
+      kleur:        KLEUREN[ni >= 0 ? ni % KLEUREN.length : 0],
+      etage,
+      koppels:      [],
+      stgBegeleider: false,
+      stgNrs:       [],
+      tijdIn:       type.van || (cel.soort==='V' ? '07:00' : '14:45'),
+      tijdUit:      type.tot || (cel.soort==='V' ? '15:00' : '22:45'),
+      datum,
+      dienstType:   type.naam || cel.soort,
+      mobiel:       '',
+      mobielZichtbaar: false,
+    });
+  });
+
+  if(!records.length){
+    showBanner('Niets in te plannen'); btn.textContent = '☁️ Opslaan naar rooster'; btn.disabled = false; return;
+  }
+
+  try {
+    const res  = await fetch(GASWA, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'pushRooster', records })
+    });
+    const data = await res.json();
+    if(data.ok){
+      setSyncStatus('ok');
+      btn.textContent = '✓ Opgeslagen';
+      btn.classList.add('saved');
+      showBanner('✓ ' + records.length + ' diensten opgeslagen');
+      setTimeout(() => { btn.textContent = '☁️ Opslaan naar rooster'; btn.classList.remove('saved'); btn.disabled = false; }, 2500);
+    } else {
+      setSyncStatus('error');
+      showBanner('Fout: ' + (data.error||'onbekend'));
+      btn.textContent = '☁️ Opslaan naar rooster'; btn.disabled = false;
+    }
+  } catch(e){
+    setSyncStatus('error');
+    showBanner('Verbindingsfout');
+    btn.textContent = '☁️ Opslaan naar rooster'; btn.disabled = false;
+  }
+}
+
+// ── Sync status ───────────────────────────────────────────────────────────────
+function setSyncStatus(state){
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  const cfg = { ok:{col:'#4cdd8a',txt:'Gesynchroniseerd'}, busy:{col:'#64b4ff',txt:'Bezig…'}, error:{col:'#ff4444',txt:'Fout'} }[state]||{col:'#888',txt:'Lokaal'};
+  dot.style.background = cfg.col; lbl.style.color = cfg.col; lbl.textContent = cfg.txt;
+}
+
+// ── Banner ────────────────────────────────────────────────────────────────────
+let bannerTimer;
+function showBanner(msg){
+  const b = document.getElementById('banner');
+  b.textContent = msg; b.classList.add('show');
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => b.classList.remove('show'), 2400);
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
