@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Achterwacht G5 — v3</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+:root {
+  --bg:      #0f1117;
+  --surface: #181c27;
+  --card:    #1e2330;
+  --border:  #2a3045;
+  --accent:  #4a9eff;
+  --a2:      #f5a623;
+  --green:   #3ecf8e;
+  --red:     #ff6b6b;
+  --purple:  #9b8aff;
+  --muted:   #6b7694;
+  --text:    #dde3f5;
+  --young:   #f472b6;
+  --mono:    'IBM Plex Mono', monospace;
+  --sans:    'IBM Plex Sans', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--sans); font-size: 14px;
+  min-height: 100vh; padding: 22px 14px 60px;
+}
+
+.wrap { max-width: 980px; margin: 0 auto; }
+
+header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 13px; margin-bottom: 22px;
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+}
+header h1 { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--accent); }
+header .sub { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+/* Tabs */
+.main-tabs {
+  display: flex; gap: 0; margin-bottom: 20px;
+  border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
+}
+.main-tab {
+  flex: 1; background: var(--surface); border: none; border-right: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 11px; padding: 9px 6px;
+  cursor: pointer; transition: all .13s; text-transform: uppercase; letter-spacing: .6px;
+}
+.main-tab:last-child { border-right: none; }
+.main-tab.active { background: var(--accent); color: #fff; }
+.main-tab.young-tab.active { background: var(--young); }
+.main-tab.event-tab.active { background: var(--green); color: #071a0e; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Grid */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid.three { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 680px) { .grid, .grid.three { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 17px;
+}
+.card.full { grid-column: 1 / -1; }
+
+.card-title {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1.1px; color: var(--muted); margin-bottom: 13px;
+  display: flex; align-items: center; gap: 7px;
+}
+.card-title::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+}
+.card-title.young::before { background: var(--young); }
+.card-title.event-t::before { background: var(--green); }
+
+/* Collega list */
+.collega-scroll { max-height: 300px; overflow-y: auto; }
+.collega-scroll::-webkit-scrollbar { width: 3px; }
+.collega-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.collega-row {
+  display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  margin-bottom: 5px; cursor: pointer; transition: border-color .13s;
+}
+.collega-row:hover { border-color: var(--accent); }
+.collega-row.selected { border-color: var(--accent); background: #18223a; }
+.collega-row.jong { border-left: 3px solid var(--young); }
+.collega-row.stage { border-left: 3px solid var(--purple); }
+
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10px; font-weight: 600; flex-shrink: 0;
+}
+.collega-info { flex: 1; min-width: 0; }
+.collega-naam { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.collega-meta { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+.badge {
+  font-size: 9px; font-family: var(--mono); padding: 2px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; flex-shrink: 0;
+}
+.badge-green  { background: #1a3d2e; color: var(--green); }
+.badge-yellow { background: #3d2e1a; color: var(--a2); }
+.badge-red    { background: #3d1a1a; color: var(--red); }
+.badge-pink   { background: #3d1a2e; color: var(--young); }
+.badge-purple { background: #231a3d; color: var(--purple); }
+
+/* Instelling rijen */
+.ins-row {
+  display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px;
+}
+.ins-row label { font-size: 12px; flex: 1; line-height: 1.3; }
+.ins-row input[type=number] {
+  width: 74px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); font-family: var(--mono);
+  font-size: 12px; padding: 5px 7px; text-align: right; outline: none; transition: border-color .12s;
+}
+.ins-row input[type=number]:focus { border-color: var(--accent); }
+.ins-row .een { font-family: var(--mono); font-size: 10px; color: var(--muted); min-width: 24px; }
+
+/* Info blokken */
+.info-block {
+  padding: 11px 13px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px;
+}
+.info-block .ib-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.info-block .ib-row:last-child { border-bottom: none; }
+.ib-label { color: var(--muted); }
+.ib-val { font-family: var(--mono); font-weight: 600; }
+.ib-val.groen { color: var(--green); }
+.ib-val.oranje { color: var(--a2); }
+.ib-val.blauw { color: var(--accent); }
+.ib-val.roze { color: var(--young); }
+.ib-val.groot { font-size: 15px; }
+
+/* Week grid */
+.week-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+.dag-labels { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 3px; }
+.dag-labels span { text-align: center; font-size: 9px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; }
+.dag-cel { display: flex; flex-direction: column; gap: 3px; }
+.shift-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--muted); font-family: var(--mono); font-size: 9px; text-align: center;
+  padding: 4px 2px; cursor: pointer; transition: all .11s; user-select: none;
+}
+.shift-btn.on-v { background: #1a2e3d; border-color: var(--accent); color: var(--accent); }
+.shift-btn.on-l { background: #1a2e3d; border-color: #7bbfff; color: #7bbfff; }
+.shift-btn.on-n { background: #1e1a3d; border-color: var(--purple); color: var(--purple); }
+
+/* PLB tabs */
+.ptabs { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 11px; }
+.ptab {
+  flex: 1; background: var(--surface); border: none; border-right: 1px solid var(--border);
+  color: var(--muted); font-family: var(--mono); font-size: 11px; padding: 7px;
+  cursor: pointer; transition: all .12s;
+}
+.ptab:last-child { border-right: none; }
+.ptab.active { background: var(--accent); color: #fff; }
+
+/* Bar */
+.bar-wrap { margin-top: 3px; }
+.bar-row-label { display: flex; justify-content: space-between; font-size: 10px; font-family: var(--mono); color: var(--muted); margin-bottom: 2px; }
+.bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 6px; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width .35s ease; }
+
+/* Incentive select */
+.inc-sel {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-family: var(--sans); font-size: 13px;
+  padding: 8px 10px; cursor: pointer; outline: none; appearance: none; transition: border-color .12s; margin-bottom: 10px;
+}
+.inc-sel:focus { border-color: var(--accent); }
+
+/* Formulier */
+.form-row { margin-bottom: 9px; }
+label.fl { display: block; font-size: 10px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3px; }
+input[type=date], textarea, select.fs {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text); font-family: var(--sans); font-size: 13px;
+  padding: 7px 9px; outline: none; transition: border-color .12s;
+}
+input[type=date]:focus, textarea:focus, select.fs:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 54px; }
+
+.btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 5px;
+  padding: 8px 16px; font-family: var(--mono); font-size: 11px; font-weight: 600;
+  cursor: pointer; letter-spacing: .5px; transition: opacity .12s; text-transform: uppercase;
+}
+.btn:hover { opacity: .85; }
+.btn-g { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.btn-green { background: var(--green); color: #071a0e; }
+.btn-pink { background: var(--young); color: #1a0011; }
+
+/* Tabel */
+.tbl { width: 100%; border-collapse: collapse; font-size: 11px; }
+.tbl th { text-align: left; font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); padding: 5px 6px; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 7px 6px; border-bottom: 1px solid var(--border); }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: var(--surface); }
+.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+input[type=range] { width: 100%; accent-color: var(--accent); }
+
+/* Event teller */
+.event-meter {
+  position: relative; height: 22px; background: var(--border); border-radius: 11px; overflow: hidden; margin: 10px 0;
+}
+.event-meter-fill {
+  height: 100%; border-radius: 11px;
+  background: linear-gradient(90deg, var(--green), #56cfb2);
+  transition: width .5s ease;
+  display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
+}
+.event-meter-fill span { font-family: var(--mono); font-size: 10px; color: #071a0e; font-weight: 600; white-space: nowrap; }
+.event-unlocked {
+  margin-top: 12px; padding: 13px 14px;
+  background: #0d2e1a; border: 1px solid var(--green); border-radius: 7px;
+  display: none;
+}
+.event-unlocked.show { display: block; }
+
+/* Puntjes-log */
+.punt-log { max-height: 180px; overflow-y: auto; }
+.punt-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 9px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 5px; margin-bottom: 4px;
+}
+.punt-row .pnaam { flex: 1; font-size: 12px; }
+.punt-row .pdatum { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+.punt-row .ppunten { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--green); }
+
+.save-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); margin-left: 6px; transition: background .3s; }
+.save-dot.saved { background: var(--green); }
+
+#notif {
+  position: fixed; bottom: 16px; right: 16px;
+  background: var(--green); color: #071a0e;
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  padding: 8px 14px; border-radius: 6px;
+  opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 99;
+}
+#notif.show { opacity: 1; }
+
+.tag { display: inline-block; font-size: 9px; font-family: var(--mono); padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+.tag-jong { background: #3d1a2e; color: var(--young); }
+.tag-stage { background: #231a3d; color: var(--purple); }
+
+.section-divider {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--muted); padding: 6px 0 4px;
+  border-bottom: 1px solid var(--border); margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>⚡ Achterwacht G5</h1>
+  <span class="sub">Beschikbaarheid · PLB-prognose · Groepsevent — v3</span>
+  <div style="margin-top:10px;background:rgba(255,200,80,0.08);border:1px solid rgba(255,200,80,0.25);border-radius:6px;padding:8px 12px;font-size:11px;color:#ffc850;line-height:1.5;max-width:680px">
+    <strong style="font-family:var(--mono);letter-spacing:.04em">CONCEPT</strong> — Deze app beschrijft een beoogde werkwijze, niet de huidige praktijk. Onderdelen als carpool-koppeling en parkeerbeheer zijn in ontwikkeling. Testdata is fictief.
+  </div>
+</header>
+
+<!-- Hoofdtabs -->
+<div class="main-tabs">
+  <button class="main-tab active"    onclick="showTab('vraag')">📊 Vraag &amp; pool</button>
+  <button class="main-tab"           onclick="showTab('prognose')">📈 PLB-prognose</button>
+  <button class="main-tab young-tab" onclick="showTab('jong')">🎯 Jong profiel</button>
+  <button class="main-tab event-tab" onclick="showTab('event')">🎉 Groepsevent</button>
+  <button class="main-tab"           onclick="showTab('aanvraag')">📋 Aanvragen</button>
+</div>
+
+
+<!-- ══════════════ UITLEG: WOON-WERK / CARPOOL / KLIMAAT ══════════════ -->
+<div style="background:rgba(42,111,196,0.07);border:1px solid rgba(42,111,196,0.2);border-radius:10px;padding:16px 20px;margin-bottom:20px;max-width:860px">
+  <div style="font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#64b4ff;margin-bottom:10px">Achterliggende visie — woon-werkverkeer &amp; klimaat</div>
+  <div style="font-size:13px;color:var(--text);line-height:1.7;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#64b4ff;margin-bottom:4px;font-family:var(--mono)">🚗 Carpoolkoppeling</div>
+      <p style="font-size:12px;color:#aab0c8;line-height:1.6">Het vervoermiddel dat een collega bij inloggen opgeeft, voedt straks de carpool-planningslaag: wie rijdt samen, hoeveel km scheelt dat, welke route is optimaal? Collega's die carpooling of e-vervoer kiezen, tellen mee voor de groene score van de afdeling.</p>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#4cdd8a;margin-bottom:4px;font-family:var(--mono)">🅿️ Slim parkeerbeheer</div>
+      <p style="font-size:12px;color:#aab0c8;line-height:1.6">Carpoolers krijgen voorrang op gereserveerde parkeerplaatsen — aangeduid met LED-kentekenbordje. De parkeerplaats vult van achter naar voor: de eerst arriverende ploeg bezet de achterste plek, het kenteken licht op bij het bijbehorende bordje. Rijdende reclameborden voor SEIN: "Rijd jij binnenkort ook met ons mee naar de Cruquiushoeve?"</p>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#c084fc;margin-bottom:4px;font-family:var(--mono)">⚡ E-auto's &amp; zonnepanelen</div>
+      <p style="font-size:12px;color:#aab0c8;line-height:1.6">E-auto's opgeladen aan SEIN-zonnepanelen rijden de volgende ochtend vanuit de periferie terug naar de Cruquiushoeve. SEIN als instelling die boter bij de vis levert — <em>putting money where its mouth is</em> — en dat zichtbaar maakt via reisdata.</p>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#ffc850;margin-bottom:4px;font-family:var(--mono)">🌍 DataGlobe — in ontwikkeling</div>
+      <p style="font-size:12px;color:#aab0c8;line-height:1.6">De woon-werkafstanden en carpoolkoppelingen worden straks ook zichtbaar in de <strong style="color:#ffc850">G5 DataGlobe</strong> — een interactieve 3D globe met woonadressen van het team, carpoolroutes als arcs, en onderlinge afstandsmatrix. De pin-versleep functie is in ontwikkeling. Zodra live: één klik op een collega-pin toont direct de carpool-compatibiliteit.</p>
+    </div>
+  </div>
+  <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(42,111,196,0.2);font-size:11px;color:#6b7694;font-style:italic;line-height:1.6">
+    "Ik trek een datadraad, dus ik ben." — Samen weven we een hechte zorggemeenschap. Ieder laat wel eens een steek vallen, wij samen gaan nooit nat. SEIN dweilt met de kraan dicht, en wast ruimschoots schoon. <em>Pecunia non olet — ons gaat niets boven de pet.</em>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: VRAAG & POOL ══════════════ -->
+<div class="tab-panel active" id="tab-vraag">
+<div class="grid">
+
+  <div class="card">
+    <div class="card-title">Collega's in de pool <span id="cnt" style="color:var(--accent)"></span></div>
+    <div class="collega-scroll" id="collega-list"></div>
+    <div style="margin-top:8px;font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1.7">
+      <span style="color:var(--young)">▏</span> vast-jong (≤3jr) &nbsp;
+      <span style="color:var(--purple)">▏</span> stagiair
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Week 15 — beschikbaarheid</div>
+    <div class="dag-labels">
+      <span>ma</span><span>di</span><span>wo</span><span>do</span><span>vr</span><span>za</span><span>zo</span>
+    </div>
+    <div class="week-grid" id="week-grid"></div>
+    <div style="margin-top:9px;display:flex;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:10px;color:var(--accent);font-family:var(--mono)">■ Vroeg</span>
+      <span style="font-size:10px;color:#7bbfff;font-family:var(--mono)">■ Laat</span>
+      <span style="font-size:10px;color:var(--purple);font-family:var(--mono)">■ Nacht</span>
+    </div>
+  </div>
+
+  <!-- Vraagkant configuratie -->
+  <div class="card">
+    <div class="card-title">
+      Vraagkant — gaten in rooster
+      <span class="save-dot" id="save-dot"></span>
+    </div>
+
+    <div class="section-divider">Structureel aanbod</div>
+    <div class="ins-row">
+      <label>Gaten per maand (gemiddeld)</label>
+      <input type="number" id="gaten-mnd" min="1" max="20" step="1" value="4">
+      <span class="een">gap/mnd</span>
+    </div>
+    <div class="ins-row">
+      <label>Collega's beschikbaar in pool</label>
+      <input type="number" id="pool-size" min="1" max="20" step="1" value="6">
+      <span class="een">pers.</span>
+    </div>
+    <div class="ins-row">
+      <label>Max. diensten/mnd per collega</label>
+      <input type="number" id="max-mnd" min="1" max="8" step="1" value="2">
+      <span class="een">/mnd</span>
+    </div>
+
+    <div class="section-divider" style="margin-top:10px;">Toeslag-instellingen</div>
+    <div class="ins-row">
+      <label>Oproeptoeslag</label>
+      <input type="number" id="pct-input" min="100" max="300" step="5" value="130">
+      <span class="een">%</span>
+    </div>
+    <div class="ins-row">
+      <label>Brutoloon per uur</label>
+      <input type="number" id="uurloon-input" min="10" max="70" step="0.50" value="22.50">
+      <span class="een">€/u</span>
+    </div>
+    <div class="ins-row">
+      <label>Duur achterwacht-dienst</label>
+      <input type="number" id="duur-input" min="4" max="12" step="0.5" value="8">
+      <span class="een">uur</span>
+    </div>
+    <div class="ins-row">
+      <label>PLB-bonus per dienst</label>
+      <input type="number" id="plb-input" min="0.5" max="4" step="0.25" value="1.5">
+      <span class="een">uur</span>
+    </div>
+  </div>
+
+  <!-- Realistisch verwacht aantal + € -->
+  <div class="card">
+    <div class="card-title">Realistisch verwacht — per collega</div>
+    <div class="info-block" id="vraag-output"></div>
+
+    <div class="card-title" style="margin-top:14px;">Live €-preview (geselecteerde collega)</div>
+    <div class="info-block" id="euro-preview"></div>
+
+    <div style="margin-top:10px;">
+      <label class="fl">Geselecteerde collega</label>
+      <select class="fs" id="collega-select" onchange="selectCollegaBySelect()"></select>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ TAB: PLB PROGNOSE ══════════════ -->
+<div class="tab-panel" id="tab-prognose">
+<div class="grid">
+
+  <div class="card">
+    <div class="card-title">Loopbaan tot AOW</div>
+    <div class="ptabs">
+      <button class="ptab active" onclick="setCarriere(25,this)">25 jr</button>
+      <button class="ptab" onclick="setCarriere(35,this)">35 jr</button>
+      <button class="ptab" onclick="setCarriere(45,this)">45 jr</button>
+    </div>
+    <label class="fl">Verwacht achterwacht-diensten/jaar</label>
+    <input type="range" id="aw-slider" min="1" max="52" value="12" step="1" oninput="updatePrognose()">
+    <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;margin-bottom:12px;">
+      <span>1/jr</span>
+      <span id="slider-val" style="color:var(--a2);font-size:12px;font-weight:600"></span>
+      <span>52/jr</span>
+    </div>
+    <div style="padding:9px 11px;background:#1a1e0d;border:1px solid #3a4a1a;border-radius:6px;font-size:11px;color:var(--muted);line-height:1.6" id="slider-hint"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Uitkomst — geselecteerde collega</div>
+    <div class="info-block" id="prognose-output"></div>
+  </div>
+
+  <div class="card full">
+    <div class="card-title">Loopbaanvergelijking — alle scenario's</div>
+    <div id="scenario-bars"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ TAB: JONG PROFIEL ══════════════ -->
+<div class="tab-panel" id="tab-jong">
+<div class="grid">
+
+  <div class="card">
+    <div class="card-title young">Vast-jong profiel (≤ 3 dienstjaren)</div>
+    <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px;">
+      Voor jongere collega's is pensioen abstract. De incentive-mix verschuift naar
+      <strong style="color:var(--young)">korte termijn</strong>: direct geld, vrije tijd,
+      en groepsgevoel. Individueel schuifje toont wat een dienst <em>nu</em> oplevert.
+    </p>
+
+    <div class="ins-row">
+      <label>Uurloon jong (FWG 35 start)</label>
+      <input type="number" id="jong-uurloon" min="12" max="30" step="0.50" value="17.50">
+      <span class="een">€/u</span>
+    </div>
+    <div class="ins-row">
+      <label>Toeslag jong</label>
+      <input type="number" id="jong-pct" min="100" max="250" step="5" value="130">
+      <span class="een">%</span>
+    </div>
+    <div class="ins-row">
+      <label>Dienstduur</label>
+      <input type="number" id="jong-duur" min="4" max="12" step="0.5" value="8">
+      <span class="een">uur</span>
+    </div>
+    <div class="ins-row">
+      <label>Horizon prognose</label>
+      <input type="number" id="jong-horizon" min="1" max="5" step="1" value="2">
+      <span class="een">jaar</span>
+    </div>
+    <div class="ins-row">
+      <label>Verwacht diensten/jaar</label>
+      <input type="number" id="jong-perjaar" min="1" max="26" step="1" value="8">
+      <span class="een">/jaar</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title young">Wat levert het op — kort perspectief</div>
+    <div class="info-block" id="jong-output"></div>
+
+    <div style="margin-top:12px;" id="jong-bars"></div>
+
+    <div style="margin-top:12px;padding:10px 12px;background:#1a0f1f;border:1px solid #4a1a3a;border-radius:6px;font-size:11px;color:var(--muted);line-height:1.6">
+      💡 <strong style="color:var(--young)">Tip voor werving:</strong> Laat jong niet rekenen naar pensioen,
+      maar naar een <em>concrete kortetermijndoel</em> — een maand extra vakantiegeld, een weekend weg,
+      of een stapel diensten die bijdraagt aan het groepsevent.
+    </div>
+  </div>
+
+  <div class="card full">
+    <div class="card-title young">Stagiairs — groepsincentive</div>
+    <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:14px;">
+      Stagiairs ontvangen geen toeslag maar tellen mee voor het <strong style="color:var(--green)">groepsevent-puntensysteem</strong>.
+      Elke achterwacht-beschikbaarheidsdienst levert de groep punten op. Bij de drempel: werkgever trakteert op een
+      <em>verrassings-event</em>, volledig roostertechnisch ingebed (event-dag + hersteldag gemarkeerd als niet-beschikbaar).
+    </p>
+    <div class="grid three">
+      <div class="ins-row" style="flex-direction:column;align-items:flex-start;gap:5px;">
+        <label style="font-size:11px;color:var(--muted);">Punten per dienst (stagiair)</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="stage-punten" min="1" max="10" step="1" value="2" style="width:60px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 7px;text-align:right;outline:none;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">pt/dienst</span>
+        </div>
+      </div>
+      <div class="ins-row" style="flex-direction:column;align-items:flex-start;gap:5px;">
+        <label style="font-size:11px;color:var(--muted);">Punten per dienst (vast-jong)</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="jong-punten" min="1" max="10" step="1" value="3" style="width:60px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 7px;text-align:right;outline:none;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">pt/dienst</span>
+        </div>
+      </div>
+      <div class="ins-row" style="flex-direction:column;align-items:flex-start;gap:5px;">
+        <label style="font-size:11px;color:var(--muted);">Drempel voor event (totaal)</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="event-drempel" min="10" max="500" step="10" value="100" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 7px;text-align:right;outline:none;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">punten</span>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-pink" style="margin-top:8px;" onclick="showTab('event')">→ Bekijk groepsevent-teller</button>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ TAB: GROEPSEVENT ══════════════ -->
+<div class="tab-panel" id="tab-event">
+<div class="grid">
+
+  <div class="card full">
+    <div class="card-title event-t">Groepsevent — puntenteller</div>
+
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">Voortgang naar event</span>
+      <span id="event-pct-label" style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--green)"></span>
+    </div>
+    <div class="event-meter">
+      <div class="event-meter-fill" id="event-meter-fill">
+        <span id="event-meter-txt"></span>
+      </div>
+    </div>
+    <div id="event-unlocked" class="event-unlocked">
+      🎉 <strong style="color:var(--green)">Drempel bereikt!</strong>
+      De groep heeft genoeg punten verdiend. Werkgever wordt op de hoogte gesteld voor het verrassings-event.
+      <div style="margin-top:8px;font-size:11px;color:var(--muted)">
+        Event-dag + hersteldag worden als <em>niet-beschikbaar</em> gemarkeerd in het rooster.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title event-t">Dienst registreren</div>
+    <div class="form-row">
+      <label class="fl">Collega</label>
+      <select class="fs" id="event-collega"></select>
+    </div>
+    <div class="form-row">
+      <label class="fl">Datum dienst</label>
+      <input type="date" id="event-datum">
+    </div>
+    <div class="form-row">
+      <label class="fl">Type dienst</label>
+      <select class="fs" id="event-dienst">
+        <option value="aw">Achterwacht (volledig)</option>
+        <option value="halve">Halve beschikbaarheid</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn btn-green" onclick="registreerEventPunt()">+ Punten toekennen</button>
+      <button class="btn btn-g" onclick="resetEventLog()">Reset log</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title event-t">Punten-log</div>
+    <div id="event-totaal-block" class="info-block" style="margin-bottom:10px;"></div>
+    <div class="punt-log" id="punt-log"></div>
+  </div>
+
+  <div class="card full">
+    <div class="card-title event-t">Bijdrage per collega</div>
+    <div id="event-persoon-bars"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ TAB: AANVRAGEN ══════════════ -->
+<div class="tab-panel" id="tab-aanvraag">
+<div class="grid">
+
+  <div class="card">
+    <div class="card-title">Aanvraag indienen</div>
+    <div class="form-row">
+      <label class="fl">Collega</label>
+      <select class="fs" id="aanvraag-collega"></select>
+    </div>
+    <div class="form-row">
+      <label class="fl">Van datum</label>
+      <input type="date" id="datum-van">
+    </div>
+    <div class="form-row">
+      <label class="fl">Tot datum</label>
+      <input type="date" id="datum-tot">
+    </div>
+    <div class="form-row">
+      <label class="fl">Dienst voorkeur</label>
+      <select class="fs" id="dienst-keuze">
+        <option>Vroeg (07:00–15:00)</option>
+        <option>Laat (15:00–23:00)</option>
+        <option>Nacht (23:00–07:00)</option>
+        <option>Geen voorkeur</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="fl">Incentive voorkeur</label>
+      <select class="inc-sel" id="inc-dropdown" onchange="updateIncDropdown()">
+        <option value="pct">Toeslag (%) — extra bruto</option>
+        <option value="uren">Compensatie-uren 1:1</option>
+        <option value="plb">PLB-uren (+) — vroeger pensioen</option>
+        <option value="roost">Roostervrijheid — vrije dag</option>
+        <option value="combo_pct_plb">Combinatie: % + PLB-uren</option>
+        <option value="combo_uren_roost">Combinatie: uren + rooster</option>
+        <option value="event">Groepsevent-punten (jong/stage)</option>
+      </select>
+      <div id="inc-uitleg"></div>
+    </div>
+    <div class="form-row">
+      <label class="fl">Tenzij (dwingende reden)</label>
+      <textarea id="tenzij-veld" placeholder="bijv. vaste afspraak, mantelzorg…"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" onclick="submitAanvraag()">Opslaan</button>
+      <button class="btn btn-g" onclick="resetForm()">Reset</button>
+    </div>
+  </div>
+
+  <div class="card full" style="margin-top:0">
+    <div class="card-title">Overzicht aanvragen</div>
+    <div style="overflow-x:auto;">
+      <table class="tbl">
+        <thead>
+          <tr><th>Collega</th><th>Periode</th><th>Dienst</th><th>Tenzij</th><th>Status</th><th>Incentive</th></tr>
+        </thead>
+        <tbody id="overzicht-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div>
+
+</div><!-- /wrap -->
+<div id="notif"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════
+const COLLEGA_DATA = [
+  // vast — senior
+  { id:1,  naam:'Fatima el-Haddad',   fwg:45, dj:11, kleur:'#4a9eff', ini:'FH', status:'beschikbaar', type:'vast' },
+  { id:2,  naam:'Liesbeth Visser',    fwg:55, dj:22, kleur:'#ff8fab', ini:'LV', status:'beschikbaar', type:'vast' },
+  { id:3,  naam:'Ingrid Koopman',     fwg:55, dj:28, kleur:'#facc15', ini:'IK', status:'beschikbaar', type:'vast' },
+  { id:4,  naam:'Samira Aziz',        fwg:45, dj:17, kleur:'#f5a623', ini:'SA', status:'tenzij',      type:'vast' },
+  { id:5,  naam:'Peter van Bekkum',   fwg:55, dj:31, kleur:'#fb7185', ini:'PB', status:'beschikbaar', type:'vast' },
+  { id:6,  naam:'Marjolein van Dijk', fwg:45, dj:13, kleur:'#f97316', ini:'MD', status:'tenzij',      type:'vast' },
+  { id:7,  naam:'Thomas Wolters',     fwg:45, dj:9,  kleur:'#38bdf8', ini:'TW', status:'niet',        type:'vast' },
+  // vast — jong (≤3 jr)
+  { id:8,  naam:'Jeroen Bakker',      fwg:35, dj:3,  kleur:'#3ecf8e', ini:'JB', status:'beschikbaar', type:'jong' },
+  { id:9,  naam:'Davide Esposito',    fwg:35, dj:1,  kleur:'#e879f9', ini:'DE', status:'beschikbaar', type:'jong' },
+  { id:10, naam:'Aisha Ndiaye',       fwg:35, dj:2,  kleur:'#a3e635', ini:'AN', status:'beschikbaar', type:'jong' },
+  { id:11, naam:'Roel Smits',         fwg:35, dj:3,  kleur:'#56cfb2', ini:'RS', status:'beschikbaar', type:'jong' },
+  // stagiairs
+  { id:12, naam:'Noor Hendriksen',    fwg:0,  dj:0,  kleur:'#9b8aff', ini:'NH', status:'beschikbaar', type:'stage' },
+  { id:13, naam:'Bas Vermeer',        fwg:0,  dj:0,  kleur:'#c084fc', ini:'BV', status:'beschikbaar', type:'stage' },
+  { id:14, naam:'Kevin de Groot',     fwg:35, dj:2,  kleur:'#818cf8', ini:'KG', status:'niet',        type:'jong'  },
+];
+
+const FWG_UURLOON = { 35:19.50, 45:23.80, 55:29.40 };
+
+const INC_META = {
+  pct:             { label:'Toeslag (%)',               kleur:'var(--a2)',     uitleg:'Extra bruto per uur boven basisloon — direct op salarisstrook.' },
+  uren:            { label:'Compensatie-uren 1:1',      kleur:'#56cfb2',       uitleg:'Elk uur achterwacht = uur vrije tijd, op te nemen wanneer jij wilt.' },
+  plb:             { label:'PLB-uren (+)',               kleur:'var(--green)',  uitleg:'Uren naar PLB-saldo → eerder met pensioen, zonder financieel nadeel.' },
+  roost:           { label:'Roostervrijheid',            kleur:'var(--purple)', uitleg:'Vrije dag naar keuze, in overleg met coördinator.' },
+  combo_pct_plb:   { label:'% + PLB-uren',              kleur:'var(--accent)', uitleg:'Direct geld én pensioenwinst — het beste van beide.' },
+  combo_uren_roost:{ label:'Uren + roostervrijheid',    kleur:'#f97316',       uitleg:'Compensatie-uren én een extra vrije dag.' },
+  event:           { label:'Groepsevent-punten',         kleur:'var(--young)',  uitleg:'Punten voor de groepspot. Bij drempel: werkgever trakteert op verrassings-event.' },
+};
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let geselecteerdeCollega = 1;
+let carrierJaren = 25;
+let weekState = {};
+let gekozenIncentive = 'pct';
+
+let aanvragen = [
+  { collega:'Fatima el-Haddad', van:'2026-04-14', tot:'2026-04-20', dienst:'Laat (15:00–23:00)',  tenzij:'',               status:'beschikbaar', incentive:'Toeslag (%)' },
+  { collega:'Liesbeth Visser',  van:'2026-04-12', tot:'2026-04-13', dienst:'Vroeg (07:00–15:00)', tenzij:'Tandarts 14 apr', status:'tenzij',      incentive:'PLB-uren (+)' },
+  { collega:'Ingrid Koopman',   van:'2026-04-19', tot:'2026-04-26', dienst:'Nacht (23:00–07:00)', tenzij:'',               status:'beschikbaar', incentive:'% + PLB-uren' },
+  { collega:'Jeroen Bakker',    van:'2026-04-21', tot:'2026-04-28', dienst:'Geen voorkeur',        tenzij:'',               status:'beschikbaar', incentive:'Groepsevent-punten' },
+];
+
+// Event punten log (gesimuleerd)
+let eventLog = [
+  { naam:'Jeroen Bakker',    type:'jong',  datum:'2026-04-05', punten:3 },
+  { naam:'Noor Hendriksen',  type:'stage', datum:'2026-04-06', punten:2 },
+  { naam:'Davide Esposito',  type:'jong',  datum:'2026-04-08', punten:3 },
+  { naam:'Bas Vermeer',      type:'stage', datum:'2026-04-09', punten:2 },
+  { naam:'Aisha Ndiaye',     type:'jong',  datum:'2026-04-10', punten:3 },
+];
+
+const LS_KEY = 'aw_ins_v3';
+const fmt = d => d.toISOString().slice(0,10);
+const UREN_PER_MAAND = 36 * 4.33;
+
+// ═══════════════════════════════════════════════
+//  TAB navigatie
+// ═══════════════════════════════════════════════
+function showTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  const idx = ['vraag','prognose','jong','event','aanvraag'].indexOf(id);
+  document.querySelectorAll('.main-tab')[idx].classList.add('active');
+  if (id==='prognose') updatePrognose();
+  if (id==='jong')     updateJong();
+  if (id==='event')    updateEvent();
+}
+
+// ═══════════════════════════════════════════════
+//  LOCALSTORAGE
+// ═══════════════════════════════════════════════
+function laadIns() {
+  try {
+    const r = localStorage.getItem(LS_KEY);
+    if (!r) return;
+    const o = JSON.parse(r);
+    ['pct-input','uurloon-input','duur-input','plb-input',
+     'gaten-mnd','pool-size','max-mnd',
+     'jong-uurloon','jong-pct','jong-duur','jong-horizon','jong-perjaar',
+     'stage-punten','jong-punten','event-drempel'].forEach(id => {
+      if (o[id] !== undefined) document.getElementById(id).value = o[id];
+    });
+  } catch(e){}
+}
+
+function slaOp() {
+  const ids = ['pct-input','uurloon-input','duur-input','plb-input',
+               'gaten-mnd','pool-size','max-mnd',
+               'jong-uurloon','jong-pct','jong-duur','jong-horizon','jong-perjaar',
+               'stage-punten','jong-punten','event-drempel'];
+  const o = {};
+  ids.forEach(id => { o[id] = document.getElementById(id).value; });
+  localStorage.setItem(LS_KEY, JSON.stringify(o));
+  const dot = document.getElementById('save-dot');
+  dot.classList.add('saved');
+  clearTimeout(dot._t);
+  dot._t = setTimeout(() => dot.classList.remove('saved'), 1800);
+}
+
+function g(id) { return parseFloat(document.getElementById(id).value)||0; }
+
+// Koppel alle inputs aan slaOp + herrender
+function bindInputs() {
+  document.querySelectorAll('input[type=number]').forEach(el => {
+    el.addEventListener('input', () => { slaOp(); herrender(); });
+  });
+}
+
+function herrender() {
+  updateVraag();
+  updateEuroPreview();
+  updatePrognose();
+  updateJong();
+  updateEvent();
+}
+
+// ═══════════════════════════════════════════════
+//  COLLEGA RENDER
+// ═══════════════════════════════════════════════
+function renderCollega() {
+  const el = document.getElementById('collega-list');
+  const n = COLLEGA_DATA.filter(c => c.status==='beschikbaar' && c.type!=='stage').length;
+  document.getElementById('cnt').textContent = `· ${n} beschikbaar`;
+
+  el.innerHTML = COLLEGA_DATA.map(c => {
+    const bc = c.status==='beschikbaar'?'badge-green':c.status==='tenzij'?'badge-yellow':'badge-red';
+    const bt = c.status==='beschikbaar'?'ok':c.status==='tenzij'?'tenzij':'nee';
+    const rowCls = c.type==='jong'?'jong':c.type==='stage'?'stage':'';
+    const tagHtml = c.type==='jong'
+      ? '<span class="tag tag-jong">jong</span>'
+      : c.type==='stage'
+        ? '<span class="tag tag-stage">stage</span>' : '';
+    const meta = c.type==='stage'
+      ? `stagiair`
+      : `FWG ${c.fwg} · ${c.dj}jr`;
+    return `<div class="collega-row ${rowCls}${c.id===geselecteerdeCollega?' selected':''}" onclick="selectCollega(${c.id})">
+      <div class="avatar" style="background:${c.kleur}22;color:${c.kleur}">${c.ini}</div>
+      <div class="collega-info">
+        <div class="collega-naam">${c.naam}${tagHtml}</div>
+        <div class="collega-meta">${meta}</div>
+      </div>
+      <span class="badge ${bc}">${bt}</span>
+    </div>`;
+  }).join('');
+
+  // Sync selects
+  ['collega-select','aanvraag-collega','event-collega'].forEach(sid => {
+    const sel = document.getElementById(sid);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = COLLEGA_DATA.map(c =>
+      `<option value="${c.id}">${c.naam}${c.type==='jong'?' [jong]':c.type==='stage'?' [stage]':''}</option>`
+    ).join('');
+    if (cur) sel.value = cur;
+  });
+}
+
+function selectCollega(id) {
+  geselecteerdeCollega = id;
+  document.getElementById('collega-select').value = id;
+  renderCollega();
+  updateEuroPreview();
+  updatePrognose();
+}
+function selectCollegaBySelect() {
+  geselecteerdeCollega = parseInt(document.getElementById('collega-select').value);
+  renderCollega();
+  updateEuroPreview();
+  updatePrognose();
+}
+
+// ═══════════════════════════════════════════════
+//  WEEK GRID
+// ═══════════════════════════════════════════════
+function renderWeekGrid() {
+  const el = document.getElementById('week-grid');
+  el.innerHTML = '';
+  for (let d=0; d<7; d++) {
+    const col = document.createElement('div');
+    col.className = 'dag-cel';
+    ['V','L','N'].forEach(s => {
+      const key = `${d}-${s}`;
+      const on = weekState[key];
+      const cls = on?(s==='V'?'on-v':s==='L'?'on-l':'on-n'):'';
+      const btn = document.createElement('div');
+      btn.className = `shift-btn ${cls}`;
+      btn.textContent = s;
+      btn.onclick = () => { weekState[key]=!weekState[key]; renderWeekGrid(); };
+      col.appendChild(btn);
+    });
+    el.appendChild(col);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  VRAAG & POOL berekening
+// ═══════════════════════════════════════════════
+function updateVraag() {
+  const gatenMnd   = g('gaten-mnd');
+  const poolSize   = g('pool-size');
+  const maxMnd     = g('max-mnd');
+  const gatenJaar  = gatenMnd * 12;
+  const verwachtJaar = gatenJaar / Math.max(poolSize, 1);
+  const gecapt     = Math.min(verwachtJaar, maxMnd * 12);
+  const bezettingsPct = Math.min(100, Math.round(gecapt / gatenJaar * 100 * poolSize));
+  const dekkingPct = Math.min(100, Math.round(gecapt * poolSize / gatenJaar * 100));
+
+  document.getElementById('vraag-output').innerHTML = `
+    <div class="ib-row"><span class="ib-label">Gaten per jaar</span><span class="ib-val oranje">${gatenJaar}×</span></div>
+    <div class="ib-row"><span class="ib-label">Pool-grootte</span><span class="ib-val blauw">${poolSize} collega's</span></div>
+    <div class="ib-row"><span class="ib-label">Verwacht per collega/jaar</span><span class="ib-val oranje">${verwachtJaar.toFixed(1)}×</span></div>
+    <div class="ib-row"><span class="ib-label">Max per collega/jaar</span><span class="ib-val">${maxMnd*12}×</span></div>
+    <div class="ib-row"><span class="ib-label">Realistisch per collega/jaar</span><span class="ib-val groen groot">${gecapt.toFixed(1)}×</span></div>
+    <div class="ib-row"><span class="ib-label">Totale dekking rooster</span>
+      <span class="ib-val ${dekkingPct>=80?'groen':dekkingPct>=50?'oranje':'roze'}">${dekkingPct}%</span>
+    </div>
+  `;
+
+  // Sync slider naar realistisch verwacht
+  const slider = document.getElementById('aw-slider');
+  slider.value = Math.round(gecapt);
+  document.getElementById('slider-val').textContent = Math.round(gecapt)+'/jr';
+}
+
+// ═══════════════════════════════════════════════
+//  €-PREVIEW
+// ═══════════════════════════════════════════════
+function updateEuroPreview() {
+  const ins = { pct:g('pct-input'), uurloon:g('uurloon-input'), duur:g('duur-input') };
+  const collega = COLLEGA_DATA.find(c => c.id===geselecteerdeCollega);
+  const basis = ins.uurloon;
+  const metT  = basis * (ins.pct/100);
+  const xUur  = metT - basis;
+  const xDienst = xUur * ins.duur;
+  const bruto = metT * ins.duur;
+  const fwgRef = FWG_UURLOON[collega.fwg];
+  const hint = (fwgRef && Math.abs(fwgRef-basis)>0.05)
+    ? `<div style="font-size:10px;color:var(--muted);margin-top:6px;font-family:var(--mono)">💡 FWG ${collega.fwg} max ≈ €${fwgRef.toFixed(2)}/u (CAO indicatief)</div>` : '';
+
+  document.getElementById('euro-preview').innerHTML = `
+    <div class="ib-row"><span class="ib-label">Basis uurloon</span><span class="ib-val">€ ${basis.toFixed(2)}/u</span></div>
+    <div class="ib-row"><span class="ib-label">Met ${ins.pct}% toeslag</span><span class="ib-val oranje">€ ${metT.toFixed(2)}/u</span></div>
+    <div class="ib-row"><span class="ib-label">Extra per uur</span><span class="ib-val oranje">+ € ${xUur.toFixed(2)}</span></div>
+    <div class="ib-row"><span class="ib-label">Extra per dienst (${ins.duur}u)</span><span class="ib-val groen groot">+ € ${xDienst.toFixed(2)}</span></div>
+    <div class="ib-row"><span class="ib-label">Bruto totaal/dienst</span><span class="ib-val oranje">€ ${bruto.toFixed(2)}</span></div>
+    ${hint}
+  `;
+}
+
+// ═══════════════════════════════════════════════
+//  PLB PROGNOSE
+// ═══════════════════════════════════════════════
+function setCarriere(jr, btn) {
+  carrierJaren = jr;
+  document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updatePrognose();
+}
+
+function updatePrognose() {
+  const plbBonus   = g('plb-input');
+  const pct        = g('pct-input');
+  const uurloon    = g('uurloon-input');
+  const duur       = g('duur-input');
+  const slider     = document.getElementById('aw-slider');
+  const aantalJaar = parseInt(slider.value) || 12;
+  document.getElementById('slider-val').textContent = aantalJaar+'/jr';
+
+  const collega = COLLEGA_DATA.find(c => c.id===geselecteerdeCollega);
+  const isJong  = collega.type==='jong';
+  const totaal  = aantalJaar * carrierJaren;
+  const plbTot  = totaal * plbBonus;
+  const maanden = Math.round(plbTot / UREN_PER_MAAND * 10)/10;
+  const jr2     = Math.floor(maanden/12);
+  const mn2     = Math.round(maanden%12);
+  const vroeg   = jr2>=1 ? `${jr2} jaar${mn2>0?' '+mn2+' mnd':''}` : `${maanden} maanden`;
+  const kleur   = maanden>=6?'groen':'oranje';
+  const extraDienst = (uurloon*(pct/100)-uurloon)*duur;
+  const totEuro = totaal * extraDienst;
+
+  // Hint voor jongere collega's
+  const hintTxt = isJong
+    ? `<div style="margin-top:10px;padding:8px 10px;background:#1a0f1f;border:1px solid #4a1a3a;border-radius:5px;font-size:11px;color:var(--young);line-height:1.6">
+        🎯 <strong>Jong profiel</strong> — Pensioenwinst is voor ${collega.naam} over ${carrierJaren} jaar abstract.<br>
+        Bekijk het <em>Jong profiel</em>-tabblad voor korte-termijn incentives.
+       </div>` : '';
+
+  document.getElementById('prognose-output').innerHTML = `
+    <div class="ib-row"><span class="ib-label">Collega</span><span class="ib-val" style="color:${collega.kleur};font-size:11px">${collega.naam}</span></div>
+    <div class="ib-row"><span class="ib-label">Loopbaan</span><span class="ib-val">${carrierJaren} jaar</span></div>
+    <div class="ib-row"><span class="ib-label">Diensten realistisch</span><span class="ib-val">${totaal}×</span></div>
+    <div class="ib-row"><span class="ib-label">PLB opgebouwd</span><span class="ib-val oranje">${Math.round(plbTot)} u</span></div>
+    <div class="ib-row"><span class="ib-label">→ Eerder pensioen</span><span class="ib-val ${kleur} groot">⬆ ${vroeg}</span></div>
+    <div class="ib-row"><span class="ib-label">Extra bruto ${pct}%</span><span class="ib-val" style="color:#56cfb2">+ € ${Math.round(totEuro).toLocaleString('nl-NL')}</span></div>
+    ${hintTxt}
+  `;
+
+  document.getElementById('slider-hint').innerHTML =
+    `Op basis van vraag/pool-instellingen: realistisch <strong style="color:var(--a2)">${aantalJaar} diensten/jaar</strong>. Pas slider aan om scenario's te vergelijken.`;
+
+  // Scenario bars
+  const sc = [{jr:25,k:'#4a9eff'},{jr:35,k:'#3ecf8e'},{jr:45,k:'#f5a623'}];
+  const maxM = aantalJaar * 45 * plbBonus / UREN_PER_MAAND;
+  const bars = sc.map(s => {
+    const m  = Math.round(aantalJaar * s.jr * plbBonus / UREN_PER_MAAND * 10)/10;
+    const p  = maxM>0 ? Math.round(m/maxM*100) : 0;
+    const j3 = Math.floor(m/12), m3=Math.round(m%12);
+    const lbl= j3>=1?`${j3}j${m3>0?' '+m3+'m':''}`.trim():`${m}m`;
+    return `<div class="bar-row-label"><span>${s.jr} jaar loopbaan</span><span style="color:${s.k}">${lbl} vroeger</span></div>
+      <div class="bar"><div class="bar-fill" style="width:${p}%;background:${s.k}"></div></div>`;
+  }).join('');
+  document.getElementById('scenario-bars').innerHTML = bars +
+    `<div style="margin-top:8px;font-size:10px;color:var(--muted);font-family:var(--mono);line-height:1.6">
+      Aanname: ${plbBonus}u PLB/dienst · 36u werkweek · AOW 67 · 1 mnd ≈ 156 gewerkte uren</div>`;
+}
+
+// ═══════════════════════════════════════════════
+//  JONG PROFIEL
+// ═══════════════════════════════════════════════
+function updateJong() {
+  const ul  = g('jong-uurloon');
+  const pct = g('jong-pct');
+  const dur = g('jong-duur');
+  const hor = g('jong-horizon');
+  const pjr = g('jong-perjaar');
+
+  const xUur    = ul*(pct/100) - ul;
+  const xDienst = xUur * dur;
+  const totDiensten = pjr * hor;
+  const totEuro = totDiensten * xDienst;
+  const maandEuro = (pjr/12) * xDienst;
+
+  document.getElementById('jong-output').innerHTML = `
+    <div class="ib-row"><span class="ib-label">Extra per dienst</span><span class="ib-val roze groot">+ € ${xDienst.toFixed(2)}</span></div>
+    <div class="ib-row"><span class="ib-label">Gemiddeld per maand</span><span class="ib-val oranje">+ € ${maandEuro.toFixed(2)}</span></div>
+    <div class="ib-row"><span class="ib-label">Na ${hor} jaar (${totDiensten} diensten)</span><span class="ib-val groen groot">+ € ${Math.round(totEuro).toLocaleString('nl-NL')}</span></div>
+    <div class="ib-row"><span class="ib-label">Equivalent</span><span class="ib-val" style="color:var(--young)">${Math.round(totEuro/150)} × avondje uit 🍺</span></div>
+  `;
+
+  // Mini bars 1, 2, 3, 5 jaar
+  const horizonnen = [{jr:1,k:'#e879f9'},{jr:2,k:'#f97316'},{jr:3,k:'#f5a623'},{jr:5,k:'#3ecf8e'}];
+  const maxE = pjr * 5 * xDienst;
+  const bHtml = horizonnen.map(h => {
+    const e = Math.round(pjr * h.jr * xDienst);
+    const p = maxE>0?Math.round(e/maxE*100):0;
+    return `<div class="bar-row-label"><span>Na ${h.jr} jaar</span><span style="color:${h.k}">+ € ${e.toLocaleString('nl-NL')}</span></div>
+      <div class="bar"><div class="bar-fill" style="width:${p}%;background:${h.k}"></div></div>`;
+  }).join('');
+  document.getElementById('jong-bars').innerHTML = bHtml;
+}
+
+// ═══════════════════════════════════════════════
+//  GROEPSEVENT
+// ═══════════════════════════════════════════════
+function updateEvent() {
+  const drempel     = g('event-drempel') || 100;
+  const stagePt     = g('stage-punten')  || 2;
+  const jongPt      = g('jong-punten')   || 3;
+
+  // Herbereken log met actuele puntenwaardes
+  const totaal = eventLog.reduce((s,e) => s + e.punten, 0);
+  const pct = Math.min(100, Math.round(totaal/drempel*100));
+
+  document.getElementById('event-meter-fill').style.width = pct+'%';
+  document.getElementById('event-meter-txt').textContent = pct >= 15 ? `${totaal} / ${drempel} pt` : '';
+  document.getElementById('event-pct-label').textContent = `${totaal} / ${drempel} punten (${pct}%)`;
+
+  const unlocked = document.getElementById('event-unlocked');
+  if (totaal >= drempel) unlocked.classList.add('show');
+  else unlocked.classList.remove('show');
+
+  // Per-persoon samenvatting
+  const perPersoon = {};
+  eventLog.forEach(e => {
+    if (!perPersoon[e.naam]) perPersoon[e.naam] = { punten:0, type:e.type };
+    perPersoon[e.naam].punten += e.punten;
+  });
+  const maxPP = Math.max(...Object.values(perPersoon).map(v=>v.punten), 1);
+  const ppHtml = Object.entries(perPersoon).sort((a,b)=>b[1].punten-a[1].punten).map(([naam,v]) => {
+    const p = Math.round(v.punten/maxPP*100);
+    const k = v.type==='stage'?'var(--purple)':'var(--young)';
+    return `<div class="bar-row-label"><span>${naam} <span class="tag ${v.type==='stage'?'tag-stage':'tag-jong'}">${v.type}</span></span><span style="color:${k}">${v.punten} pt</span></div>
+      <div class="bar"><div class="bar-fill" style="width:${p}%;background:${k}"></div></div>`;
+  }).join('');
+  document.getElementById('event-persoon-bars').innerHTML = ppHtml || '<span style="color:var(--muted);font-size:12px">Nog geen punten geregistreerd.</span>';
+
+  // Totaalblok
+  document.getElementById('event-totaal-block').innerHTML = `
+    <div class="ib-row"><span class="ib-label">Totaal punten</span><span class="ib-val groen groot">${totaal}</span></div>
+    <div class="ib-row"><span class="ib-label">Drempel</span><span class="ib-val">${drempel}</span></div>
+    <div class="ib-row"><span class="ib-label">Nog nodig</span><span class="ib-val oranje">${Math.max(0,drempel-totaal)}</span></div>
+    <div class="ib-row"><span class="ib-label">Geregistreerde diensten</span><span class="ib-val">${eventLog.length}</span></div>
+  `;
+
+  // Log
+  const logEl = document.getElementById('punt-log');
+  logEl.innerHTML = [...eventLog].reverse().map(e => {
+    const k = e.type==='stage'?'var(--purple)':'var(--young)';
+    const tag = `<span class="tag ${e.type==='stage'?'tag-stage':'tag-jong'}">${e.type}</span>`;
+    return `<div class="punt-row">
+      <span class="dot" style="background:${k}"></span>
+      <span class="pnaam">${e.naam} ${tag}</span>
+      <span class="pdatum">${e.datum}</span>
+      <span class="ppunten">+${e.punten} pt</span>
+    </div>`;
+  }).join('');
+}
+
+function registreerEventPunt() {
+  const cid    = parseInt(document.getElementById('event-collega').value);
+  const collega= COLLEGA_DATA.find(c=>c.id===cid);
+  const datum  = document.getElementById('event-datum').value;
+  const type_d = document.getElementById('event-dienst').value;
+  if (!datum) { alert('Selecteer een datum.'); return; }
+  if (collega.type==='vast') { alert('Groepsevent-punten zijn alleen voor jong/stage-collega\'s.'); return; }
+
+  const basis  = collega.type==='stage' ? g('stage-punten') : g('jong-punten');
+  const punten = type_d==='halve' ? Math.ceil(basis/2) : basis;
+
+  eventLog.push({ naam:collega.naam, type:collega.type, datum, punten });
+  updateEvent();
+  showNotif(`+${punten} punten voor ${collega.naam.split(' ')[0]}`);
+}
+
+function resetEventLog() {
+  if (!confirm('Punten-log wissen?')) return;
+  eventLog = [];
+  updateEvent();
+}
+
+// ═══════════════════════════════════════════════
+//  INCENTIVE DROPDOWN
+// ═══════════════════════════════════════════════
+function updateIncDropdown() {
+  gekozenIncentive = document.getElementById('inc-dropdown').value;
+  const m = INC_META[gekozenIncentive];
+  document.getElementById('inc-uitleg').innerHTML = `
+    <div style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:5px;margin-top:4px;">
+      <div style="font-size:10px;color:${m.kleur};font-family:var(--mono);font-weight:600;margin-bottom:3px;">${m.label}</div>
+      <div style="font-size:11px;color:var(--text);line-height:1.55">${m.uitleg}</div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════
+//  AANVRAAG
+// ═══════════════════════════════════════════════
+function submitAanvraag() {
+  const cid    = parseInt(document.getElementById('aanvraag-collega').value);
+  const collega= COLLEGA_DATA.find(c=>c.id===cid);
+  const van    = document.getElementById('datum-van').value;
+  const tot    = document.getElementById('datum-tot').value;
+  if (!van||!tot) { alert('Vul beide datums in.'); return; }
+  const dienst = document.getElementById('dienst-keuze').value;
+  const tenzij = document.getElementById('tenzij-veld').value.trim();
+  const inc    = INC_META[gekozenIncentive].label;
+  aanvragen.unshift({ collega:collega.naam, van, tot, dienst, tenzij, status:tenzij?'tenzij':'beschikbaar', incentive:inc });
+  renderOverzicht();
+  resetForm();
+  showNotif('✓ Aanvraag opgeslagen');
+}
+
+function resetForm() {
+  document.getElementById('tenzij-veld').value = '';
+  const today = new Date();
+  document.getElementById('datum-van').value = fmt(today);
+  const v = new Date(today); v.setDate(today.getDate()+7);
+  document.getElementById('datum-tot').value = fmt(v);
+}
+
+function renderOverzicht() {
+  const tbody = document.getElementById('overzicht-body');
+  tbody.innerHTML = aanvragen.map(a => {
+    const kl = a.status==='beschikbaar'?'var(--green)':a.status==='tenzij'?'var(--a2)':'var(--red)';
+    const bc = a.status==='beschikbaar'?'badge-green':a.status==='tenzij'?'badge-yellow':'badge-red';
+    return `<tr>
+      <td><span class="dot" style="background:${kl}"></span>${a.collega}</td>
+      <td style="font-family:var(--mono)">${a.van} → ${a.tot}</td>
+      <td>${a.dienst}</td>
+      <td style="color:var(--muted)">${a.tenzij||'—'}</td>
+      <td><span class="badge ${bc}">${a.status}</span></td>
+      <td style="font-family:var(--mono);color:var(--a2)">${a.incentive}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  NOTIFICATIE
+// ═══════════════════════════════════════════════
+function showNotif(txt) {
+  const n = document.getElementById('notif');
+  n.textContent = txt;
+  n.classList.add('show');
+  clearTimeout(n._t);
+  n._t = setTimeout(() => n.classList.remove('show'), 2400);
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+laadIns();
+renderCollega();
+renderWeekGrid();
+updateIncDropdown();
+updateVraag();
+updateEuroPreview();
+updatePrognose();
+renderOverzicht();
+
+bindInputs(); // na render, zodat elementen bestaan
+
+const today = new Date();
+document.getElementById('datum-van').value = fmt(today);
+const vv = new Date(today); vv.setDate(today.getDate()+7);
+document.getElementById('datum-tot').value = fmt(vv);
+document.getElementById('event-datum').value = fmt(today);
+</script>
+</body>
+</html>

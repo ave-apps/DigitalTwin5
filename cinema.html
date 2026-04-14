@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DT5 Cinema</title>
+<title>DT5 Cinema · SES — Gebouw 5B</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
 
@@ -359,7 +359,7 @@
 <!-- ── Opstartanimatie ─────────────────────────────────────────────────── -->
 <div id="curtain">
   <div id="flicker"></div>
-  <div id="curtain-text">DT5 · CINEMA</div>
+  <div id="curtain-text">DT5 · SES · CINEMA</div>
   <div id="curtain-sub">Gebouw 5B · Informatiekanaal</div>
 </div>
 
@@ -530,11 +530,11 @@
     <div id="net-label">Kanaal selectie</div>
     <div id="netten">
       <button class="net-btn" id="btn-dt1" onclick="selectNet('DT5-1')" disabled>
-        DT5·1
+        DT5·1 <span style="font-size:9px;opacity:.55;font-style:italic"> / SES·1</span>
         <span class="net-sub">Instructie</span>
       </button>
       <button class="net-btn" id="btn-dt2" onclick="selectNet('DT5-2')" disabled>
-        DT5·2
+        DT5·2 <span style="font-size:9px;opacity:.55;font-style:italic"> / SES·2</span>
         <span class="net-sub">Mededelingen</span>
       </button>
     </div>
@@ -558,7 +558,7 @@ const KANALEN = {
       // Voorbeelden — vervang FILE_ID door echte Drive-id's:
       // { titel: 'Introductie Vocht & Voeding', url: 'https://drive.google.com/file/d/FILE_ID/preview' },
       // { titel: 'Ziekmelding registreren', url: 'https://drive.google.com/file/d/FILE_ID/preview' },
-     { titel: 'DigitalTwin5', url: 'https://drive.google.com/file/d/164jrNCfSCfFa9TkhdR-cQgyQe0VlXUZU/preview' },
+          { titel: 'DigitalTwin5', url: 'https://drive.google.com/file/d/164jrNCfSCfFa9TkhdR-cQgyQe0V1XUZU/preview' },   
     ]
   },
   'DT5-2': {
@@ -679,7 +679,7 @@ setTimeout(() => {
 
 // ── Easter egg: logo tooltip ───────────────────────────────────────────────
 document.getElementById('remote-logo').title =
-  'DT5 Cinema · Gebouw 5B · Zijn Epilepsiezorg';
+  'DT5 Cinema / SES · Gebouw 5B · SEIN Epilepsiezorg';
 </script>
 </body>
 </html>
