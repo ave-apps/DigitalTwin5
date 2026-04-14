@@ -253,6 +253,23 @@ body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--te
 </div>
 
 <script>
+// Converteer Sheets decimale tijd (0.xxx) naar HH:MM
+function parseTijdIn(val){
+  if(!val) return '';
+  const s = String(val).trim();
+  if(/^\d{2}:\d{2}$/.test(s)) return s;
+  const dec = parseFloat(s);
+  if(!isNaN(dec) && dec >= 0 && dec < 1){
+    const totalMin = Math.round(dec * 24 * 60);
+    return String(Math.floor(totalMin/60)).padStart(2,'0') + ':' + String(totalMin%60).padStart(2,'0');
+  }
+  const d = new Date(s);
+  if(!isNaN(d.getTime())){
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+  return s;
+}
+
 const GASWA       = 'https://script.google.com/macros/s/AKfycbyjnk84P0TdzN8rVjd0MFuXWbxmyQI_SMcP00YPSKOSSv692rO3-_XtKQRBKMLyOA1H/exec';
 // Fysieke volgorde: 3e bovenaan → BG onderaan (zoals het gebouw staat)
 const ETAGE_INFO  = [
@@ -411,22 +428,7 @@ function bouwMwRij(r, etageIdx){
   rij.className = 'mw-rij';
 
   const functieLbl = FUNCTIE_LBL[r.functie] || r.functie || '';
-  // Converteer Sheets decimale tijd (0.xxx) naar HH:MM
-  function parseTijdIn(val){
-    if(!val) return '';
-    const s = String(val).trim();
-    if(/^\d{2}:\d{2}$/.test(s)) return s;
-    const dec = parseFloat(s);
-    if(!isNaN(dec) && dec >= 0 && dec < 1){
-      const totalMin = Math.round(dec * 24 * 60);
-      return String(Math.floor(totalMin/60)).padStart(2,'0') + ':' + String(totalMin%60).padStart(2,'0');
-    }
-    const d = new Date(s);
-    if(!isNaN(d.getTime())){
-      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
-    }
-    return s;
-  }
+
   const tijdInStr  = r.tijdIn  ? parseTijdIn(r.tijdIn)  : '';
   const tijdUitStr = r.tijdUit ? parseTijdIn(r.tijdUit) : '';
   const tijdIn = tijdInStr
