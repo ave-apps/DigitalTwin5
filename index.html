@@ -2010,7 +2010,10 @@ function campusLaden(){
     // Update CAMPUS_LOCATIES
     // Voeg nieuwe toe, update bestaande
     Object.entries(saved).forEach(([naam, pos]) => {
+      // Label altijd uit code halen
+      const codeLbl = CAMPUS_LOCATIES[naam] ? CAMPUS_LOCATIES[naam].label : null;
       CAMPUS_LOCATIES[naam] = pos;
+      if(codeLbl) CAMPUS_LOCATIES[naam].label = codeLbl;
       // Voeg afmetingen toe als nog niet aanwezig
       if(!GEBOUW_AFMETINGEN[naam]){
         // Gebruik basis afmetingen van het 'parent' blok
@@ -2037,7 +2040,10 @@ function campusReset(){
     if(raw){
       const saved = JSON.parse(raw);
       Object.entries(saved).forEach(([naam, pos]) => {
-        CAMPUS_LOCATIES[naam] = pos;  // ook nieuwe blokken
+        // Label altijd uit code halen — localStorage bevat verouderde labels
+        const codeLbl = CAMPUS_LOCATIES[naam] ? CAMPUS_LOCATIES[naam].label : null;
+        CAMPUS_LOCATIES[naam] = pos;
+        if(codeLbl) CAMPUS_LOCATIES[naam].label = codeLbl;
         if(!GEBOUW_AFMETINGEN[naam]){
           const parent = naam.replace(/_\d+$/, '');
           GEBOUW_AFMETINGEN[naam] = GEBOUW_AFMETINGEN[parent]
