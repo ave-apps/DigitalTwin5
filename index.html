@@ -3882,6 +3882,258 @@ fetchZiekmeldingen();
 setInterval(fetchZiekmeldingen, 30000);  // elke 30s
 
 
+// ══════════════════════════════════════════════════════════════════════════════
+// CAMPUS LABELS — vaag drijvende HTML-labels per gebouwblok, 3D mee-roterend
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Container voor campus labels (boven labelContainer, onder UI)
+const campusLabelContainer = document.createElement('div');
+campusLabelContainer.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:22;';
+document.body.appendChild(campusLabelContainer);
+
+// Label divs per gebouw
+var campusLabelDivs = {};
+
+function buildCampusLabels(){
+  // Verwijder bestaande
+  Object.values(campusLabelDivs).forEach(d => d.remove());
+  campusLabelDivs = {};
+
+  Object.entries(CAMPUS_LOCATIES).forEach(([naam, pos]) => {
+    if(naam === 'G5') return; // G5 heeft eigen labels
+    const label = pos.label || naam;
+    const div = document.createElement('div');
+    div.style.cssText = `
+      position:absolute; transform:translate(-50%,-50%);
+      color:rgba(136,204,255,0.55); font-family:'Segoe UI',sans-serif;
+      font-size:11px; font-weight:700; letter-spacing:.5px;
+      background:rgba(0,8,20,0.45); padding:2px 7px; border-radius:4px;
+      border:1px solid rgba(100,180,255,0.18);
+      white-space:nowrap; pointer-events:none;
+      text-shadow:0 0 6px rgba(100,180,255,0.4);
+    `;
+    div.textContent = label;
+    campusLabelContainer.appendChild(div);
+    campusLabelDivs[naam] = div;
+  });
+}
+
+function updateCampusLabels(){
+  Object.entries(campusLabelDivs).forEach(([naam, div]) => {
+    const pos = CAMPUS_LOCATIES[naam];
+    if(!pos){ div.style.display='none'; return; }
+    const dim = GEBOUW_AFMETINGEN[naam] || { h:10.5 };
+    // Projecteer op bovenkant blok
+    const topY = dim.h + 1.5;
+    const v = new THREE.Vector3(pos.x, topY, pos.z);
+    v.project(camera);
+    if(v.z >= 1){ div.style.display='none'; return; }
+    const sx = (v.x * 0.5 + 0.5) * window.innerWidth;
+    const sy = (-v.y * 0.5 + 0.5) * window.innerHeight;
+    // Verberg als te ver weg (label wordt te klein)
+    const dist = camera.position.distanceTo(new THREE.Vector3(pos.x, topY, pos.z));
+    if(dist > 600){ div.style.display='none'; return; }
+    const alpha = Math.max(0.2, Math.min(0.7, 1 - dist/600));
+    div.style.opacity = alpha;
+    div.style.display = 'block';
+    div.style.left = sx + 'px';
+    div.style.top  = sy + 'px';
+  });
+}
+
+// ── Parking kentekens ────────────────────────────────────────────────────────
+// Twee vaste kentekens op parkeerplaats
+const PARKING_KENTEKENS = [
+  { id:'004',   label:'004',   kleur:'#ffd060', sub:'Albert' },
+  { id:'e-001', label:'e-001', kleur:'#4cdd8a', sub:'e-auto' },
+];
+
+var parkingBadgeDivs = [];
+
+function buildParkingBadges(){
+  parkingBadgeDivs.forEach(d => d.remove());
+  parkingBadgeDivs = [];
+
+  const pPos = CAMPUS_LOCATIES['Parking'];
+  if(!pPos) return;
+
+  PARKING_KENTEKENS.forEach((k, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = `
+      position:absolute; transform:translate(-50%,-50%);
+      font-family:'Segoe UI',sans-serif; font-size:10px; font-weight:800;
+      color:${k.kleur}; background:rgba(0,8,20,0.82);
+      border:1px solid ${k.kleur}55; border-radius:5px;
+      padding:2px 8px; white-space:nowrap; pointer-events:none;
+      letter-spacing:.8px; text-shadow:0 0 4px ${k.kleur}66;
+    `;
+    div.innerHTML = k.label + '<br><span style="font-size:9px;color:#888;font-weight:400">' + k.sub + '</span>';
+    campusLabelContainer.appendChild(div);
+    parkingBadgeDivs.push({ div, offsetX: (i - 0.5) * 18 });
+  });
+}
+
+function updateParkingBadges(){
+  const pPos = CAMPUS_LOCATIES['Parking'];
+  if(!pPos) return;
+
+  parkingBadgeDivs.forEach(({ div, offsetX }, i) => {
+    const v = new THREE.Vector3(pPos.x + offsetX, 3, pPos.z);
+    v.project(camera);
+    if(v.z >= 1){ div.style.display='none'; return; }
+    const dist = camera.position.distanceTo(new THREE.Vector3(pPos.x, 3, pPos.z));
+    if(dist > 400){ div.style.display='none'; return; }
+    const sx = (v.x * 0.5 + 0.5) * window.innerWidth;
+    const sy = (-v.y * 0.5 + 0.5) * window.innerHeight;
+    div.style.display = 'block';
+    div.style.left = sx + 'px';
+    div.style.top  = (sy + i * 22) + 'px';
+    div.style.opacity = Math.max(0.3, Math.min(0.9, 1 - dist/400));
+  });
+}
+
+// ── Groepskoppel lijn: G5 → extern gebouw ────────────────────────────────────
+// Lijn wordt getekend als een adhoc-koppel een externe campus-locatie heeft.
+// Verbeterd eindpunt: bovenkant blok (correct y) + juiste kant (voorkant G5-zijde).
+// Correctie van eerder probleem: eindpunt was op voet ipv top.
+
+var groepskoppelLijnen = [];
+
+function buildGroepskoppelLijnen(){
+  groepskoppelLijnen.forEach(l => scene.remove(l));
+  groepskoppelLijnen.length = 0;
+
+  adhocKoppels.forEach(k => {
+    if(!k.extern || !k.externLocatie) return;
+    const loc = CAMPUS_LOCATIES[k.externLocatie];
+    if(!loc) return;
+
+    // Tijdscheck
+    const nu = new Date();
+    const nuMin = nu.getHours()*60 + nu.getMinutes();
+    const [vh,vm] = (k.van||'00:00').split(':').map(Number);
+    const [th,tm] = (k.tot||'23:59').split(':').map(Number);
+    if(nuMin < vh*60+vm || nuMin > th*60+tm) return;
+
+    const etage = k.etage !== undefined ? parseInt(k.etage) : 0;
+    const startPos = teampostPos(etage);
+
+    // Eindpunt: bovenkant blok, aan de G5-gerichte zijde
+    const dim = GEBOUW_AFMETINGEN[k.externLocatie] || { h:10.5, d:20 };
+    // G5 is op x=0,z=0; extern gebouw richting bepaalt welke zijde naar G5 wijst
+    const dxToG5 = 0 - loc.x;
+    const dzToG5 = 0 - loc.z;
+    const lenToG5 = Math.sqrt(dxToG5*dxToG5 + dzToG5*dzToG5) || 1;
+    const nx = dxToG5/lenToG5, nz = dzToG5/lenToG5;
+
+    // Eindpunt halverwege boven de voorkant (G5-zijde) van het extern blok
+    const eindX = loc.x + nx * (dim.d||20) * 0.5;
+    const eindZ = loc.z + nz * (dim.d||20) * 0.5;
+    const eindY = dim.h * 0.7; // bovenderde van blok
+
+    const start = new THREE.Vector3(startPos.x, startPos.y, startPos.z);
+    const eind  = new THREE.Vector3(eindX, eindY, eindZ);
+
+    // Curve met boog
+    const mid = new THREE.Vector3(
+      (start.x + eind.x)/2,
+      Math.max(start.y, eindY) + 8,
+      (start.z + eind.z)/2
+    );
+    const curve = new THREE.QuadraticBezierCurve3(start, mid, eind);
+
+    const restMin = th*60+tm - nuMin;
+    const isNadert = restMin <= 30;
+    const kleur = isNadert ? 0xffa500 : 0xffd060;
+
+    const tube = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 20, 0.25, 8, false),
+      new THREE.MeshBasicMaterial({color:kleur, transparent:true, opacity:0.85})
+    );
+
+    // Tooltip metadata
+    const restTxt = restMin > 0 ? `nog ${restMin} min` : 'bijna terug';
+    tube.userData = {
+      type:    'groepskoppel',
+      omschr:  k.omschr || 'Groepskoppel',
+      namen:   (k.namen||[]).join(', '),
+      locatie: k.externLocatie,
+      rest:    restTxt,
+      nadert:  isNadert
+    };
+
+    scene.add(tube);
+    groepskoppelLijnen.push(tube);
+
+    // Gele bol aan eindpunt (boven blok)
+    const bol = new THREE.Mesh(
+      new THREE.SphereGeometry(1.2, 12, 12),
+      new THREE.MeshBasicMaterial({color:kleur})
+    );
+    bol.position.copy(eind);
+    bol.userData = tube.userData;
+    scene.add(bol);
+    groepskoppelLijnen.push(bol);
+
+    // Zwak licht bij extern eindpunt
+    const licht = new THREE.PointLight(kleur, 1.0, 20);
+    licht.position.copy(eind);
+    scene.add(licht);
+    groepskoppelLijnen.push(licht);
+  });
+
+  // Registreer bij adhocLijnen voor hover-detectie + pulsanimatie
+  adhocLijnen.push(...groepskoppelLijnen.filter(l => l.geometry));
+}
+
+// Overschrijf buildAdhocVisualisatie zodat groepskoppel altijd mee hergebouwd wordt
+var _origBuildAdhoc = buildAdhocVisualisatie;
+buildAdhocVisualisatie = function(){
+  _origBuildAdhoc();
+  buildGroepskoppelLijnen();
+};
+
+// ── Puls voor groepskoppel bollen ─────────────────────────────────────────────
+var _origUpdateAdhocAnim = updateAdhocAnimation;
+updateAdhocAnimation = function(){
+  _origUpdateAdhocAnim();
+  const t = Date.now()*0.002;
+  groepskoppelLijnen.forEach(l => {
+    if(l.geometry && l.geometry.type === 'SphereGeometry'){
+      l.scale.setScalar(1 + 0.35*Math.sin(t*1.8));
+    }
+  });
+};
+
+// ── Hook in animatielus voor campus labels + parking ─────────────────────────
+var _origAnimate = animate;
+// Patch de animatielus door updateCampusLabels en updateParkingBadges toe te voegen
+// We patchen renderer.render zodat we na elke render de 2D overlays bijwerken
+var _origRender = renderer.render.bind(renderer);
+renderer.render = function(scene, cam){
+  _origRender(scene, cam);
+  updateCampusLabels();
+  updateParkingBadges();
+};
+
+// ── Init: bouw labels + badges na campus visualisatie ────────────────────────
+(function(){
+  // Wacht tot campusObjecten gebouwd zijn (buildCampusVisualisatie() al aangeroepen bij laden)
+  setTimeout(()=>{
+    buildCampusLabels();
+    buildParkingBadges();
+    buildGroepskoppelLijnen();
+  }, 400);
+
+  // Herlaad labels als campus opnieuw gebouwd wordt
+  var _origBuildCampus = buildCampusVisualisatie;
+  buildCampusVisualisatie = function(){
+    _origBuildCampus();
+    buildCampusLabels();
+    buildParkingBadges();
+  };
+})();
+
 </script>
 
 
