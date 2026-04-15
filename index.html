@@ -2939,6 +2939,14 @@ setInterval(fetchChantalStatus, 30*1000);
 fetchChantalStatus(); // direct bij laden
 setInterval(fetchChatBerichten, 15*1000);
 fetchChatBerichten(); // direct bij laden
+fetchDienst();                          // direct bij laden
+setInterval(fetchDienst, 20*1000);      // elke 20s — dienst-mutaties van collega's ophalen
+// Na elke dienst-fetch ook chatselect bijwerken
+const _origFetchDienst = fetchDienst;
+fetchDienst = async function(){
+  await _origFetchDienst();
+  updateChatSelect();
+};
 
 
 
