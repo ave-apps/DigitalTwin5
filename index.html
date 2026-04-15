@@ -432,6 +432,12 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
     <span class="layer-dot" style="background:#8888ff"></span>
     Nachtzorg
   </label>
+  <label class="layer-toggle" id="layer-metingen">
+    <input type="checkbox" onchange="toggleLayer('metingen',this.checked)">
+    <span class="layer-dot" style="background:#e0aaff"></span>
+    Metingen
+  </label>
+  <button onclick="fetchMetingen()" title="Metingendata verversen" style="background:rgba(224,170,255,0.15);border:1px solid rgba(224,170,255,0.35);color:#e0aaff;border-radius:6px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:-4px;">↺</button>
 </div>
 
 <div id="dashboard" style="display:none">
@@ -1411,7 +1417,8 @@ const layerDefaults = {
   dienst:      false,
   dagbesteding:false,
   nacht:       false,
-  adhoc:       false
+  adhoc:       false,
+  metingen:    false
 };
 let savedLayers = {};
 try { savedLayers = JSON.parse(localStorage.getItem('active_layers')||'{}'); } catch(e) {}
@@ -1462,6 +1469,10 @@ function toggleLayer(name, on){
       break;
     case 'adhoc':
       buildAdhocVisualisatie();
+      break;
+    case 'metingen':
+      if(on) fetchMetingen();
+      else   verbergMetingBadges();
       break;
   }
 }
@@ -3975,6 +3986,274 @@ function aveLogout(){ sessionStorage.removeItem('ave_user'); window.location.hre
 
 fetchZiekmeldingen();
 setInterval(fetchZiekmeldingen, 30000);  // elke 30s
+
+// ══════════════════════════════════════════════════════════════════════════════
+// METINGEN — badges per kamer, stagiair-stijl sleeplijn
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Drempelwaarden voor kleurcodering
+const MET_DREMPEL = {
+  tempWarn:  38.0,  tempKrit: 39.0,   // °C
+  spo2Warn:  94,    spo2Krit: 90,     // % (onder = slechter)
+  tensieWarn:140,   tensieKrit:180,   // systolisch mmHg
+  hrWarn:    100,   hrKrit:   120     // bpm (tachycardie)
+};
+
+var metData = {};          // { '0.07': { tempL, tempR, spo2, ... }, ... }
+var metLabelMap = new Map(); // kamer → { div, line }
+var metDragPos  = new Map(); // kamer → { x, y }
+var metFetching = false;
+
+// SVG overlay voor meting-lijnen (zelfde patroon als stagiairs)
+const metSvg = (function(){
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:28;';
+  document.body.appendChild(svg);
+  return svg;
+})();
+
+// ── Kleurhelpers ──────────────────────────────────────────────────────────────
+function metKleur(key, val){
+  const v = parseFloat(val);
+  if(isNaN(v)) return '#888';
+  switch(key){
+    case 'temp': {
+      if(v >= MET_DREMPEL.tempKrit)  return '#ff4444';
+      if(v >= MET_DREMPEL.tempWarn)  return '#ffa500';
+      return '#4cdd8a';
+    }
+    case 'spo2': {
+      if(v <= MET_DREMPEL.spo2Krit)  return '#ff4444';
+      if(v <= MET_DREMPEL.spo2Warn)  return '#ffa500';
+      return '#4cdd8a';
+    }
+    case 'tensie': {
+      if(v >= MET_DREMPEL.tensieKrit) return '#ff4444';
+      if(v >= MET_DREMPEL.tensieWarn) return '#ffa500';
+      return '#4cdd8a';
+    }
+    case 'hr': {
+      if(v >= MET_DREMPEL.hrKrit)    return '#ff4444';
+      if(v >= MET_DREMPEL.hrWarn)    return '#ffa500';
+      return '#4cdd8a';
+    }
+  }
+  return '#888';
+}
+
+function metErnst(m){
+  // Hoogste ernst bepaalt lijnkleur: rood > oranje > groen
+  const tempMax = Math.max(
+    parseFloat(m.tempL)||0,
+    parseFloat(m.tempR)||0
+  );
+  if(tempMax >= MET_DREMPEL.tempKrit) return 'rood';
+  if(parseFloat(m.tensieS)||0 >= MET_DREMPEL.tensieKrit) return 'rood';
+  if(parseFloat(m.spo2)||0 <= MET_DREMPEL.spo2Krit && m.spo2) return 'rood';
+  if(tempMax >= MET_DREMPEL.tempWarn) return 'oranje';
+  if(parseFloat(m.tensieS)||0 >= MET_DREMPEL.tensieWarn) return 'oranje';
+  if(parseFloat(m.spo2)||0 <= MET_DREMPEL.spo2Warn && m.spo2) return 'oranje';
+  return 'groen';
+}
+
+function ernstKleur(e){
+  return e==='rood'?'#ff4444': e==='oranje'?'#ffa500':'#e0aaff';
+}
+
+// ── Badge div aanmaken per kamer ──────────────────────────────────────────────
+function maakMetingDiv(kamer){
+  const div = document.createElement('div');
+  div.className = 'met-badge-div';
+  div.style.cssText = [
+    'position:absolute','pointer-events:auto','display:none',
+    'user-select:none','font-family:Segoe UI,sans-serif',
+    'cursor:grab','z-index:29'
+  ].join(';');
+
+  // Drag-logica — identiek aan stagiair
+  let isDragging=false, dragStartX=0, dragStartY=0, posX=0, posY=0;
+  div.addEventListener('mousedown', (e)=>{
+    isDragging=true;
+    posX = parseInt(div.style.left)||0;
+    posY = parseInt(div.style.top) ||0;
+    dragStartX = e.clientX - posX;
+    dragStartY = e.clientY - posY;
+    div.style.cursor='grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e)=>{
+    if(!isDragging) return;
+    posX = e.clientX - dragStartX;
+    posY = e.clientY - dragStartY;
+    div.style.left = posX + 'px';
+    div.style.top  = posY + 'px';
+    metDragPos.set(kamer, {x:posX, y:posY});
+    const entry = metLabelMap.get(kamer);
+    if(entry){
+      const r = div.getBoundingClientRect();
+      entry.line.setAttribute('x1', posX + r.width/2);
+      entry.line.setAttribute('y1', posY + r.height/2);
+    }
+  });
+  document.addEventListener('mouseup', ()=>{
+    if(isDragging){ isDragging=false; div.style.cursor='grab'; }
+  });
+
+  labelContainer.appendChild(div);
+  return div;
+}
+
+function vulMetingDiv(div, kamer, m){
+  const ernst = metErnst(m);
+  const lijnKleur = ernstKleur(ernst);
+  const tempMax = Math.max(parseFloat(m.tempL)||0, parseFloat(m.tempR)||0);
+  const tempKleur = metKleur('temp', tempMax || '');
+
+  // Toon beide oor-temps als beide ingevuld
+  let tempTekst = '';
+  if(m.tempL && m.tempR){
+    tempTekst = `<span style="color:${metKleur('temp',m.tempL)}">${m.tempL}</span>`+
+                `<span style="color:#555;font-size:9px"> L·R </span>`+
+                `<span style="color:${metKleur('temp',m.tempR)}">${m.tempR}</span>`;
+  } else if(m.tempL || m.tempR){
+    const tv = m.tempL || m.tempR;
+    tempTekst = `<span style="color:${metKleur('temp',tv)}">${tv}</span>`;
+  }
+
+  const spo2Tekst = m.spo2
+    ? `<span style="color:${metKleur('spo2',m.spo2)}">${m.spo2}%</span>`
+    : '';
+  const tensieTekst = (m.tensieS && m.tensieD)
+    ? `<span style="color:${metKleur('tensie',m.tensieS)}">${m.tensieS}</span>`+
+      `<span style="color:#555">/</span>`+
+      `<span style="color:${metKleur('tensie',m.tensieD)}">${m.tensieD}</span>`
+    : '';
+  const hrTekst = m.hartritme
+    ? `<span style="color:${metKleur('hr',m.hartritme)}">${m.hartritme}</span>`
+    : '';
+
+  div.innerHTML = `
+    <div style="
+      background:rgba(10,14,30,0.92);
+      border:1.5px solid ${lijnKleur};
+      border-radius:7px; padding:5px 9px;
+      box-shadow:0 0 8px ${lijnKleur}44;
+      font-size:11px; line-height:1.7; min-width:90px;
+    ">
+      <div style="font-size:10px;font-weight:800;color:${lijnKleur};letter-spacing:.4px;margin-bottom:2px">
+        🌡 ${kamer}
+        <span style="color:#555;font-weight:400;font-size:9px;margin-left:4px">${m.ts||''}</span>
+      </div>
+      ${tempTekst   ? `<div>🌡 ${tempTekst} <span style="color:#555;font-size:9px">°C</span></div>` : ''}
+      ${spo2Tekst   ? `<div>💧 ${spo2Tekst} <span style="color:#555;font-size:9px">sat</span></div>` : ''}
+      ${tensieTekst ? `<div>💉 ${tensieTekst} <span style="color:#555;font-size:9px">mmHg</span></div>` : ''}
+      ${hrTekst     ? `<div>♥ ${hrTekst} <span style="color:#555;font-size:9px">bpm</span></div>` : ''}
+    </div>`;
+}
+
+// ── Herbouw alle meting-divs ──────────────────────────────────────────────────
+function herbouwMetingDivs(){
+  // Verwijder bestaande
+  labelContainer.querySelectorAll('.met-badge-div').forEach(el=>el.remove());
+  metSvg.querySelectorAll('.met-line').forEach(el=>el.remove());
+  metLabelMap.clear();
+
+  Object.keys(metData).forEach(kamer => {
+    const m = metData[kamer];
+    // Sla over als geen enkel veld ingevuld
+    if(!m.tempL && !m.tempR && !m.spo2 && !m.tensieS && !m.hartritme) return;
+
+    const div  = maakMetingDiv(kamer);
+    vulMetingDiv(div, kamer, m);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.classList.add('met-line');
+    const ernst = metErnst(m);
+    line.setAttribute('stroke', ernstKleur(ernst));
+    line.setAttribute('stroke-width','1.5');
+    line.setAttribute('stroke-dasharray','4 3');
+    line.style.display = 'none';
+    metSvg.appendChild(line);
+
+    metLabelMap.set(kamer, {div, line});
+  });
+}
+
+// ── Positioneren per frame ────────────────────────────────────────────────────
+function updateMetingPosities(){
+  if(!activeLayers.metingen) return;
+
+  metLabelMap.forEach(({div, line}, kamer){
+    // Kamer-coördinaat opzoeken
+    const kc = KAMER_COORDS[activeFloor + '.' + kamer.replace(/^\d\./, '')];
+    if(!kc){ div.style.display='none'; line.style.display='none'; return; }
+
+    const p = proj2D(kc.x, kc.z, activeFloor * FLOOR_GAP);
+    if(!p.visible){ div.style.display='none'; line.style.display='none'; return; }
+
+    div.style.display = 'block';
+
+    // Sleeppositie bewaren
+    if(metDragPos.has(kamer)){
+      const sp = metDragPos.get(kamer);
+      div.style.left = sp.x + 'px';
+      div.style.top  = sp.y + 'px';
+      const r = div.getBoundingClientRect();
+      line.setAttribute('x1', sp.x + r.width/2);
+      line.setAttribute('y1', sp.y + r.height/2);
+      line.setAttribute('x2', p.sx);
+      line.setAttribute('y2', p.sy);
+      line.style.display = '';
+      return;
+    }
+
+    // Standaard: badge rechtsonder van kamerlabel
+    const panelX = Math.max(10, Math.min(window.innerWidth-120,  p.sx + 70));
+    const panelY = Math.max(60, Math.min(window.innerHeight-160, p.sy + 50));
+    div.style.left = panelX + 'px';
+    div.style.top  = panelY + 'px';
+
+    const r = div.getBoundingClientRect();
+    line.setAttribute('x1', panelX + r.width/2);
+    line.setAttribute('y1', panelY);
+    line.setAttribute('x2', p.sx);
+    line.setAttribute('y2', p.sy);
+    line.style.display = '';
+  });
+}
+
+function verbergMetingBadges(){
+  metLabelMap.forEach(({div,line})=>{
+    div.style.display='none';
+    line.style.display='none';
+  });
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+async function fetchMetingen(){
+  if(metFetching) return;
+  metFetching = true;
+  try{
+    const res  = await fetch(GASWA + '?action=pullMetingen');
+    const data = await res.json();
+    if(data.ok && data.metingen){
+      metData = data.metingen;
+      herbouwMetingDivs();
+    }
+  } catch(e){ console.warn('fetchMetingen fout:', e); }
+  finally{ metFetching = false; }
+}
+
+// ── Integreer in render-loop ──────────────────────────────────────────────────
+const _origUpdateLabelDivsMet = updateLabelDivs;
+updateLabelDivs = function(){
+  _origUpdateLabelDivsMet();
+  if(activeLayers.metingen) updateMetingPosities();
+  else verbergMetingBadges();
+};
+
+// Poll elke 60s als laag aan staat
+setInterval(()=>{ if(activeLayers.metingen) fetchMetingen(); }, 60000);
 
 
 // ══════════════════════════════════════════════════════════════════════════════
