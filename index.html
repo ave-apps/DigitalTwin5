@@ -479,6 +479,9 @@ let dienstRecords={};
 var dienstStippen=[];
 var koppelLijnen=[];
 var stipHitbollen=[];
+var adhocKoppels=[];
+var adhocLijnen=[];
+var adhocAlarmTimer=null;
 
 // ── Scene ──────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
@@ -1602,9 +1605,7 @@ function buildDienstVisualisatie(){
 // AD HOC KOPPELS
 // ══════════════════════════════════════════════════════════════════════════════
 
-var adhocKoppels    = [];   // actieve ad hoc koppels
-var adhocLijnen     = [];   // THREE meshes
-var adhocAlarmTimer = null;
+// adhocKoppels, adhocLijnen, adhocAlarmTimer gedeclareerd bovenaan script
 
 // Laad uit localStorage
 function laadAdhocKoppels(){
