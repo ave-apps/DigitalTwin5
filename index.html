@@ -417,6 +417,11 @@ body { background:#1a1a2e; overflow:hidden; font-family:'Segoe UI',sans-serif; }
     <span class="layer-dot" style="background:#ff88cc"></span>
     In dienst
   </label>
+  <label class="layer-toggle" id="layer-adhoc">
+    <input type="checkbox" onchange="toggleLayer('adhoc',this.checked)">
+    <span class="layer-dot" style="background:#ffd060"></span>
+    Ad hoc koppels
+  </label>
   <label class="layer-toggle" id="layer-dagbesteding">
     <input type="checkbox" onchange="toggleLayer('dagbesteding',this.checked)">
     <span class="layer-dot" style="background:#aaffcc"></span>
@@ -955,12 +960,20 @@ canvas.addEventListener('mousemove', e=>{
   if(isDragging){ tooltip.style.display='none'; canvas.style.cursor='default'; return; }
   canvas.style.cursor = 'default';
 
-  if(!koppelLijnen.length){ tooltip.style.display='none'; return; }
-
   const rect = canvas.getBoundingClientRect();
   const mx = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
   const my = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
   raycasterHover.setFromCamera(new THREE.Vector2(mx, my), camera);
+
+  // Check adhoc lijnen eerst
+  if(checkAdhocHover(mx, my)){
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+    canvas.style.cursor = 'pointer';
+    return;
+  }
+
+  if(!koppelLijnen.length){ tooltip.style.display='none'; return; }
 
   const hits = raycasterHover.intersectObjects(koppelLijnen);
   if(hits.length){
@@ -1048,6 +1061,7 @@ function animate(){
   currentLookAt.lerp(targetLookAt,.08);
   corrLight.intensity=0.45+0.1*Math.sin(Date.now()*.001);
   updateDienstAnimation();
+  if(typeof updateAdhocAnimation === 'function') updateAdhocAnimation();
   updateCamera();
   renderer.render(scene,camera);
   updateLabelDivs();
@@ -1377,7 +1391,7 @@ const layerDefaults = {
   dienst:      false,
   dagbesteding:false,
   nacht:       false,
-};
+, adhoc: false};
 let savedLayers = {};
 try { savedLayers = JSON.parse(localStorage.getItem('active_layers')||'{}'); } catch(e) {}
 const activeLayers = Object.assign({}, layerDefaults, savedLayers);
@@ -1580,6 +1594,255 @@ function buildDienstVisualisatie(){
   // Na bouwen van alle stippen: hitbollen aanmaken voor klikdetectie
   rebuildStipHitbollen();
   updateChatSelect();
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AD HOC KOPPELS
+// ══════════════════════════════════════════════════════════════════════════════
+
+var adhocKoppels    = [];   // actieve ad hoc koppels
+var adhocLijnen     = [];   // THREE meshes
+var adhocAlarmTimer = null;
+
+// Laad uit localStorage
+function laadAdhocKoppels(){
+  try {
+    const raw = localStorage.getItem('g5_adhoc_v1');
+    adhocKoppels = raw ? JSON.parse(raw) : [];
+    // Verwijder verlopen koppels (ouder dan 24 uur)
+    const nu = Date.now();
+    adhocKoppels = adhocKoppels.filter(k => {
+      if(!k.tot) return true;
+      const [h,m] = k.tot.split(':').map(Number);
+      const eindTs = new Date(); eindTs.setHours(h,m,0,0);
+      return eindTs.getTime() > nu - 86400000;
+    });
+    slaanAdhocOp();
+  } catch(e){ adhocKoppels = []; }
+}
+
+function slaanAdhocOp(){
+  try { localStorage.setItem('g5_adhoc_v1', JSON.stringify(adhocKoppels)); } catch(e){}
+}
+
+// Externe locatie-posities (buiten gebouw, links van het model)
+const EXTERN_POS = { x: -80, y: 8, z: 0 };
+
+function buildAdhocVisualisatie(){
+  // Verwijder oude
+  adhocLijnen.forEach(l => scene.remove(l));
+  adhocLijnen.length = 0;
+  if(!activeLayers.adhoc) return;
+
+  const nu = new Date();
+  const nuMin = nu.getHours()*60 + nu.getMinutes();
+
+  adhocKoppels.forEach(k => {
+    // Parse tijden
+    const [vh,vm] = (k.van||'00:00').split(':').map(Number);
+    const [th,tm] = (k.tot||'23:59').split(':').map(Number);
+    const vanMin = vh*60+vm, totMin = th*60+tm;
+    if(nuMin < vanMin || nuMin > totMin) return; // niet actief
+
+    const restMin = totMin - nuMin;
+    const isNadert = restMin <= 30;
+    const kleur = isNadert ? 0xffa500 : 0xffd060;
+    const dikte = isNadert ? 0.35 : 0.22;
+
+    // Startpunt: etage-stip van de betrokken medewerker(s)
+    // Als er een etage bekend is, gebruik teampost-positie; anders midden gebouw
+    const etage = k.etage !== undefined ? parseInt(k.etage) : 0;
+    const startPos = teampostPos(etage);
+
+    // Eindpunt: kamer of extern
+    let eindPos = null;
+    if(k.extern){
+      eindPos = new THREE.Vector3(EXTERN_POS.x, EXTERN_POS.y + etage*5.3, EXTERN_POS.z);
+    } else if(k.kamers && k.kamers.length){
+      const kc = KAMER_COORDS[k.kamers[0]];
+      if(kc) eindPos = new THREE.Vector3(kc.x, kc.y, kc.z);
+    }
+    if(!eindPos) return;
+
+    const start = new THREE.Vector3(startPos.x, startPos.y, startPos.z);
+    const curve = new THREE.LineCurve3(start, eindPos);
+    const mat   = new THREE.MeshBasicMaterial({color:kleur, transparent:true, opacity:0.9});
+    const tube  = new THREE.Mesh(new THREE.TubeGeometry(curve, 6, dikte, 8, false), mat);
+
+    // Tooltip data
+    const restTxt = restMin > 0 ? `nog ${restMin} min` : 'bijna terug';
+    tube.userData = {
+      type:    'adhoc',
+      omschr:  k.omschr || 'Ad hoc koppel',
+      namen:   (k.namen||[]).join(', '),
+      locatie: k.extern ? (k.externLocatie||'extern') : (k.kamers||[]).join(', '),
+      rest:    restTxt,
+      nadert:  isNadert
+    };
+
+    scene.add(tube);
+    adhocLijnen.push(tube);
+
+    // Pulserende bol bij extern eindpunt
+    if(k.extern){
+      const bGeo = new THREE.SphereGeometry(0.9, 12, 12);
+      const bMat = new THREE.MeshBasicMaterial({color:kleur});
+      const bol  = new THREE.Mesh(bGeo, bMat);
+      bol.position.copy(eindPos);
+      bol.userData = tube.userData;
+      scene.add(bol);
+      adhocLijnen.push(bol);
+    }
+  });
+}
+
+// Alarm: check elke minuut of een koppel binnen 30 min afloopt
+function checkAdhocAlarm(){
+  const nu = new Date();
+  const nuMin = nu.getHours()*60 + nu.getMinutes();
+  adhocKoppels.forEach(k => {
+    if(k.alarmGegeven) return;
+    const [th,tm] = (k.tot||'23:59').split(':').map(Number);
+    const totMin = th*60+tm;
+    const restMin = totMin - nuMin;
+    if(restMin <= 30 && restMin > 0){
+      k.alarmGegeven = true;
+      slaanAdhocOp();
+      // Toast
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#ffd060;color:#1a1a2e;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99;font-family:Segoe UI,sans-serif';
+      toast.textContent = '⏰ ' + (k.namen||[k.omschr||'Groep']).join(' & ') + ' — nog ~30 min (' + k.omschr + ')';
+      document.body.appendChild(toast);
+      setTimeout(()=>toast.remove(), 8000);
+      buildAdhocVisualisatie();
+    }
+  });
+}
+setInterval(checkAdhocAlarm, 60000);
+
+// Voeg adhoc toe aan raycaster hover (tooltip)
+function checkAdhocHover(mx, my){
+  if(!adhocLijnen.length) return false;
+  raycasterHover.setFromCamera(new THREE.Vector2(mx,my), camera);
+  const hits = raycasterHover.intersectObjects(adhocLijnen);
+  if(!hits.length) return false;
+  const d = hits[0].object.userData;
+  if(d.type !== 'adhoc') return false;
+  const tip = document.getElementById('tooltip');
+  tip.innerHTML = `<b style="color:#ffd060">⚡ ${d.omschr}</b><br>${d.namen}<br>📍 ${d.locatie}<br><span style="color:${d.nadert?'#ffa500':'#ffd060'}">${d.rest}</span>`;
+  tip.style.display = 'block';
+  return true;
+}
+
+// Paneel voor ad hoc koppel aanmaken (wordt aangeroepen vanuit dienst.html flow of knop)
+function openAdhocPaneel(prefillNamen, prefillEtage){
+  let paneel = document.getElementById('adhoc-paneel');
+  if(!paneel){
+    paneel = document.createElement('div');
+    paneel.id = 'adhoc-paneel';
+    paneel.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:60;background:rgba(10,14,30,0.97);border:2px solid #ffd060;border-radius:16px;padding:20px;min-width:300px;font-family:Segoe UI,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,0.6)';
+    paneel.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="color:#ffd060;font-size:14px;font-weight:700">⚡ Ad hoc koppel</span>
+        <button onclick="document.getElementById('adhoc-paneel').remove()" style="margin-left:auto;background:none;border:none;color:#666;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Omschrijving</div>
+        <input id="adhoc-omschr" placeholder="bijv. Zomerfeest" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Van</div>
+          <input id="adhoc-van" type="time" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Tot</div>
+          <input id="adhoc-tot" type="time" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none">
+        </div>
+      </div>
+      <div style="margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#fff;font-size:13px">
+          <input type="checkbox" id="adhoc-extern" onchange="toggleAdhocExtern()"> Externe locatie
+        </label>
+        <input id="adhoc-extern-loc" placeholder="bijv. Gezondheidscentrum Heemstede" style="display:none;margin-top:6px;width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,208,96,0.4);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none">
+      </div>
+      <input id="adhoc-namen" placeholder="Namen (komma-gescheiden)" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none;margin-bottom:10px">
+      <input id="adhoc-etage" type="hidden" value="0">
+      <button onclick="slaanAdhocKoppelOp()" style="width:100%;padding:10px;background:#ffd060;border:none;border-radius:10px;font-family:Segoe UI,sans-serif;font-size:14px;font-weight:700;cursor:pointer;color:#1a1a2e">⚡ Activeren</button>
+    `;
+    document.body.appendChild(paneel);
+  }
+  // Prefill
+  if(prefillNamen) document.getElementById('adhoc-namen').value = prefillNamen.join(', ');
+  if(prefillEtage !== undefined) document.getElementById('adhoc-etage').value = prefillEtage;
+  // Huidige tijd als default
+  const nu = new Date();
+  const hm = String(nu.getHours()).padStart(2,'0')+':'+String(nu.getMinutes()).padStart(2,'0');
+  document.getElementById('adhoc-van').value = hm;
+}
+
+function toggleAdhocExtern(){
+  const cb  = document.getElementById('adhoc-extern');
+  const inp = document.getElementById('adhoc-extern-loc');
+  inp.style.display = cb.checked ? 'block' : 'none';
+}
+
+function slaanAdhocKoppelOp(){
+  const omschr  = document.getElementById('adhoc-omschr').value.trim();
+  const van     = document.getElementById('adhoc-van').value;
+  const tot     = document.getElementById('adhoc-tot').value;
+  const extern  = document.getElementById('adhoc-extern').checked;
+  const extLoc  = document.getElementById('adhoc-extern-loc').value.trim();
+  const namen   = document.getElementById('adhoc-namen').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const etage   = parseInt(document.getElementById('adhoc-etage').value)||0;
+
+  if(!omschr){ alert('Vul een omschrijving in'); return; }
+  if(!tot){ alert('Vul een eindtijd in'); return; }
+
+  adhocKoppels.push({
+    id:            'adhoc_' + Date.now(),
+    omschr, van, tot, namen, etage,
+    extern,
+    externLocatie: extLoc,
+    kamers:        [],
+    alarmGegeven:  false,
+    aangemaaktOp:  new Date().toISOString()
+  });
+
+  slaanAdhocOp();
+  buildAdhocVisualisatie();
+  document.getElementById('adhoc-paneel').remove();
+
+  // Toast
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);background:#ffd060;color:#1a1a2e;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99;font-family:Segoe UI,sans-serif';
+  toast.textContent = '⚡ ' + omschr + ' actief tot ' + tot;
+  document.body.appendChild(toast);
+  setTimeout(()=>toast.remove(), 3000);
+}
+
+// Knop in UI om adhoc paneel te openen
+(function(){
+  const btn = document.createElement('button');
+  btn.title = 'Ad hoc koppel aanmaken';
+  btn.innerHTML = '⚡';
+  btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:30;width:48px;height:48px;border-radius:50%;background:#ffd060;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 16px rgba(255,208,96,0.4);transition:transform .15s';
+  btn.onmouseenter = ()=>btn.style.transform='scale(1.1)';
+  btn.onmouseleave = ()=>btn.style.transform='scale(1)';
+  btn.onclick = ()=>openAdhocPaneel([],0);
+  document.body.appendChild(btn);
+})();
+
+// Laat adhoc-bol ook pulsen
+function updateAdhocAnimation(){
+  const t = Date.now()*0.002;
+  adhocLijnen.forEach(l => {
+    if(l.geometry && l.geometry.type === 'SphereGeometry'){
+      const pulse = 1 + 0.4*Math.sin(t*1.5);
+      l.scale.setScalar(pulse);
+    }
+  });
 }
 
 // Laat stippen pulsen in animatieloop
@@ -2062,6 +2325,8 @@ async function fetchDienst(){
 // Probeer eerst live data, val terug op demo
 fetchVV();
 setInterval(fetchVV, 30*1000);
+laadAdhocKoppels();
+setTimeout(buildAdhocVisualisatie, 2000);
 setInterval(()=>{ checkAlarms(); updateVochtOverlay(); }, 30*1000);
 setInterval(fetchChantalStatus, 30*1000);
 fetchChantalStatus(); // direct bij laden
