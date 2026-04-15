@@ -4183,7 +4183,7 @@ function herbouwMetingDivs(){
 function updateMetingPosities(){
   if(!activeLayers.metingen) return;
 
-  metLabelMap.forEach(({div, line}, kamer){
+  metLabelMap.forEach(({div, line}, kamer)=>{
     // Kamer-coördinaat opzoeken
     const kc = KAMER_COORDS[activeFloor + '.' + kamer.replace(/^\d\./, '')];
     if(!kc){ div.style.display='none'; line.style.display='none'; return; }
