@@ -1031,7 +1031,7 @@ canvas.addEventListener('mousemove',e=>{
 });
 canvas.addEventListener('wheel',e=>{
   if(campusBeheerActief && campusScroll(e)){ e.preventDefault(); return; }
-  targetRadius=Math.max(15,Math.min(600,targetRadius+e.deltaY*0.15));},{passive:true});
+  targetRadius=Math.max(15,Math.min(2000,targetRadius+e.deltaY*0.3));},{passive:true});
 canvas.addEventListener('touchstart',e=>{
   isDragging=false; // pas true na daadwerkelijke beweging
   prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;
@@ -1052,7 +1052,7 @@ function setView(v,el){
   if(el)el.classList.add('active');
   const Y=activeFloor*FLOOR_GAP;
   switch(v){
-    case 'top':      targetPhi=0.18;targetTheta=0;    targetRadius=250;targetLookAt.set(0,Y+3,0);break;
+    case 'top':      targetPhi=0.18;targetTheta=0;    targetRadius=600;targetLookAt.set(200,0,200);targetLookAt.set(0,Y+3,0);break;
     case 'iso':      targetPhi=0.78;targetTheta=0.6;  targetRadius=115;targetLookAt.set(0,Y+5,0);break;
     case 'corridor': targetPhi=1.15;targetTheta=1.57; targetRadius=75; targetLookAt.set(-30,Y+2,0);break;
     case 'left':     targetPhi=0.75;targetTheta=0.3;  targetRadius=80; targetLookAt.set(-35,Y+2,5);break;
@@ -1680,22 +1680,25 @@ function slaanAdhocOp(){
 // Campus locaties — relatieve 3D posities t.o.v. G5 als middelpunt
 // Posities vastgesteld via interactieve beheer-modus — april 2026
 const CAMPUS_LOCATIES = {
-  G5:       { x:0,    y:2, z:0,    label:'G5' },
-  G4:       { x:90,   y:2, z:-21,  label:'G4' },
-  G1:       { x:282,  y:2, z:168,  label:'G1' },
-  G2:       { x:480,  y:2, z:412,  label:'G2' },
-  G3:       { x:8,    y:2, z:36,   label:'G3' },
-  GHC:      { x:151,  y:6, z:11,   label:'GHC' },
-  DAC:      { x:60,   y:2, z:-136, label:'DAC' },
-  Parking:  { x:-100, y:1, z:70,   label:'Parking' },
-  G4_2:     { x:68,   y:2, z:-2,   label:'G4 2' },
-  G3_2:     { x:48,   y:2, z:-78,  label:'G3 2' },
-  G3_2_2:   { x:-40,  y:2, z:-50,  label:'G3 2 2' },
-  G4_2_2:   { x:49,   y:2, z:88,   label:'G4 2 2' },
-  G3_3:     { x:1134, y:2, z:521,  label:'G3 3' },
-  G4_2_3:   { x:69,   y:2, z:-116, label:'G4 2 3' },
-  G3_4:     { x:54,   y:2, z:-175, label:'G3 4' },
-  G4_2_2_2: { x:576,  y:2, z:475,  label:'G4 2 2 2' },
+  G5:        { x:0,    y:2, z:0,    label:'G5' },
+  G4:        { x:89,   y:2, z:-22,  label:'G4' },
+  G1:        { x:282,  y:2, z:168,  label:'G1' },
+  G2:        { x:480,  y:2, z:412,  label:'G2' },
+  G3:        { x:5,    y:2, z:35,   label:'G3' },
+  GHC:       { x:144,  y:6, z:13,   label:'GHC' },
+  DAC:       { x:79,   y:2, z:-120, label:'DAC' },
+  Parking:   { x:-100, y:1, z:70,   label:'Parking' },
+  G4_2:      { x:67,   y:2, z:-3,   label:'G4 2' },
+  G3_2:      { x:52,   y:2, z:-86,  label:'G3 2' },
+  G3_2_2:    { x:-40,  y:2, z:-50,  label:'G3 2 2' },
+  G4_2_2:    { x:71,   y:2, z:36,   label:'G4 2 2' },
+  G3_3:      { x:1134, y:2, z:521,  label:'G3 3' },
+  G4_2_3:    { x:523,  y:2, z:-122, label:'G4 2 3' },
+  G3_4:      { x:54,   y:2, z:-175, label:'G3 4' },
+  G4_2_2_2:  { x:576,  y:2, z:475,  label:'G4 2 2 2' },
+  G4_2_2_3:  { x:-9,   y:2, z:-83,  label:'G4 2 2 3' },
+  G3_5:      { x:433,  y:2, z:175,  label:'G3 5' },
+  G3_5_2:    { x:536,  y:2, z:214,  label:'G3 5 2' },
 };
 
 // Campus-objecten (vage gebouwblokken + labels)
@@ -1742,7 +1745,10 @@ var campusBlokMap      = {};  // naam → {blok, wf, pos}
     <div style="margin-bottom:6px">Sleep → verplaatsen</div>
     <div style="margin-bottom:10px">Scroll op blok → roteren</div>
     <div id="campus-sel-info" style="color:#ffd060;margin-bottom:10px;min-height:16px"></div>
-    <button onclick="campusOpslaanLocaties()" style="width:100%;padding:7px;background:#2a6fc4;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:6px">💾 Opslaan + code tonen</button>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <button onclick="campusOpslaanLocaties()" style="flex:1;padding:7px;background:#2a6fc4;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer">💾 Opslaan</button>
+      <button onclick="campusLaden()" style="flex:1;padding:7px;background:#2a9c4a;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer">📂 Laden</button>
+    </div>
     <button onclick="campusDupliceeer(geselecteerdNaam)" style="width:100%;padding:7px;background:rgba(255,208,96,0.15);border:1px solid rgba(255,208,96,0.3);border-radius:8px;color:#ffd060;font-size:12px;cursor:pointer;margin-bottom:6px">⧉ Dupliceer geselecteerd blok</button>
     <button onclick="campusReset()" style="width:100%;padding:7px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#aaa;font-size:12px;cursor:pointer">↺ Reset naar standaard</button>
   `;
@@ -1981,19 +1987,52 @@ function campusOpslaanLocaties(){
   showBanner('✓ Opgeslagen in localStorage');
 }
 
+function campusLaden(){
+  try {
+    const raw = localStorage.getItem('g5_campus_v1');
+    if(!raw){ showBanner('Geen opgeslagen data gevonden'); return; }
+    const saved = JSON.parse(raw);
+    // Verwijder alle huidige campus objecten
+    campusObjecten.forEach(o => scene.remove(o));
+    campusObjecten.length = 0;
+    campusBlokMap = {};
+    // Update CAMPUS_LOCATIES
+    // Voeg nieuwe toe, update bestaande
+    Object.entries(saved).forEach(([naam, pos]) => {
+      CAMPUS_LOCATIES[naam] = pos;
+      // Voeg afmetingen toe als nog niet aanwezig
+      if(!GEBOUW_AFMETINGEN[naam]){
+        // Gebruik basis afmetingen van het 'parent' blok
+        const parent = naam.replace(/_\d+$/, '');
+        GEBOUW_AFMETINGEN[naam] = GEBOUW_AFMETINGEN[parent]
+          ? {...GEBOUW_AFMETINGEN[parent]}
+          : { w:50, h:10.5, d:20, rot:0 };
+      }
+    });
+    buildCampusVisualisatie();
+    showBanner('✓ Campus geladen uit opslag');
+  } catch(e){ showBanner('Fout bij laden: ' + e.message); }
+}
+
 function campusReset(){
   try { localStorage.removeItem('g5_campus_v1'); } catch(e){}
   location.reload();
 }
 
-// Laad opgeslagen posities bij start
+// Laad opgeslagen posities bij start — ook nieuwe blokken toevoegen
 (function(){
   try {
     const raw = localStorage.getItem('g5_campus_v1');
     if(raw){
       const saved = JSON.parse(raw);
       Object.entries(saved).forEach(([naam, pos]) => {
-        if(CAMPUS_LOCATIES[naam]) Object.assign(CAMPUS_LOCATIES[naam], pos);
+        CAMPUS_LOCATIES[naam] = pos;  // ook nieuwe blokken
+        if(!GEBOUW_AFMETINGEN[naam]){
+          const parent = naam.replace(/_\d+$/, '');
+          GEBOUW_AFMETINGEN[naam] = GEBOUW_AFMETINGEN[parent]
+            ? {...GEBOUW_AFMETINGEN[parent]}
+            : { w:50, h:10.5, d:20, rot:0 };
+        }
       });
     }
   } catch(e){}
