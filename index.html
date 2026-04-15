@@ -960,6 +960,7 @@ const tooltip=document.getElementById('tooltip');
 var raycasterHover = new THREE.Raycaster();
 
 canvas.addEventListener('mousemove', e=>{
+  if(campusBeheerActief){ campusMouseMove(e); return; }
   if(isDragging){ tooltip.style.display='none'; canvas.style.cursor='default'; return; }
   canvas.style.cursor = 'default';
 
@@ -1017,7 +1018,10 @@ function updateCamera(){
   const z=currentLookAt.z+radius*Math.sin(phi)*Math.cos(theta);
   camera.position.set(x,y,z); camera.lookAt(currentLookAt);
 }
-canvas.addEventListener('mousedown',e=>{isDragging=true;prevX=e.clientX;prevY=e.clientY;});
+canvas.addEventListener('mousedown',e=>{
+  if(campusBeheerActief){ campusBeheerKlik(e); campusMouseDown(e); return; }
+  isDragging=true;prevX=e.clientX;prevY=e.clientY;
+});
 window.addEventListener('mouseup',()=>isDragging=false);
 canvas.addEventListener('mousemove',e=>{
   if(!isDragging)return;
@@ -1025,7 +1029,9 @@ canvas.addEventListener('mousemove',e=>{
   targetPhi=Math.max(0.12,Math.min(Math.PI*0.48,targetPhi+(e.clientY-prevY)*0.008));
   prevX=e.clientX;prevY=e.clientY;
 });
-canvas.addEventListener('wheel',e=>{targetRadius=Math.max(15,Math.min(220,targetRadius+e.deltaY*0.1));},{passive:true});
+canvas.addEventListener('wheel',e=>{
+  if(campusBeheerActief && campusScroll(e)){ e.preventDefault(); return; }
+  targetRadius=Math.max(15,Math.min(600,targetRadius+e.deltaY*0.15));},{passive:true});
 canvas.addEventListener('touchstart',e=>{
   isDragging=false; // pas true na daadwerkelijke beweging
   prevX=e.touches[0].clientX;prevY=e.touches[0].clientY;
@@ -1046,7 +1052,7 @@ function setView(v,el){
   if(el)el.classList.add('active');
   const Y=activeFloor*FLOOR_GAP;
   switch(v){
-    case 'top':      targetPhi=0.18;targetTheta=0;    targetRadius=120;targetLookAt.set(0,Y+3,0);break;
+    case 'top':      targetPhi=0.18;targetTheta=0;    targetRadius=250;targetLookAt.set(0,Y+3,0);break;
     case 'iso':      targetPhi=0.78;targetTheta=0.6;  targetRadius=115;targetLookAt.set(0,Y+5,0);break;
     case 'corridor': targetPhi=1.15;targetTheta=1.57; targetRadius=75; targetLookAt.set(-30,Y+2,0);break;
     case 'left':     targetPhi=0.75;targetTheta=0.3;  targetRadius=80; targetLookAt.set(-35,Y+2,5);break;
@@ -1672,16 +1678,24 @@ function slaanAdhocOp(){
 }
 
 // Campus locaties — relatieve 3D posities t.o.v. G5 als middelpunt
-// Posities gebaseerd op Google Earth foto (x=oost/rechts, z=zuidwaarts/omlaag)
+// Posities vastgesteld via interactieve beheer-modus — april 2026
 const CAMPUS_LOCATIES = {
-  G5:      { x:0,    y:2, z:0,    label:'G5' },
-  G4:      { x:40,   y:2, z:5,    label:'G4' },
-  G1:      { x:-45,  y:2, z:-50,  label:'G1' },
-  G2:      { x:20,   y:2, z:-55,  label:'G2' },
-  G3:      { x:-50,  y:2, z:60,   label:'G3' },
-  GHC:     { x:90,   y:6, z:30,   label:'GHC' },
-  DAC:     { x:-10,  y:2, z:-120, label:'DAC' },
-  Parking: { x:-100, y:1, z:70,   label:'Parking' },
+  G5:       { x:0,    y:2, z:0,    label:'G5' },
+  G4:       { x:90,   y:2, z:-21,  label:'G4' },
+  G1:       { x:282,  y:2, z:168,  label:'G1' },
+  G2:       { x:480,  y:2, z:412,  label:'G2' },
+  G3:       { x:8,    y:2, z:36,   label:'G3' },
+  GHC:      { x:151,  y:6, z:11,   label:'GHC' },
+  DAC:      { x:60,   y:2, z:-136, label:'DAC' },
+  Parking:  { x:-100, y:1, z:70,   label:'Parking' },
+  G4_2:     { x:68,   y:2, z:-2,   label:'G4 2' },
+  G3_2:     { x:48,   y:2, z:-78,  label:'G3 2' },
+  G3_2_2:   { x:-40,  y:2, z:-50,  label:'G3 2 2' },
+  G4_2_2:   { x:49,   y:2, z:88,   label:'G4 2 2' },
+  G3_3:     { x:1134, y:2, z:521,  label:'G3 3' },
+  G4_2_3:   { x:69,   y:2, z:-116, label:'G4 2 3' },
+  G3_4:     { x:54,   y:2, z:-175, label:'G3 4' },
+  G4_2_2_2: { x:576,  y:2, z:475,  label:'G4 2 2 2' },
 };
 
 // Campus-objecten (vage gebouwblokken + labels)
@@ -1700,6 +1714,291 @@ const GEBOUW_AFMETINGEN = {
   DAC: { w:30, h:5,    d:20, rot:0 },
 };
 
+
+// ── Campus beheer modus ───────────────────────────────────────────────────────
+var campusBeheerActief = false;
+var geselecteerdBlok   = null;
+var geselecteerdNaam   = null;
+var campusDragStart    = null;
+var campusBlokMap      = {};  // naam → {blok, wf, pos}
+
+// Knop toevoegen
+(function(){
+  const btn = document.createElement('button');
+  btn.id    = 'campus-beheer-btn';
+  btn.title = 'Campus blokken verplaatsen';
+  btn.innerHTML = '🏢';
+  btn.style.cssText = 'position:fixed;bottom:80px;right:24px;z-index:30;width:44px;height:44px;border-radius:50%;background:rgba(50,100,150,0.85);border:1px solid rgba(100,180,255,0.4);font-size:18px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:all .15s';
+  btn.onclick = toggleCampusBeheer;
+  document.body.appendChild(btn);
+
+  // Info panel
+  const panel = document.createElement('div');
+  panel.id = 'campus-beheer-panel';
+  panel.style.cssText = 'display:none;position:fixed;bottom:135px;right:16px;z-index:40;background:rgba(10,20,40,0.95);border:1px solid rgba(100,180,255,0.4);border-radius:12px;padding:14px 16px;font-family:Segoe UI,sans-serif;font-size:12px;color:#aaa;min-width:220px';
+  panel.innerHTML = `
+    <div style="color:#64b4ff;font-weight:700;margin-bottom:8px">🏢 Campus beheer</div>
+    <div style="margin-bottom:6px">Klik blok → selecteren</div>
+    <div style="margin-bottom:6px">Sleep → verplaatsen</div>
+    <div style="margin-bottom:10px">Scroll op blok → roteren</div>
+    <div id="campus-sel-info" style="color:#ffd060;margin-bottom:10px;min-height:16px"></div>
+    <button onclick="campusOpslaanLocaties()" style="width:100%;padding:7px;background:#2a6fc4;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:6px">💾 Opslaan + code tonen</button>
+    <button onclick="campusDupliceeer(geselecteerdNaam)" style="width:100%;padding:7px;background:rgba(255,208,96,0.15);border:1px solid rgba(255,208,96,0.3);border-radius:8px;color:#ffd060;font-size:12px;cursor:pointer;margin-bottom:6px">⧉ Dupliceer geselecteerd blok</button>
+    <button onclick="campusReset()" style="width:100%;padding:7px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#aaa;font-size:12px;cursor:pointer">↺ Reset naar standaard</button>
+  `;
+  document.body.appendChild(panel);
+})();
+
+function toggleCampusBeheer(){
+  campusBeheerActief = !campusBeheerActief;
+  const btn   = document.getElementById('campus-beheer-btn');
+  const panel = document.getElementById('campus-beheer-panel');
+  btn.style.background    = campusBeheerActief ? 'rgba(255,208,96,0.85)' : 'rgba(50,100,150,0.85)';
+  panel.style.display     = campusBeheerActief ? 'block' : 'none';
+  geselecteerdBlok = null;
+  geselecteerdNaam = null;
+  // Herstel alle wireframe kleuren
+  Object.values(campusBlokMap).forEach(({wf}) => {
+    wf.material.color.setHex(0x55aadd);
+  });
+}
+
+function campusSelecteer(naam){
+  // Deselecteer vorige
+  if(geselecteerdNaam && campusBlokMap[geselecteerdNaam]){
+    campusBlokMap[geselecteerdNaam].wf.material.color.setHex(0x55aadd);
+  }
+  geselecteerdNaam = naam;
+  geselecteerdBlok = campusBlokMap[naam];
+  if(geselecteerdBlok){
+    geselecteerdBlok.wf.material.color.setHex(0xffd060);
+  }
+  const info = document.getElementById('campus-sel-info');
+  if(info && naam){
+    const pos = CAMPUS_LOCATIES[naam];
+    info.textContent = naam + ': x=' + Math.round(pos.x) + ' z=' + Math.round(pos.z);
+  }
+}
+
+// Raycaster voor campus beheer
+var raycasterCampus = new THREE.Raycaster();
+
+function campusBeheerKlik(e){
+  if(!campusBeheerActief) return false;
+  const rect = canvas.getBoundingClientRect();
+  const mx = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  const my = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  raycasterCampus.setFromCamera(new THREE.Vector2(mx, my), camera);
+  const campusMeshes = Object.values(campusBlokMap).map(v => v.blok);
+  const hits = raycasterCampus.intersectObjects(campusMeshes);
+  if(hits.length){
+    const naam = hits[0].object.userData.campusNaam;
+    campusSelecteer(naam);
+    return true;
+  }
+  return false;
+}
+
+// Sleep-logica voor campus beheer
+var campusDragActief = false;
+var campusDragPrevX  = 0;
+var campusDragPrevZ  = 0;
+
+function campusMouseDown(e){
+  if(!campusBeheerActief || !geselecteerdNaam) return false;
+  const rect = canvas.getBoundingClientRect();
+  const mx = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  const my = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  raycasterCampus.setFromCamera(new THREE.Vector2(mx, my), camera);
+  const campusMeshes = Object.values(campusBlokMap).map(v => v.blok);
+  const hits = raycasterCampus.intersectObjects(campusMeshes);
+  if(hits.length && hits[0].object.userData.campusNaam === geselecteerdNaam){
+    campusDragActief = true;
+    campusDragPrevX  = e.clientX;
+    campusDragPrevZ  = e.clientY;
+    canvas.style.cursor = 'grabbing';
+    return true;
+  }
+  return false;
+}
+
+function campusMouseMove(e){
+  if(!campusDragActief || !geselecteerdNaam) return;
+  const dx = (e.clientX - campusDragPrevX) * 0.5;
+  const dz = (e.clientY - campusDragPrevZ) * 0.5;
+  campusDragPrevX = e.clientX;
+  campusDragPrevZ = e.clientY;
+  CAMPUS_LOCATIES[geselecteerdNaam].x += dx;
+  CAMPUS_LOCATIES[geselecteerdNaam].z += dz;
+  // Update positie meshes
+  const entry = campusBlokMap[geselecteerdNaam];
+  if(entry){
+    const pos = CAMPUS_LOCATIES[geselecteerdNaam];
+    const dim = GEBOUW_AFMETINGEN[geselecteerdNaam];
+    if(dim){
+      entry.blok.position.set(pos.x, dim.h/2, pos.z);
+      entry.wf.position.set(pos.x, dim.h/2, pos.z);
+    }
+  }
+  const info = document.getElementById('campus-sel-info');
+  if(info) info.textContent = geselecteerdNaam + ': x=' + Math.round(CAMPUS_LOCATIES[geselecteerdNaam].x) + ' z=' + Math.round(CAMPUS_LOCATIES[geselecteerdNaam].z);
+}
+
+function campusMouseUp(){
+  campusDragActief = false;
+  canvas.style.cursor = 'default';
+}
+
+// Scroll = roteren
+function campusScroll(e){
+  if(!campusBeheerActief || !geselecteerdNaam) return false;
+  const entry = campusBlokMap[geselecteerdNaam];
+  if(!entry) return false;
+  const delta = e.deltaY > 0 ? -1 : 1;
+  const dim   = GEBOUW_AFMETINGEN[geselecteerdNaam];
+  if(!dim) return false;
+
+  if(e.shiftKey){
+    // Shift+scroll = breedte (w)
+    dim.w = Math.max(5, dim.w + delta * 2);
+    campusHerbouwBlok(geselecteerdNaam);
+  } else if(e.ctrlKey){
+    // Ctrl+scroll = diepte (d)
+    dim.d = Math.max(5, dim.d + delta * 2);
+    campusHerbouwBlok(geselecteerdNaam);
+  } else {
+    // Scroll = roteren
+    const rotDelta = e.deltaY > 0 ? 0.05 : -0.05;
+    entry.blok.rotation.y += rotDelta;
+    entry.wf.rotation.y   += rotDelta;
+    CAMPUS_LOCATIES[geselecteerdNaam].rot = entry.blok.rotation.y;
+  }
+
+  const info = document.getElementById('campus-sel-info');
+  if(info){
+    const pos = CAMPUS_LOCATIES[geselecteerdNaam];
+    info.textContent = geselecteerdNaam + ': ' + dim.w.toFixed(0) + 'x' + dim.d.toFixed(0) + ' rot=' + (entry.blok.rotation.y).toFixed(2);
+  }
+  return true;
+}
+
+function campusHerbouwBlok(naam){
+  const entry = campusBlokMap[naam];
+  const dim   = GEBOUW_AFMETINGEN[naam];
+  const pos   = CAMPUS_LOCATIES[naam];
+  if(!entry || !dim || !pos) return;
+
+  const rot = entry.blok.rotation.y;
+
+  // Verwijder oude meshes
+  scene.remove(entry.blok);
+  scene.remove(entry.wf);
+  const idx1 = campusObjecten.indexOf(entry.blok);
+  const idx2 = campusObjecten.indexOf(entry.wf);
+  if(idx1>=0) campusObjecten.splice(idx1,1);
+  if(idx2>=0) campusObjecten.splice(idx2,1);
+
+  // Maak nieuwe
+  const geo  = new THREE.BoxGeometry(dim.w, dim.h, dim.d);
+  const mat  = new THREE.MeshBasicMaterial({color:0x3a6688, transparent:true, opacity:0.15});
+  const blok = new THREE.Mesh(geo, mat);
+  blok.position.set(pos.x, dim.h/2, pos.z);
+  blok.rotation.y = rot;
+  blok.userData.campusNaam = naam;
+  scene.add(blok);
+  campusObjecten.push(blok);
+
+  const wfMat = new THREE.MeshBasicMaterial({color: naam===geselecteerdNaam?0xffd060:0x55aadd, transparent:true, opacity:0.4, wireframe:true});
+  const wf    = new THREE.Mesh(geo.clone(), wfMat);
+  wf.position.set(pos.x, dim.h/2, pos.z);
+  wf.rotation.y = rot;
+  wf.userData.campusNaam = naam;
+  scene.add(wf);
+  campusObjecten.push(wf);
+
+  campusBlokMap[naam] = {blok, wf};
+}
+
+function campusDupliceeer(naam){
+  if(!naam) return;
+  // Genereer unieke naam
+  let nr = 2;
+  while(CAMPUS_LOCATIES[naam+'_'+nr]) nr++;
+  const nieuweNaam = naam + '_' + nr;
+
+  const pos = CAMPUS_LOCATIES[naam];
+  const dim = GEBOUW_AFMETINGEN[naam];
+  const entry = campusBlokMap[naam];
+
+  CAMPUS_LOCATIES[nieuweNaam] = {
+    x: pos.x + 20, y: pos.y, z: pos.z + 20,
+    label: pos.label + ' ' + nr,
+    rot: entry ? entry.blok.rotation.y : 0
+  };
+  GEBOUW_AFMETINGEN[nieuweNaam] = { ...dim };
+
+  // Bouw nieuw blok
+  const geo  = new THREE.BoxGeometry(dim.w, dim.h, dim.d);
+  const mat  = new THREE.MeshBasicMaterial({color:0x3a6688, transparent:true, opacity:0.15});
+  const blok = new THREE.Mesh(geo, mat);
+  blok.position.set(CAMPUS_LOCATIES[nieuweNaam].x, dim.h/2, CAMPUS_LOCATIES[nieuweNaam].z);
+  blok.rotation.y = CAMPUS_LOCATIES[nieuweNaam].rot;
+  blok.userData.campusNaam = nieuweNaam;
+  scene.add(blok);
+  campusObjecten.push(blok);
+
+  const wfMat = new THREE.MeshBasicMaterial({color:0x55aadd, transparent:true, opacity:0.4, wireframe:true});
+  const wf    = new THREE.Mesh(geo.clone(), wfMat);
+  wf.position.set(CAMPUS_LOCATIES[nieuweNaam].x, dim.h/2, CAMPUS_LOCATIES[nieuweNaam].z);
+  wf.rotation.y = CAMPUS_LOCATIES[nieuweNaam].rot;
+  wf.userData.campusNaam = nieuweNaam;
+  scene.add(wf);
+  campusObjecten.push(wf);
+
+  campusBlokMap[nieuweNaam] = {blok, wf};
+  campusSelecteer(nieuweNaam);
+  showBanner('✓ ' + nieuweNaam + ' aangemaakt — sleep naar positie');
+}
+
+function campusOpslaanLocaties(){
+  // Sla op in localStorage
+  try { localStorage.setItem('g5_campus_v1', JSON.stringify(CAMPUS_LOCATIES)); } catch(e){}
+  // Toon code
+  let code = 'const CAMPUS_LOCATIES = {\n';
+  Object.entries(CAMPUS_LOCATIES).forEach(([naam, pos]) => {
+    code += '  ' + naam + ': { x:' + Math.round(pos.x) + ', y:' + pos.y + ', z:' + Math.round(pos.z) + ', label:\''+pos.label+'\' },\n';
+  });
+  code += '};';
+  // Toon in een modal
+  let modal = document.getElementById('campus-code-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'campus-code-modal';
+    modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99;background:rgba(10,20,40,0.98);border:1px solid rgba(100,180,255,0.4);border-radius:14px;padding:20px;font-family:monospace;font-size:11px;color:#64b4ff;max-width:500px;width:90%';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div style="color:#fff;font-weight:700;margin-bottom:10px">📋 Campus locaties — kopieer naar index.html</div><textarea style="width:100%;height:200px;background:rgba(0,0,0,0.5);border:1px solid rgba(100,180,255,0.3);border-radius:8px;color:#64b4ff;font-size:10px;padding:8px;resize:none" onclick="this.select()">' + code + '</textarea><button onclick="this.parentElement.remove()" style="margin-top:10px;padding:7px 20px;background:#2a6fc4;border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px">Sluiten</button>';
+  showBanner('✓ Opgeslagen in localStorage');
+}
+
+function campusReset(){
+  try { localStorage.removeItem('g5_campus_v1'); } catch(e){}
+  location.reload();
+}
+
+// Laad opgeslagen posities bij start
+(function(){
+  try {
+    const raw = localStorage.getItem('g5_campus_v1');
+    if(raw){
+      const saved = JSON.parse(raw);
+      Object.entries(saved).forEach(([naam, pos]) => {
+        if(CAMPUS_LOCATIES[naam]) Object.assign(CAMPUS_LOCATIES[naam], pos);
+      });
+    }
+  } catch(e){}
+})();
+
 function buildCampusVisualisatie(){
   campusObjecten.forEach(o => scene.remove(o));
   campusObjecten.length = 0;
@@ -1717,7 +2016,8 @@ function buildCampusVisualisatie(){
     });
     const blok = new THREE.Mesh(geo, mat);
     blok.position.set(pos.x, dim.h/2, pos.z);
-    blok.rotation.y = dim.rot;
+    blok.rotation.y = pos.rot || dim.rot;
+    blok.userData.campusNaam = naam;
     scene.add(blok);
     campusObjecten.push(blok);
 
@@ -1727,9 +2027,13 @@ function buildCampusVisualisatie(){
     });
     const wf = new THREE.Mesh(geo.clone(), wfMat);
     wf.position.set(pos.x, dim.h/2, pos.z);
-    wf.rotation.y = dim.rot;
+    wf.rotation.y = pos.rot || dim.rot;
+    wf.userData.campusNaam = naam;
     scene.add(wf);
     campusObjecten.push(wf);
+
+    // Registreer in campusBlokMap voor beheer
+    campusBlokMap[naam] = { blok, wf };
   });
 }
 
