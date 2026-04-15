@@ -1672,16 +1672,16 @@ function slaanAdhocOp(){
 }
 
 // Campus locaties — relatieve 3D posities t.o.v. G5 als middelpunt
-// Posities geroteerd naar G5 scene-oriëntatie (G5 langs x-as)
+// Posities in Three.js scene: x=oost(rechts), z=zuid(onder in bovenaanzicht)
 const CAMPUS_LOCATIES = {
-  G5:      { x:0.0,    y:2, z:0.0,   label:'G5 (hier)' },
-  G1:      { x:-61.1,  y:2, z:-5.8,  label:'G1' },
-  G2:      { x:-79.4,  y:2, z:58.1,  label:'G2' },
-  G3:      { x:30.1,   y:2, z:11.8,  label:'G3' },
-  G4:      { x:0.3,    y:2, z:59.8,  label:'G4' },
-  GHC:     { x:32.3,   y:8, z:115.4, label:'GHC' },
-  DAC:     { x:-151.8, y:2, z:72.3,  label:'DAC' },
-  Parking: { x:56.5,   y:1, z:-60.7, label:'Parking' },
+  G5:      { x:0.0,   y:2, z:0.0,    label:'G5 (hier)' },
+  G1:      { x:-17.1, y:2, z:58.9,   label:'G1' },
+  G2:      { x:42.2,  y:2, z:89.0,   label:'G2' },
+  G3:      { x:17.2,  y:2, z:-27.3,  label:'G3' },
+  G4:      { x:58.8,  y:2, z:10.9,   label:'G4' },
+  GHC:     { x:119.5, y:8, z:-10.0,  label:'GHC' },
+  DAC:     { x:42.5,  y:2, z:162.7,  label:'DAC' },
+  Parking: { x:-49.1, y:1, z:-66.9,  label:'Parking' },
 };
 
 // Campus-objecten (vage gebouwblokken + labels)
