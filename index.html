@@ -1686,20 +1686,20 @@ const CAMPUS_LOCATIES = {
   G2:        { x:480,  y:2, z:412,  rot:0.000, w:75,  h:11, d:22,    label:'G2' },
   G3:        { x:5,    y:2, z:35,   rot:0.000, w:95,  h:11, d:28,    label:'G3' },
   GHC:       { x:144,  y:6, z:13,   rot:0.000, w:32,  h:21, d:30,    label:'GHC' },
-  DAC:       { x:79,   y:2, z:-120, rot:0.000, w:30,  h:5,  d:20,    label:'DAC' },
+  DAC:       { x:79,   y:2, z:-120, rot:0.000, w:30,  h:5,  d:20,    label:'Portier' },
   Parking:   { x:-100, y:1, z:70,   rot:0.000,                        label:'Parking' },
   G4_2:      { x:73,   y:2, z:-1,   rot:1.550, w:26,  h:11, d:22,    label:'G4 2' },
-  G3_2:      { x:49,   y:2, z:-77,  rot:0.000, w:95,  h:11, d:28,    label:'G3 2' },
-  G3_2_2:    { x:-42,  y:2, z:-46,  rot:-1.600, w:61, h:11, d:28,    label:'G3 2 2' },
-  G4_2_2:    { x:73,   y:2, z:31,   rot:0.000, w:34,  h:11, d:20,    label:'G4 2 2' },
+  G3_2:      { x:49,   y:2, z:-77,  rot:0.000, w:95,  h:11, d:28,    label:'G2' },
+  G3_2_2:    { x:-42,  y:2, z:-46,  rot:-1.600, w:61, h:11, d:28,    label:'G1' },
+  G4_2_2:    { x:73,   y:2, z:31,   rot:0.000, w:34,  h:11, d:20,    label:'G3' },
   G3_3:      { x:1134, y:2, z:521,  rot:0.000, w:95,  h:11, d:28,    label:'G3 3' },
   G4_2_3:    { x:523,  y:2, z:-122, rot:0.000, w:70,  h:11, d:22,    label:'G4 2 3' },
-  G3_4:      { x:54,   y:2, z:-175, rot:0.000, w:95,  h:11, d:28,    label:'G3 4' },
+  G3_4:      { x:54,   y:2, z:-175, rot:0.000, w:95,  h:11, d:28,    label:'DAC' },
   G4_2_2_2:  { x:576,  y:2, z:475,  rot:0.000, w:70,  h:11, d:22,    label:'G4 2 2 2' },
   G4_2_2_3:  { x:582,  y:2, z:326,  rot:1.600, w:26,  h:11, d:22,    label:'G4 2 2 3' },
   G3_5:      { x:433,  y:2, z:175,  rot:0.000, w:95,  h:11, d:28,    label:'G3 5' },
   G3_5_2:    { x:536,  y:2, z:214,  rot:0.000, w:95,  h:11, d:28,    label:'G3 5 2' },
-  G4_2_4:    { x:-13,  y:2, z:-66,  rot:3.150, w:28,  h:11, d:22,    label:'G4 2 4' },
+  G4_2_4:    { x:-13,  y:2, z:-66,  rot:3.150, w:28,  h:11, d:22,    label:'G1 2' },
 };
 
 // Campus-objecten (vage gebouwblokken + labels)
@@ -2243,11 +2243,13 @@ function openAdhocPaneel(prefillNamen, prefillEtage){
         <select id="adhoc-extern-loc" style="display:none;margin-top:6px;width:100%;background:rgba(30,40,60,0.95);border:1px solid rgba(255,208,96,0.4);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none">
           <option value="">-- Kies locatie --</option>
           <option value="GHC">GHC — Gezondheidscentrum</option>
-          <option value="G1">G1</option>
-          <option value="G2">G2</option>
-          <option value="G3">G3</option>
+          <option value="G3_2_2">G1</option>
+          <option value="G4_2_4">G1 2</option>
+          <option value="G3_2">G2</option>
+          <option value="G4_2_2">G3</option>
           <option value="G4">G4</option>
-          <option value="DAC">DAC</option>
+          <option value="G3_4">DAC</option>
+          <option value="DAC">Portier</option>
           <option value="Parking">Parking</option>
           <option value="Anders">Anders (extern)...</option>
         </select>
