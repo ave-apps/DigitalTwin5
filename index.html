@@ -1967,12 +1967,22 @@ function campusDupliceeer(naam){
 }
 
 function campusOpslaanLocaties(){
+  // Sync rotaties en afmetingen naar CAMPUS_LOCATIES
+  Object.entries(campusBlokMap).forEach(([naam, entry]) => {
+    if(CAMPUS_LOCATIES[naam]){
+      CAMPUS_LOCATIES[naam].rot = entry.blok.rotation.y;
+      const dim = GEBOUW_AFMETINGEN[naam];
+      if(dim){ CAMPUS_LOCATIES[naam].w=dim.w; CAMPUS_LOCATIES[naam].h=dim.h; CAMPUS_LOCATIES[naam].d=dim.d; }
+    }
+  });
   // Sla op in localStorage
   try { localStorage.setItem('g5_campus_v1', JSON.stringify(CAMPUS_LOCATIES)); } catch(e){}
   // Toon code
   let code = 'const CAMPUS_LOCATIES = {\n';
   Object.entries(CAMPUS_LOCATIES).forEach(([naam, pos]) => {
-    code += '  ' + naam + ': { x:' + Math.round(pos.x) + ', y:' + pos.y + ', z:' + Math.round(pos.z) + ', label:\''+pos.label+'\' },\n';
+    const rot = (pos.rot||0).toFixed(3);
+    const dim = pos.w ? ', w:'+Math.round(pos.w)+', h:'+Math.round(pos.h||10.5)+', d:'+Math.round(pos.d||20) : '';
+    code += '  ' + naam + ': { x:' + Math.round(pos.x) + ', y:' + pos.y + ', z:' + Math.round(pos.z) + ', rot:' + rot + dim + ", label:'" + pos.label + "' },\n";
   });
   code += '};';
   // Toon in een modal
@@ -2058,9 +2068,14 @@ function buildCampusVisualisatie(){
     const mat = new THREE.MeshBasicMaterial({
       color: 0x3a6688, transparent: true, opacity: 0.15
     });
-    const blok = new THREE.Mesh(geo, mat);
+    // Gebruik opgeslagen afmetingen als aanwezig
+    if(pos.w) dim.w = pos.w;
+    if(pos.h) dim.h = pos.h;
+    if(pos.d) dim.d = pos.d;
+    const geo2 = new THREE.BoxGeometry(dim.w, dim.h, dim.d);
+    const blok = new THREE.Mesh(geo2, mat);
     blok.position.set(pos.x, dim.h/2, pos.z);
-    blok.rotation.y = pos.rot || dim.rot;
+    blok.rotation.y = pos.rot !== undefined ? pos.rot : (dim.rot || 0);
     blok.userData.campusNaam = naam;
     scene.add(blok);
     campusObjecten.push(blok);
@@ -2069,9 +2084,9 @@ function buildCampusVisualisatie(){
     const wfMat = new THREE.MeshBasicMaterial({
       color: 0x55aadd, transparent: true, opacity: 0.4, wireframe: true
     });
-    const wf = new THREE.Mesh(geo.clone(), wfMat);
+    const wf = new THREE.Mesh(geo2.clone(), wfMat);
     wf.position.set(pos.x, dim.h/2, pos.z);
-    wf.rotation.y = pos.rot || dim.rot;
+    wf.rotation.y = pos.rot !== undefined ? pos.rot : (dim.rot || 0);
     wf.userData.campusNaam = naam;
     scene.add(wf);
     campusObjecten.push(wf);
