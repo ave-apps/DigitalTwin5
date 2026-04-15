@@ -1687,13 +1687,16 @@ const CAMPUS_LOCATIES = {
 var campusObjecten = [];
 
 // Gebouw-afmetingen: G5 is referentie (~100 lang, ~21 hoog, ~30 breed)
+// G5 is referentie: ~100 lang, ~21 hoog (4 etages), ~30 breed
+// Rotatie 0.45 rad ≈ de NW-ZO oriëntatie van het complex
+// Geen rotatie — GPS-posities zijn al correct, gebouwen lopen parallel aan G5
 const GEBOUW_AFMETINGEN = {
-  G1:  { w:55, h:10.5, d:20, rot:0.45 },  // 2 etages
-  G2:  { w:55, h:10.5, d:20, rot:0.45 },
-  G3:  { w:50, h:10.5, d:18, rot:0.45 },
-  G4:  { w:50, h:10.5, d:18, rot:0.45 },
-  GHC: { w:45, h:21,   d:22, rot:0.1  },  // zelfde hoogte als G5
-  DAC: { w:30, h:5,    d:20, rot:0.2  },  // laag gebouw
+  G1:  { w:90, h:10.5, d:28, rot:0 },
+  G2:  { w:75, h:10.5, d:22, rot:0 },
+  G3:  { w:95, h:10.5, d:28, rot:0 },
+  G4:  { w:70, h:10.5, d:22, rot:0 },
+  GHC: { w:50, h:21,   d:30, rot:0 },
+  DAC: { w:30, h:5,    d:20, rot:0 },
 };
 
 function buildCampusVisualisatie(){
