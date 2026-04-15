@@ -981,9 +981,20 @@ canvas.addEventListener('mousemove', e=>{
   const hits = raycasterHover.intersectObjects(koppelLijnen);
   if(hits.length){
     const ud = hits[0].object.userData;
-    const delen = (ud.naam||'').trim().split(/\s+/);
-    const afk = ((delen[0]||'')[0]||'') + ((delen[delen.length-1]||'')[0]||'');
-    tooltip.innerHTML = '<b style="color:#ff88cc">' + afk.toUpperCase() + '</b> <span style="color:#888">↔</span> <b style="color:#ffe066">' + ud.kamer + '</b>';
+    if(ud.type === 'collega'){
+      // Collega-koppellijn: toon beide namen + kamers
+      const afk1 = ud.naam.trim().split(/\s+/).map((w,i,a)=>i===0||i===a.length-1?w[0]:'').join('').toUpperCase();
+      const afk2 = ud.collegaNaam.trim().split(/\s+/).map((w,i,a)=>i===0||i===a.length-1?w[0]:'').join('').toUpperCase();
+      tooltip.innerHTML =
+        '<b style="color:#fff">' + afk1 + '</b> <span style="color:#aaa">' + (ud.kamer!=='—'?'↔ '+ud.kamer:'') + '</span>' +
+        '<br><span style="color:#888">koppel met</span>' +
+        '<br><b style="color:#fff">' + afk2 + '</b> <span style="color:#aaa">' + (ud.collegaKamer!=='—'?'↔ '+ud.collegaKamer:'') + '</span>';
+    } else {
+      // Zorgkoppellijn: naam ↔ kamer
+      const delen = (ud.naam||'').trim().split(/\s+/);
+      const afk = ((delen[0]||'')[0]||'') + ((delen[delen.length-1]||'')[0]||'');
+      tooltip.innerHTML = '<b style="color:#ff88cc">' + afk.toUpperCase() + '</b> <span style="color:#888">↔</span> <b style="color:#ffe066">' + ud.kamer + '</b>';
+    }
     tooltip.style.display = 'block';
     tooltip.style.left = (e.clientX + 14) + 'px';
     tooltip.style.top  = (e.clientY - 10) + 'px';
@@ -1575,19 +1586,48 @@ function buildDienstVisualisatie(){
     // Koppellijnen als layer 'koppels' aan is
     if(activeLayers.koppels || activeLayers.dienst){
       recs.forEach(r=>{
+        // Zorgkoppel: medewerker → kamer
         (r.koppels||[]).forEach(kamer=>{
           const kc = KAMER_COORDS[kamer];
           if(!kc) return;
-          const points = [
+          const curve = new THREE.LineCurve3(
             new THREE.Vector3(pos.x, pos.y, pos.z),
             new THREE.Vector3(kc.x, kc.y, kc.z)
-          ];
-          // TubeGeometry: zichtbaar in alle browsers (WebGL negeert linewidth>1)
-          const curve = new THREE.LineCurve3(points[0], points[1]);
-          const col   = new THREE.Color(r.kleur||'#64b4ff');
-          const mat   = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.85});
-          const tube  = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 0.22, 6, false), mat);
+          );
+          const col = new THREE.Color(r.kleur||'#64b4ff');
+          const mat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.85});
+          const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 0.22, 6, false), mat);
           tube.userData = {naam:r.naam, kamer, functie:r.functie};
+          scene.add(tube);
+          koppelLijnen.push(tube);
+        });
+
+        // Collega-koppel: medewerker → collega (via collegaIds)
+        (r.collegaIds||[]).forEach(collegaId=>{
+          // Zoek de collega in alle etages
+          let collegaRec = null, collegaEtage = null;
+          Object.entries(dienstRecords).forEach(([et, rl])=>{
+            const gevonden = rl.find(cr=>cr.id===collegaId);
+            if(gevonden){ collegaRec=gevonden; collegaEtage=parseInt(et); }
+          });
+          if(!collegaRec) return;
+          const cPos = teampostPos(collegaEtage !== null ? collegaEtage : f);
+          // Kleine offset zodat lijnen op dezelfde etage toch apart klikbaar zijn
+          const offset = 0.3;
+          const curve = new THREE.LineCurve3(
+            new THREE.Vector3(pos.x+offset, pos.y, pos.z+offset),
+            new THREE.Vector3(cPos.x-offset, cPos.y, cPos.z-offset)
+          );
+          // Witte gestippelde lijn voor collega-koppel
+          const mat = new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.6});
+          const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 0.12, 6, false), mat);
+          tube.userData = {
+            type: 'collega',
+            naam: r.naam,
+            collegaNaam: collegaRec.naam,
+            kamer: (r.koppels||[]).join(', ')||'—',
+            collegaKamer: (collegaRec.koppels||[]).join(', ')||'—'
+          };
           scene.add(tube);
           koppelLijnen.push(tube);
         });
