@@ -1606,8 +1606,8 @@ function buildDienstVisualisatie(){
         });
 
         // Collega-koppel: medewerker → collega (via collegaIds)
-        (r.collegaIds||[]).forEach(collegaId=>{
-          // Zoek de collega in alle etages
+        // Unieke offset per collega zodat lijnen naast elkaar lopen
+        (r.collegaIds||[]).forEach((collegaId, collegaIdx)=>{
           let collegaRec = null, collegaEtage = null;
           Object.entries(dienstRecords).forEach(([et, rl])=>{
             const gevonden = rl.find(cr=>cr.id===collegaId);
@@ -1615,13 +1615,13 @@ function buildDienstVisualisatie(){
           });
           if(!collegaRec) return;
           const cPos = teampostPos(collegaEtage !== null ? collegaEtage : f);
-          // Kleine offset zodat lijnen op dezelfde etage toch apart klikbaar zijn
-          const offset = 0.3;
+          // Variabele offset per collega — zijwaarts langs de lijn
+          const offX = (collegaIdx + 1) * 0.6;
+          const offZ = (collegaIdx + 1) * 0.4;
           const curve = new THREE.LineCurve3(
-            new THREE.Vector3(pos.x+offset, pos.y, pos.z+offset),
-            new THREE.Vector3(cPos.x-offset, cPos.y, cPos.z-offset)
+            new THREE.Vector3(pos.x + offX, pos.y, pos.z + offZ),
+            new THREE.Vector3(cPos.x + offX, cPos.y, cPos.z + offZ)
           );
-          // Witte gestippelde lijn voor collega-koppel
           const mat = new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.6});
           const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 4, 0.12, 6, false), mat);
           tube.userData = {
