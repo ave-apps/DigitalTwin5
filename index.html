@@ -4061,36 +4061,44 @@ function updateParkingBadges(){
   const pPos = CAMPUS_LOCATIES['Parking'];
   if(!pPos) return;
 
-  const dist = camera.position.distanceTo(new THREE.Vector3(pPos.x, 3, pPos.z));
+  const refPos = new THREE.Vector3(pPos.x, 1.5, pPos.z);
+  const dist = camera.position.distanceTo(refPos);
   const zichtbaar = dist < 900;
   const alpha = Math.max(0.2, Math.min(0.95, 1 - dist/900));
+
+  // Schaalfactor: dichter = groter, verder = kleiner — zelfde logica als 3D objecten
+  // Referentie: bij dist=120 (iso) scale=1.0
+  const scale = Math.max(0.35, Math.min(1.4, 120 / dist));
 
   // Header
   if(parkingHeaderDiv){
     if(!zichtbaar){ parkingHeaderDiv.style.display='none'; }
     else {
-      const vh = new THREE.Vector3(pPos.x, 5, pPos.z); vh.project(camera);
+      const vh = new THREE.Vector3(pPos.x, 2.5, pPos.z); vh.project(camera);
       if(vh.z >= 1){ parkingHeaderDiv.style.display='none'; }
       else {
         parkingHeaderDiv.style.display = 'block';
-        parkingHeaderDiv.style.left = ((vh.x*0.5+0.5)*window.innerWidth) + 'px';
-        parkingHeaderDiv.style.top  = ((-vh.y*0.5+0.5)*window.innerHeight - 8) + 'px';
-        parkingHeaderDiv.style.opacity = alpha * 0.5;
+        parkingHeaderDiv.style.left    = ((vh.x*0.5+0.5)*window.innerWidth) + 'px';
+        parkingHeaderDiv.style.top     = ((-vh.y*0.5+0.5)*window.innerHeight - 6*scale) + 'px';
+        parkingHeaderDiv.style.opacity = alpha * 0.45;
+        parkingHeaderDiv.style.transform = 'translate(-50%,-100%) scale(' + scale + ')';
       }
     }
   }
 
   parkingBadgeDivs.forEach(({ div, offsetX }) => {
     if(!zichtbaar){ div.style.display='none'; return; }
-    const v = new THREE.Vector3(pPos.x + offsetX, 2.5, pPos.z);
+    // Y iets lager: y=1.2 ipv 2.5 zodat badges onder de gebouwtekst vallen
+    const v = new THREE.Vector3(pPos.x + offsetX * scale, 1.2, pPos.z);
     v.project(camera);
     if(v.z >= 1){ div.style.display='none'; return; }
     const sx = (v.x * 0.5 + 0.5) * window.innerWidth;
     const sy = (-v.y * 0.5 + 0.5) * window.innerHeight;
-    div.style.display = 'block';
-    div.style.left    = sx + 'px';
-    div.style.top     = sy + 'px';
-    div.style.opacity = String(alpha);
+    div.style.display   = 'block';
+    div.style.left      = sx + 'px';
+    div.style.top       = sy + 'px';
+    div.style.opacity   = String(alpha);
+    div.style.transform = 'translate(-50%,-50%) scale(' + scale + ')';
   });
 }
 
