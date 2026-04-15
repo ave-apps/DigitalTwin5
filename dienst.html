@@ -529,10 +529,26 @@ function renderStrook(){
   records.forEach(r => {
     const chip = document.createElement('div');
     chip.className = 'dienst-chip';
+    // Bouw koppel-badges
+    const koppelBadges = (r.koppels||[]).map(k =>
+      `<span style="font-size:9px;background:rgba(100,180,255,0.2);border:1px solid rgba(100,180,255,0.4);border-radius:4px;padding:1px 4px;color:#64b4ff">${k}</span>`
+    ).join('');
+    const collegaBadges = (r.collegaIds||[]).map(id => {
+      // Zoek afkorting van collega
+      let afk = id.slice(0,4);
+      Object.values(dienstRecords).flat().forEach(cr => { if(cr.id===id) afk=cr.afkorting; });
+      return `<span style="font-size:9px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;padding:1px 4px;color:#ccc">${afk}</span>`;
+    }).join('');
+    const badgeRij = (koppelBadges||collegaBadges)
+      ? `<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:2px">${koppelBadges}${collegaBadges}</div>`
+      : '';
     chip.innerHTML = `
       <div class="avatar" style="background:${r.kleur}">${r.afkorting}</div>
-      <span>${r.naam.split(' ')[0]}</span>
-      <span style="font-size:10px;color:var(--text-dim)">${r.functie}</span>
+      <div style="display:flex;flex-direction:column;gap:0">
+        <span>${r.naam.split(' ')[0]}</span>
+        <span style="font-size:10px;color:var(--text-dim)">${r.functie}</span>
+        ${badgeRij}
+      </div>
       <span onclick="uitDienstId('${r.id}')" style="margin-left:4px;color:#c42a2a;font-size:14px;font-weight:900;cursor:pointer;line-height:1" title="Uit dienst">×</span>`;
     const etLbl2 = ETAGES[r._etage !== undefined ? r._etage : r.etage] || '';
     chip.title = `${r.naam} — ${etLbl2}\nKoppels: ${[...r.koppels].join(', ')||'geen'}`;
@@ -768,7 +784,11 @@ function showBanner(msg){
 
 
 // ── Koppel-selectie ───────────────────────────────────────────────────────────
-const KAMERS_ALLE = ['0.07','0.08','0.09','0.10','0.11','0.12','0.27','0.28','0.29','0.30','0.31','0.32'];
+function kamersVanEtage(etage){
+  const e = parseInt(etage);
+  const prefix = e === 0 ? '0' : String(e);
+  return ['07','08','09','10','11','12','27','28','29','30','31','32'].map(k => prefix+'.'+k);
+}
 let koppelPanelId    = null;
 let koppelPanelEtage = null;
 let koppelSelectKamers  = new Set();
@@ -806,7 +826,7 @@ function openKoppelPanel(id, etage){
   // Kamers
   const kamersDiv = document.getElementById('koppel-panel-kamers');
   kamersDiv.innerHTML = '';
-  KAMERS_ALLE.forEach(k => {
+  kamersVanEtage(etage).forEach(k => {
     const btn = document.createElement('div');
     btn.className = 'koppel-chip-item' + (koppelSelectKamers.has(k)?' selected':'');
     btn.textContent = k;
@@ -849,6 +869,41 @@ buildKleurPicker();
 buildKoppels();
 buildStgGrid();
 loadOpgeslagen();
+
+// Laad collega's die al ingepland zijn via roosterplanner
+async function pullDienstCollega(){
+  try {
+    const res = await fetch(GASWA, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({action:'pullDienst'})
+    });
+    const data = await res.json();
+    if(data.ok && Array.isArray(data.records)){
+      data.records.forEach(r => {
+        const et = parseInt(r.etage)||0;
+        if(!dienstRecords[et]) dienstRecords[et] = [];
+        // Alleen toevoegen als nog niet aanwezig
+        if(!dienstRecords[et].find(x=>x.id===r.id)){
+          dienstRecords[et].push({
+            id:        r.id,
+            naam:      r.naam,
+            afkorting: r.afkorting,
+            functie:   r.functie,
+            kleur:     r.kleur,
+            etage:     et,
+            koppels:   r.koppels||[],
+            collegaIds:r.collegaIds||[],
+            tijdIn:    r.tijdIn,
+            tijdUit:   r.tijdUit||'',
+            mobiel:    r.mobiel||''
+          });
+        }
+      });
+      renderStrook();
+    }
+  } catch(e){ console.warn('pullDienstCollega:', e); }
+}
+pullDienstCollega();
 
 // dienst_actief localStorage opruimen (oude sessie)
 try { localStorage.removeItem('dienst_actief'); } catch(e) {}
