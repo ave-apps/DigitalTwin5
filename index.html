@@ -1671,8 +1671,49 @@ function slaanAdhocOp(){
   try { localStorage.setItem('g5_adhoc_v1', JSON.stringify(adhocKoppels)); } catch(e){}
 }
 
-// Externe locatie-posities (buiten gebouw, links van het model)
-const EXTERN_POS = { x: -80, y: 8, z: 0 };
+// Campus locaties — relatieve 3D posities t.o.v. G5 als middelpunt
+const CAMPUS_LOCATIES = {
+  G5:      { x:0.0,    y:2, z:0.0,   label:'G5 (hier)' },
+  G1:      { x:-25.8,  y:2, z:55.7,  label:'G1' },
+  G2:      { x:-90.2,  y:2, z:39.3,  label:'G2' },
+  G3:      { x:5.0,    y:2, z:-31.9, label:'G3' },
+  G4:      { x:-51.5,  y:2, z:-30.4, label:'G4' },
+  GHC:     { x:-83.4,  y:8, z:-86.1, label:'GHC' },
+  DAC:     { x:-139.0, y:2, z:94.6,  label:'DAC' },
+  Parking: { x:80.9,   y:1, z:-18.2, label:'Parking' },
+};
+
+// Campus-objecten (vage gebouwblokken + labels)
+var campusObjecten = [];
+
+function buildCampusVisualisatie(){
+  campusObjecten.forEach(o => scene.remove(o));
+  campusObjecten.length = 0;
+
+  Object.entries(CAMPUS_LOCATIES).forEach(([naam, pos]) => {
+    if(naam === 'G5' || naam === 'Parking') return; // G5 zelf niet, parking apart
+
+    // Vaag gebouwblok
+    const geo = new THREE.BoxGeometry(18, 6, 12);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x4488aa, transparent: true, opacity: 0.18,
+      wireframe: false
+    });
+    const blok = new THREE.Mesh(geo, mat);
+    blok.position.set(pos.x, pos.y + 3, pos.z);
+    scene.add(blok);
+    campusObjecten.push(blok);
+
+    // Wireframe omtrek
+    const wfMat = new THREE.MeshBasicMaterial({
+      color: 0x66aacc, transparent: true, opacity: 0.35, wireframe: true
+    });
+    const wf = new THREE.Mesh(geo.clone(), wfMat);
+    wf.position.set(pos.x, pos.y + 3, pos.z);
+    scene.add(wf);
+    campusObjecten.push(wf);
+  });
+}
 
 function buildAdhocVisualisatie(){
   // Verwijder oude
@@ -1703,7 +1744,14 @@ function buildAdhocVisualisatie(){
     // Eindpunt: kamer of extern
     let eindPos = null;
     if(k.extern){
-      eindPos = new THREE.Vector3(EXTERN_POS.x, EXTERN_POS.y + etage*5.3, EXTERN_POS.z);
+      // Zoek campus locatie op naam, of gebruik vrije tekst positie
+      const campusLoc = CAMPUS_LOCATIES[k.externLocatie];
+      if(campusLoc){
+        eindPos = new THREE.Vector3(campusLoc.x, campusLoc.y + 2, campusLoc.z);
+      } else {
+        // Vrije locatie: gebruik een punt verder buiten het gebouw in noordwestelijke richting
+        eindPos = new THREE.Vector3(-100, 8, -80);
+      }
     } else if(k.kamers && k.kamers.length){
       const kc = KAMER_COORDS[k.kamers[0]];
       if(kc) eindPos = new THREE.Vector3(kc.x, kc.y, kc.z);
@@ -1810,7 +1858,18 @@ function openAdhocPaneel(prefillNamen, prefillEtage){
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#fff;font-size:13px">
           <input type="checkbox" id="adhoc-extern" onchange="toggleAdhocExtern()"> Externe locatie
         </label>
-        <input id="adhoc-extern-loc" placeholder="bijv. Gezondheidscentrum Heemstede" style="display:none;margin-top:6px;width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,208,96,0.4);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none">
+        <select id="adhoc-extern-loc" style="display:none;margin-top:6px;width:100%;background:rgba(30,40,60,0.95);border:1px solid rgba(255,208,96,0.4);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none">
+          <option value="">-- Kies locatie --</option>
+          <option value="GHC">GHC — Gezondheidscentrum</option>
+          <option value="G1">G1</option>
+          <option value="G2">G2</option>
+          <option value="G3">G3</option>
+          <option value="G4">G4</option>
+          <option value="DAC">DAC</option>
+          <option value="Parking">Parking</option>
+          <option value="Anders">Anders (extern)...</option>
+        </select>
+        <input id="adhoc-extern-loc-vrij" placeholder="Locatie omschrijving..." style="display:none;margin-top:4px;width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,208,96,0.3);border-radius:8px;color:#fff;padding:8px 10px;font-size:12px;font-family:Segoe UI,sans-serif;outline:none">
       </div>
       <input id="adhoc-namen" placeholder="Namen (komma-gescheiden)" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none;margin-bottom:10px">
       <input id="adhoc-etage" type="hidden" value="0">
@@ -1829,16 +1888,31 @@ function openAdhocPaneel(prefillNamen, prefillEtage){
 
 function toggleAdhocExtern(){
   const cb  = document.getElementById('adhoc-extern');
-  const inp = document.getElementById('adhoc-extern-loc');
-  inp.style.display = cb.checked ? 'block' : 'none';
+  const sel = document.getElementById('adhoc-extern-loc');
+  sel.style.display = cb.checked ? 'block' : 'none';
+  if(!cb.checked){
+    const vrij = document.getElementById('adhoc-extern-loc-vrij');
+    if(vrij) vrij.style.display = 'none';
+  }
 }
+
+document.addEventListener('change', e => {
+  if(e.target.id === 'adhoc-extern-loc'){
+    const vrij = document.getElementById('adhoc-extern-loc-vrij');
+    if(vrij) vrij.style.display = e.target.value === 'Anders' ? 'block' : 'none';
+  }
+});
 
 function slaanAdhocKoppelOp(){
   const omschr  = document.getElementById('adhoc-omschr').value.trim();
   const van     = document.getElementById('adhoc-van').value;
   const tot     = document.getElementById('adhoc-tot').value;
   const extern  = document.getElementById('adhoc-extern').checked;
-  const extLoc  = document.getElementById('adhoc-extern-loc').value.trim();
+  const selEl   = document.getElementById('adhoc-extern-loc');
+  const vrijEl  = document.getElementById('adhoc-extern-loc-vrij');
+  const extLoc  = (selEl && selEl.value === 'Anders' && vrijEl)
+                  ? vrijEl.value.trim()
+                  : (selEl ? selEl.value : '');
   const namen   = document.getElementById('adhoc-namen').value.split(',').map(s=>s.trim()).filter(Boolean);
   const etage   = parseInt(document.getElementById('adhoc-etage').value)||0;
 
@@ -2371,7 +2445,7 @@ async function fetchDienst(){
 fetchVV();
 setInterval(fetchVV, 30*1000);
 laadAdhocKoppels();
-setTimeout(buildAdhocVisualisatie, 2000);
+setTimeout(()=>{ buildCampusVisualisatie(); buildAdhocVisualisatie(); }, 2000);
 setInterval(()=>{ checkAlarms(); updateVochtOverlay(); }, 30*1000);
 setInterval(fetchChantalStatus, 30*1000);
 fetchChantalStatus(); // direct bij laden
