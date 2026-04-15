@@ -1672,16 +1672,16 @@ function slaanAdhocOp(){
 }
 
 // Campus locaties — relatieve 3D posities t.o.v. G5 als middelpunt
-// Posities gebaseerd op satellietfoto: x=oost(rechts), z=zuid(omlaag)
+// Posities gebaseerd op Google Earth foto (x=oost/rechts, z=zuidwaarts/omlaag)
 const CAMPUS_LOCATIES = {
   G5:      { x:0,    y:2, z:0,    label:'G5' },
-  G3:      { x:-30,  y:2, z:10,   label:'G3' },
-  G4:      { x:-60,  y:2, z:-15,  label:'G4' },
-  G1:      { x:-55,  y:2, z:-55,  label:'G1' },
-  G2:      { x:-10,  y:2, z:-55,  label:'G2' },
-  GHC:     { x:100,  y:8, z:-20,  label:'GHC' },
-  DAC:     { x:-55,  y:2, z:-130, label:'DAC' },
-  Parking: { x:-80,  y:1, z:60,   label:'Parking' },
+  G4:      { x:40,   y:2, z:5,    label:'G4' },
+  G1:      { x:-45,  y:2, z:-50,  label:'G1' },
+  G2:      { x:20,   y:2, z:-55,  label:'G2' },
+  G3:      { x:-50,  y:2, z:60,   label:'G3' },
+  GHC:     { x:90,   y:6, z:30,   label:'GHC' },
+  DAC:     { x:-10,  y:2, z:-120, label:'DAC' },
+  Parking: { x:-100, y:1, z:70,   label:'Parking' },
 };
 
 // Campus-objecten (vage gebouwblokken + labels)
