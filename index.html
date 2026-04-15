@@ -2155,11 +2155,12 @@ function buildAdhocVisualisatie(){
     const restTxt = restMin > 0 ? `nog ${restMin} min` : 'bijna terug';
     tube.userData = {
       type:    'adhoc',
-      omschr:  k.omschr || 'Ad hoc koppel',
+      omschr:  (k.standby ? '🚨 ' : '') + (k.omschr || 'Ad hoc koppel'),
       namen:   (k.namen||[]).join(', '),
       locatie: k.extern ? (k.externLocatie||'extern') : (k.kamers||[]).join(', '),
       rest:    restTxt,
-      nadert:  isNadert
+      nadert:  isNadert,
+      standby: !!k.standby
     };
 
     scene.add(tube);
@@ -2262,6 +2263,13 @@ function openAdhocPaneel(prefillNamen, prefillEtage){
         <input id="adhoc-extern-loc-vrij" placeholder="Locatie omschrijving..." style="display:none;margin-top:4px;width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,208,96,0.3);border-radius:8px;color:#fff;padding:8px 10px;font-size:12px;font-family:Segoe UI,sans-serif;outline:none">
       </div>
       <input id="adhoc-namen" placeholder="Namen (komma-gescheiden)" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#fff;padding:8px 10px;font-size:13px;font-family:Segoe UI,sans-serif;outline:none;margin-bottom:10px">
+      <div style="margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:8px 10px;background:rgba(255,100,50,0.08);border:1px solid rgba(255,120,50,0.25);border-radius:8px;">
+          <input type="checkbox" id="adhoc-standby">
+          <span style="color:#ff8844;font-weight:700">🚨 Standby / prioriteit</span>
+          <span style="color:#666;font-size:11px;margin-left:2px">— onderbreekt lopende taken</span>
+        </label>
+      </div>
       <input id="adhoc-etage" type="hidden" value="0">
       <button onclick="slaanAdhocKoppelOp()" style="width:100%;padding:10px;background:#ffd060;border:none;border-radius:10px;font-family:Segoe UI,sans-serif;font-size:14px;font-weight:700;cursor:pointer;color:#1a1a2e">⚡ Activeren</button>
     `;
@@ -2309,12 +2317,15 @@ function slaanAdhocKoppelOp(){
   if(!omschr){ alert('Vul een omschrijving in'); return; }
   if(!tot){ alert('Vul een eindtijd in'); return; }
 
+  const standby = document.getElementById('adhoc-standby') ? document.getElementById('adhoc-standby').checked : false;
+
   adhocKoppels.push({
     id:            'adhoc_' + Date.now(),
     omschr, van, tot, namen, etage,
     extern,
     externLocatie: extLoc,
     kamers:        [],
+    standby,
     alarmGegeven:  false,
     aangemaaktOp:  new Date().toISOString()
   });
@@ -3951,33 +3962,98 @@ function updateCampusLabels(){
 
 // ── Parking kentekens ────────────────────────────────────────────────────────
 // Twee vaste kentekens op parkeerplaats
-const PARKING_KENTEKENS = [
-  { id:'004',   label:'004',   kleur:'#ffd060', sub:'Albert' },
-  { id:'e-001', label:'e-001', kleur:'#4cdd8a', sub:'e-auto' },
+// ── Parking: 4 vaste plekken, achter→voor, e-auto altijd plek 1 ──────────────
+// Plekken: 1=e-001(e-auto) 2=e-002(leeg/toekomst) 3=003(collega) 4=004(Albert)
+// Reële invulling later via kentekenscan; nu handmatig via localStorage toggle.
+// aanwezig[id]=true betekent: kenteken zichtbaar op plek
+var parkingAanwezig = (function(){
+  try { return JSON.parse(localStorage.getItem('g5_parking_v1') || '{}'); } catch(e){ return {}; }
+})();
+
+const PARKING_PLEKKEN = [
+  { id:'e-001', kenteken:'e-001', kleur:'#4cdd8a', sub:'e-auto',    plek:1 },
+  { id:'e-002', kenteken:'e-002', kleur:'#557755', sub:'leeg',       plek:2, leeg:true },
+  { id:'003',   kenteken:'003',   kleur:'#88aaff', sub:'collega',   plek:3 },
+  { id:'004',   kenteken:'004',   kleur:'#ffd060', sub:'Albert',    plek:4 },
 ];
 
+// Sla aanwezigheid op
+function parkingOpslaanAanwezig(){
+  try { localStorage.setItem('g5_parking_v1', JSON.stringify(parkingAanwezig)); } catch(e){}
+}
+
+// Toggle: klik op badge → aanwezig/weg (voor handmatige fase)
+function toggleParkingPlek(id){
+  if(id === 'e-002') return; // leeg = altijd leeg voor nu
+  parkingAanwezig[id] = !parkingAanwezig[id];
+  parkingOpslaanAanwezig();
+  buildParkingBadges();
+}
+
 var parkingBadgeDivs = [];
+// Ook een vaste "P Parking" header badge
+var parkingHeaderDiv = null;
 
 function buildParkingBadges(){
-  parkingBadgeDivs.forEach(d => d.remove());
+  parkingBadgeDivs.forEach(d => { if(d.div) d.div.remove(); });
   parkingBadgeDivs = [];
+  if(parkingHeaderDiv){ parkingHeaderDiv.remove(); parkingHeaderDiv = null; }
 
   const pPos = CAMPUS_LOCATIES['Parking'];
   if(!pPos) return;
 
-  PARKING_KENTEKENS.forEach((k, i) => {
+  // Header label
+  parkingHeaderDiv = document.createElement('div');
+  parkingHeaderDiv.style.cssText = [
+    'position:absolute','transform:translate(-50%,-100%)',
+    'font-family:Segoe UI,sans-serif','font-size:9px','font-weight:800',
+    'color:rgba(200,220,255,0.45)','letter-spacing:1.2px','text-transform:uppercase',
+    'pointer-events:none','white-space:nowrap'
+  ].join(';');
+  parkingHeaderDiv.textContent = '◀ achter  ·  P A R K I N G  ·  voor ▶';
+  campusLabelContainer.appendChild(parkingHeaderDiv);
+
+  // Per plek een badge — horizontaal naast elkaar (plek 1 links = achter, plek 4 rechts = voor)
+  PARKING_PLEKKEN.forEach((p, i) => {
+    const isAanwezig = parkingAanwezig[p.id];
+    const isLeeg     = p.leeg;
+    const kleur      = isLeeg ? '#334433' : (isAanwezig ? p.kleur : 'rgba(80,80,80,0.6)');
+    const tekstKleur = isLeeg ? '#446644' : (isAanwezig ? p.kleur : '#555');
+
     const div = document.createElement('div');
-    div.style.cssText = `
-      position:absolute; transform:translate(-50%,-50%);
-      font-family:'Segoe UI',sans-serif; font-size:10px; font-weight:800;
-      color:${k.kleur}; background:rgba(0,8,20,0.82);
-      border:1px solid ${k.kleur}55; border-radius:5px;
-      padding:2px 8px; white-space:nowrap; pointer-events:none;
-      letter-spacing:.8px; text-shadow:0 0 4px ${k.kleur}66;
-    `;
-    div.innerHTML = k.label + '<br><span style="font-size:9px;color:#888;font-weight:400">' + k.sub + '</span>';
+    div.style.cssText = [
+      'position:absolute','transform:translate(-50%,-50%)',
+      'font-family:Segoe UI,sans-serif','font-size:10px','font-weight:800',
+      `color:${tekstKleur}`,
+      `background:${isAanwezig && !isLeeg ? 'rgba(0,8,20,0.88)' : 'rgba(0,8,20,0.55)'}`,
+      `border:1px solid ${kleur}`,
+      'border-radius:5px','padding:3px 8px','white-space:nowrap',
+      `pointer-events:${isLeeg ? 'none' : 'auto'}`,
+      'letter-spacing:.8px',
+      `text-shadow:${isAanwezig && !isLeeg ? '0 0 4px ' + kleur + '88' : 'none'}`,
+      `cursor:${isLeeg ? 'default' : 'pointer'}`,
+      'user-select:none','line-height:1.4','text-align:center',
+      'transition:all .2s'
+    ].join(';');
+
+    const plekLabel = '<span style="font-size:8px;color:#444;display:block;margin-bottom:1px">plek ' + p.plek + '</span>';
+    if(isLeeg){
+      div.innerHTML = plekLabel + '<span style="color:#334433">e-002</span><br><span style="font-size:8px;color:#334433">toekomst</span>';
+    } else if(isAanwezig){
+      div.innerHTML = plekLabel + p.kenteken + '<br><span style="font-size:9px;color:#888;font-weight:400">' + p.sub + '</span>';
+    } else {
+      div.innerHTML = plekLabel + '<span style="color:#444">' + p.kenteken + '</span><br><span style="font-size:9px;color:#333">weg</span>';
+    }
+
+    if(!isLeeg){
+      div.onclick = (ev) => { ev.stopPropagation(); toggleParkingPlek(p.id); };
+      div.onmouseenter = () => { if(!isLeeg) div.style.background = 'rgba(255,255,255,0.12)'; };
+      div.onmouseleave = () => { div.style.background = isAanwezig ? 'rgba(0,8,20,0.88)' : 'rgba(0,8,20,0.55)'; };
+    }
+
     campusLabelContainer.appendChild(div);
-    parkingBadgeDivs.push({ div, offsetX: (i - 0.5) * 18 });
+    // Horizontale spreiding: 4 plekken, stap 22px, gecentreerd
+    parkingBadgeDivs.push({ div, offsetX: (i - 1.5) * 22, offsetY: 0 });
   });
 }
 
@@ -3985,18 +4061,36 @@ function updateParkingBadges(){
   const pPos = CAMPUS_LOCATIES['Parking'];
   if(!pPos) return;
 
-  parkingBadgeDivs.forEach(({ div, offsetX }, i) => {
-    const v = new THREE.Vector3(pPos.x + offsetX, 3, pPos.z);
+  const dist = camera.position.distanceTo(new THREE.Vector3(pPos.x, 3, pPos.z));
+  const zichtbaar = dist < 500;
+  const alpha = Math.max(0.2, Math.min(0.95, 1 - dist/500));
+
+  // Header
+  if(parkingHeaderDiv){
+    if(!zichtbaar){ parkingHeaderDiv.style.display='none'; }
+    else {
+      const vh = new THREE.Vector3(pPos.x, 5, pPos.z); vh.project(camera);
+      if(vh.z >= 1){ parkingHeaderDiv.style.display='none'; }
+      else {
+        parkingHeaderDiv.style.display = 'block';
+        parkingHeaderDiv.style.left = ((vh.x*0.5+0.5)*window.innerWidth) + 'px';
+        parkingHeaderDiv.style.top  = ((-vh.y*0.5+0.5)*window.innerHeight - 8) + 'px';
+        parkingHeaderDiv.style.opacity = alpha * 0.5;
+      }
+    }
+  }
+
+  parkingBadgeDivs.forEach(({ div, offsetX }) => {
+    if(!zichtbaar){ div.style.display='none'; return; }
+    const v = new THREE.Vector3(pPos.x + offsetX, 2.5, pPos.z);
     v.project(camera);
     if(v.z >= 1){ div.style.display='none'; return; }
-    const dist = camera.position.distanceTo(new THREE.Vector3(pPos.x, 3, pPos.z));
-    if(dist > 400){ div.style.display='none'; return; }
     const sx = (v.x * 0.5 + 0.5) * window.innerWidth;
     const sy = (-v.y * 0.5 + 0.5) * window.innerHeight;
     div.style.display = 'block';
-    div.style.left = sx + 'px';
-    div.style.top  = (sy + i * 22) + 'px';
-    div.style.opacity = Math.max(0.3, Math.min(0.9, 1 - dist/400));
+    div.style.left    = sx + 'px';
+    div.style.top     = sy + 'px';
+    div.style.opacity = String(alpha);
   });
 }
 
@@ -4054,29 +4148,51 @@ function buildGroepskoppelLijnen(){
     const isNadert = restMin <= 30;
     const kleur = isNadert ? 0xffa500 : 0xffd060;
 
+    const isStandby = !!k.standby;
+    const standbyKleur = 0xff5522;
+    const effectiefKleur = isStandby ? standbyKleur : kleur;
+    const dikte = isStandby ? 0.45 : 0.25;
+    const bogExtra = isStandby ? 6 : 0;  // standby boog nog hoger
+    mid.y += bogExtra;
+
+    const tubeMat = new THREE.MeshBasicMaterial({
+      color: effectiefKleur, transparent:true, opacity: isStandby ? 0.95 : 0.85
+    });
     const tube = new THREE.Mesh(
-      new THREE.TubeGeometry(curve, 20, 0.25, 8, false),
-      new THREE.MeshBasicMaterial({color:kleur, transparent:true, opacity:0.85})
+      new THREE.TubeGeometry(curve, 20, dikte, 8, false),
+      tubeMat
     );
+
+    // Gestippeld effect voor standby: tweede dunne tube in wit, half transparant
+    if(isStandby){
+      const tubeGlow = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 20, dikte * 1.8, 8, false),
+        new THREE.MeshBasicMaterial({color:0xff8855, transparent:true, opacity:0.18})
+      );
+      scene.add(tubeGlow);
+      groepskoppelLijnen.push(tubeGlow);
+    }
 
     // Tooltip metadata
     const restTxt = restMin > 0 ? `nog ${restMin} min` : 'bijna terug';
     tube.userData = {
       type:    'groepskoppel',
-      omschr:  k.omschr || 'Groepskoppel',
+      omschr:  (isStandby ? '🚨 ' : '') + (k.omschr || 'Groepskoppel'),
       namen:   (k.namen||[]).join(', '),
       locatie: k.externLocatie,
       rest:    restTxt,
-      nadert:  isNadert
+      nadert:  isNadert,
+      standby: isStandby
     };
 
     scene.add(tube);
     groepskoppelLijnen.push(tube);
 
-    // Gele bol aan eindpunt (boven blok)
+    // Bol aan eindpunt: groter + oranje bij standby
+    const bolRadius = isStandby ? 1.8 : 1.2;
     const bol = new THREE.Mesh(
-      new THREE.SphereGeometry(1.2, 12, 12),
-      new THREE.MeshBasicMaterial({color:kleur})
+      new THREE.SphereGeometry(bolRadius, 12, 12),
+      new THREE.MeshBasicMaterial({color: effectiefKleur})
     );
     bol.position.copy(eind);
     bol.userData = tube.userData;
@@ -4108,7 +4224,11 @@ updateAdhocAnimation = function(){
   const t = Date.now()*0.002;
   groepskoppelLijnen.forEach(l => {
     if(l.geometry && l.geometry.type === 'SphereGeometry'){
-      l.scale.setScalar(1 + 0.35*Math.sin(t*1.8));
+      // Standby bollen pulsen sneller en verder
+      const isStandby = l.userData && l.userData.standby;
+      const amp   = isStandby ? 0.55 : 0.35;
+      const speed = isStandby ? 2.8  : 1.8;
+      l.scale.setScalar(1 + amp * Math.sin(t * speed));
     }
   });
 };
