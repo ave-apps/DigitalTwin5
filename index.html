@@ -1052,7 +1052,7 @@ function setView(v,el){
   if(el)el.classList.add('active');
   const Y=activeFloor*FLOOR_GAP;
   switch(v){
-    case 'top':      targetPhi=0.18;targetTheta=0;    targetRadius=600;targetLookAt.set(200,0,200);targetLookAt.set(0,Y+3,0);break;
+    case 'top':      targetPhi=0.12;targetTheta=0;    targetRadius=180;targetLookAt.set(0,Y+3,0);break;
     case 'iso':      targetPhi=0.78;targetTheta=0.6;  targetRadius=115;targetLookAt.set(0,Y+5,0);break;
     case 'corridor': targetPhi=1.15;targetTheta=1.57; targetRadius=75; targetLookAt.set(-30,Y+2,0);break;
     case 'left':     targetPhi=0.75;targetTheta=0.3;  targetRadius=80; targetLookAt.set(-35,Y+2,5);break;
@@ -3951,8 +3951,8 @@ function updateCampusLabels(){
     const sy = (-v.y * 0.5 + 0.5) * window.innerHeight;
     // Verberg als te ver weg (label wordt te klein)
     const dist = camera.position.distanceTo(new THREE.Vector3(pos.x, topY, pos.z));
-    if(dist > 600){ div.style.display='none'; return; }
-    const alpha = Math.max(0.2, Math.min(0.7, 1 - dist/600));
+    if(dist > 1400){ div.style.display='none'; return; }
+    const alpha = Math.max(0.15, Math.min(0.7, 1 - dist/1400));
     div.style.opacity = alpha;
     div.style.display = 'block';
     div.style.left = sx + 'px';
@@ -4062,8 +4062,8 @@ function updateParkingBadges(){
   if(!pPos) return;
 
   const dist = camera.position.distanceTo(new THREE.Vector3(pPos.x, 3, pPos.z));
-  const zichtbaar = dist < 500;
-  const alpha = Math.max(0.2, Math.min(0.95, 1 - dist/500));
+  const zichtbaar = dist < 900;
+  const alpha = Math.max(0.2, Math.min(0.95, 1 - dist/900));
 
   // Header
   if(parkingHeaderDiv){
