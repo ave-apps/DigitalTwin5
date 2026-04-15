@@ -2066,7 +2066,7 @@ function buildCampusVisualisatie(){
 
     // Vaag gevuld blok
     const mat = new THREE.MeshBasicMaterial({
-      color: 0x3a6688, transparent: true, opacity: 0.15
+      color: 0x5599bb, transparent: true, opacity: 0.35
     });
     // Gebruik opgeslagen afmetingen als aanwezig
     if(pos.w) dim.w = pos.w;
@@ -2082,7 +2082,7 @@ function buildCampusVisualisatie(){
 
     // Wireframe
     const wfMat = new THREE.MeshBasicMaterial({
-      color: 0x55aadd, transparent: true, opacity: 0.4, wireframe: true
+      color: 0x88ccff, transparent: true, opacity: 0.85, wireframe: true
     });
     const wf = new THREE.Mesh(geo2.clone(), wfMat);
     wf.position.set(pos.x, dim.h/2, pos.z);
