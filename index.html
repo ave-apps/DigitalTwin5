@@ -2342,15 +2342,91 @@ function slaanAdhocKoppelOp(){
   setTimeout(()=>toast.remove(), 3000);
 }
 
+// ── Adhoc verwijderen ────────────────────────────────────────────────────────
+function verwijderAdhocKoppel(id){
+  adhocKoppels = adhocKoppels.filter(k => k.id !== id);
+  slaanAdhocOp();
+  buildAdhocVisualisatie();
+  buildAdhocOverzicht();
+}
+
+function buildAdhocOverzicht(){
+  const paneel = document.getElementById('adhoc-overzicht');
+  if(!paneel) return;
+  const actief = adhocKoppels.filter(k => {
+    if(!k.tot) return true;
+    const [h,m] = k.tot.split(':').map(Number);
+    const nu = new Date(); const nuMin = nu.getHours()*60+nu.getMinutes();
+    return nuMin <= h*60+m;
+  });
+  if(!actief.length){
+    paneel.innerHTML = '<div style="color:#666;font-size:12px;text-align:center;padding:8px">Geen actieve koppels</div>';
+    return;
+  }
+  paneel.innerHTML = actief.map(k => {
+    const kleur = k.standby ? '#ff5522' : '#ffd060';
+    const icon  = k.standby ? '🚨' : '⚡';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
+      <span style="font-size:13px">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="color:${kleur};font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${k.omschr||'—'}</div>
+        <div style="color:#666;font-size:10px">${k.van||'?'}–${k.tot||'?'} &nbsp;${(k.namen||[]).join(', ')}</div>
+      </div>
+      <button onclick="verwijderAdhocKoppel('${k.id}')"
+        style="background:rgba(255,50,50,0.15);border:1px solid rgba(255,50,50,0.3);color:#ff5555;
+        border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px;font-weight:700;
+        font-family:Segoe UI,sans-serif;flex-shrink:0">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// Overzichtspaneel DOM
+(function(){
+  const ov = document.createElement('div');
+  ov.id = 'adhoc-overzicht-wrap';
+  ov.style.cssText = [
+    'position:fixed','bottom:80px','right:24px','z-index:31',
+    'background:rgba(10,14,30,0.97)','border:1px solid rgba(255,208,96,0.3)',
+    'border-radius:12px','padding:12px 14px','min-width:240px','max-width:300px',
+    'font-family:Segoe UI,sans-serif',
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6)',
+    'display:none'
+  ].join(';');
+  ov.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="color:#ffd060;font-size:12px;font-weight:800;letter-spacing:.4px">⚡ Actieve koppels</span>
+      <button onclick="document.getElementById('adhoc-overzicht-wrap').style.display='none'"
+        style="background:none;border:none;color:#666;cursor:pointer;font-size:16px;line-height:1">✕</button>
+    </div>
+    <div id="adhoc-overzicht"></div>
+    <button onclick="openAdhocPaneel([],0);document.getElementById('adhoc-overzicht-wrap').style.display='none';"
+      style="margin-top:10px;width:100%;padding:7px;background:rgba(255,208,96,0.15);
+      border:1px solid rgba(255,208,96,0.3);border-radius:8px;color:#ffd060;
+      font-family:Segoe UI,sans-serif;font-size:12px;font-weight:700;cursor:pointer">
+      + Nieuw koppel
+    </button>
+  `;
+  document.body.appendChild(ov);
+})();
+
 // Knop in UI om adhoc paneel te openen
 (function(){
   const btn = document.createElement('button');
-  btn.title = 'Ad hoc koppel aanmaken';
+  btn.id    = 'adhoc-hoofdknop';
+  btn.title = 'Ad hoc koppels';
   btn.innerHTML = '⚡';
-  btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:30;width:48px;height:48px;border-radius:50%;background:#ffd060;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 16px rgba(255,208,96,0.4);transition:transform .15s';
+  btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:32;width:48px;height:48px;border-radius:50%;background:#ffd060;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 16px rgba(255,208,96,0.4);transition:transform .15s';
   btn.onmouseenter = ()=>btn.style.transform='scale(1.1)';
   btn.onmouseleave = ()=>btn.style.transform='scale(1)';
-  btn.onclick = ()=>openAdhocPaneel([],0);
+  btn.onclick = ()=>{
+    const ov = document.getElementById('adhoc-overzicht-wrap');
+    if(ov.style.display === 'none' || !ov.style.display){
+      buildAdhocOverzicht();
+      ov.style.display = 'block';
+    } else {
+      ov.style.display = 'none';
+    }
+  };
   document.body.appendChild(btn);
 })();
 
