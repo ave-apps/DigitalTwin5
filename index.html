@@ -4023,24 +4023,24 @@ function buildParkingBadges(){
     const div = document.createElement('div');
     div.style.cssText = [
       'position:absolute','transform:translate(-50%,-50%)',
-      'font-family:Segoe UI,sans-serif','font-size:10px','font-weight:800',
+      'font-family:Segoe UI,sans-serif','font-size:8px','font-weight:800',
       `color:${tekstKleur}`,
       `background:${isAanwezig && !isLeeg ? 'rgba(0,8,20,0.88)' : 'rgba(0,8,20,0.55)'}`,
       `border:1px solid ${kleur}`,
-      'border-radius:5px','padding:3px 8px','white-space:nowrap',
+      'border-radius:4px','padding:2px 5px','white-space:nowrap',
       `pointer-events:${isLeeg ? 'none' : 'auto'}`,
-      'letter-spacing:.8px',
+      'letter-spacing:.5px',
       `text-shadow:${isAanwezig && !isLeeg ? '0 0 4px ' + kleur + '88' : 'none'}`,
       `cursor:${isLeeg ? 'default' : 'pointer'}`,
-      'user-select:none','line-height:1.4','text-align:center',
+      'user-select:none','line-height:1.3','text-align:center',
       'transition:all .2s'
     ].join(';');
 
-    const plekLabel = '<span style="font-size:8px;color:#444;display:block;margin-bottom:1px">plek ' + p.plek + '</span>';
+    const plekLabel = '<span style="font-size:7px;color:#444;display:block;margin-bottom:0px">p' + p.plek + '</span>';
     if(isLeeg){
       div.innerHTML = plekLabel + '<span style="color:#334433">e-002</span><br><span style="font-size:8px;color:#334433">toekomst</span>';
     } else if(isAanwezig){
-      div.innerHTML = plekLabel + p.kenteken + '<br><span style="font-size:9px;color:#888;font-weight:400">' + p.sub + '</span>';
+      div.innerHTML = plekLabel + p.kenteken + '<br><span style="font-size:7px;color:#888;font-weight:400">' + p.sub + '</span>';
     } else {
       div.innerHTML = plekLabel + '<span style="color:#444">' + p.kenteken + '</span><br><span style="font-size:9px;color:#333">weg</span>';
     }
@@ -4053,7 +4053,7 @@ function buildParkingBadges(){
 
     campusLabelContainer.appendChild(div);
     // Horizontale spreiding: 4 plekken, stap 22px, gecentreerd
-    parkingBadgeDivs.push({ div, offsetX: (i - 1.5) * 22, offsetY: 0 });
+    parkingBadgeDivs.push({ div, offsetX: (i - 1.5) * 14, offsetY: 0 });
   });
 }
 
