@@ -540,7 +540,7 @@ function renderStrook(){
     chip.style.cursor = 'pointer';
     chip.addEventListener('click', (e) => {
       if(e.target.closest('[onclick]') && e.target.getAttribute('onclick')?.includes('uitDienst')) return;
-      openKoppelPanel(r.id, r._etage !== undefined ? r._etage : r.etage);
+      if(typeof openKoppelPanel === 'function') openKoppelPanel(r.id, r._etage !== undefined ? r._etage : r.etage);
     });
     // Etage-badge in chip als meerdere etages geselecteerd
     if(selectedEtages.size > 1){
@@ -764,6 +764,84 @@ function showBanner(msg){
   b.textContent = msg; b.classList.add('show');
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(()=>b.classList.remove('show'), 2200);
+}
+
+
+// ── Koppel-selectie ───────────────────────────────────────────────────────────
+const KAMERS_ALLE = ['0.07','0.08','0.09','0.10','0.11','0.12','0.27','0.28','0.29','0.30','0.31','0.32'];
+let koppelPanelId    = null;
+let koppelPanelEtage = null;
+let koppelSelectKamers  = new Set();
+let koppelSelectCollega = new Set();
+
+function openKoppelPanel(id, etage){
+  koppelPanelId    = id;
+  koppelPanelEtage = etage;
+  const rec = (dienstRecords[etage]||[]).find(r=>r.id===id);
+  if(!rec) return;
+  koppelSelectKamers  = new Set(rec.koppels || []);
+  koppelSelectCollega = new Set(rec.collegaIds || []);
+  document.getElementById('koppel-panel-naam').textContent = rec.naam;
+
+  // Collega's
+  const collegaDiv = document.getElementById('koppel-panel-collega');
+  collegaDiv.innerHTML = '';
+  const anderen = (dienstRecords[etage]||[]).filter(r=>r.id!==id);
+  if(!anderen.length){
+    collegaDiv.innerHTML = '<span style="font-size:12px;color:var(--text-dim);font-style:italic">Niemand anders in dienst</span>';
+  } else {
+    anderen.forEach(r => {
+      const btn = document.createElement('div');
+      btn.className = 'koppel-chip-item' + (koppelSelectCollega.has(r.id)?' selected-collega':'');
+      btn.innerHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${r.kleur};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff">${r.afkorting}</div>${r.naam.split(' ')[0]}`;
+      btn.onclick = () => {
+        if(koppelSelectCollega.has(r.id)) koppelSelectCollega.delete(r.id);
+        else koppelSelectCollega.add(r.id);
+        btn.classList.toggle('selected-collega', koppelSelectCollega.has(r.id));
+      };
+      collegaDiv.appendChild(btn);
+    });
+  }
+
+  // Kamers
+  const kamersDiv = document.getElementById('koppel-panel-kamers');
+  kamersDiv.innerHTML = '';
+  KAMERS_ALLE.forEach(k => {
+    const btn = document.createElement('div');
+    btn.className = 'koppel-chip-item' + (koppelSelectKamers.has(k)?' selected':'');
+    btn.textContent = k;
+    btn.onclick = () => {
+      if(koppelSelectKamers.has(k)) koppelSelectKamers.delete(k);
+      else koppelSelectKamers.add(k);
+      btn.classList.toggle('selected', koppelSelectKamers.has(k));
+    };
+    kamersDiv.appendChild(btn);
+  });
+
+  // Highlight chip
+  document.querySelectorAll('.dienst-chip').forEach(ch => ch.classList.remove('koppel-select'));
+  document.querySelectorAll('.dienst-chip').forEach(ch => {
+    if(ch.querySelector('.avatar')?.textContent === rec.afkorting) ch.classList.add('koppel-select');
+  });
+  document.getElementById('koppel-panel').classList.add('open');
+}
+
+function sluitKoppelPanel(){
+  document.getElementById('koppel-panel').classList.remove('open');
+  document.querySelectorAll('.dienst-chip').forEach(ch=>ch.classList.remove('koppel-select'));
+  koppelPanelId = null;
+}
+
+function slaanKoppelOp(){
+  if(!koppelPanelId) return;
+  const rec = (dienstRecords[koppelPanelEtage]||[]).find(r=>r.id===koppelPanelId);
+  if(!rec) return;
+  rec.koppels    = [...koppelSelectKamers];
+  rec.collegaIds = [...koppelSelectCollega];
+  pushDienst(rec);
+  renderStrook();
+  sluitKoppelPanel();
+  showBanner('✓ Koppels opgeslagen voor ' + rec.naam.split(' ')[0]);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
