@@ -2752,7 +2752,7 @@ function rachelVoegToe(){
     functie, kleur:'#888888', etage:rachelEtage,
     koppels:[], stgBegeleider:false, stgNrs:[],
     tijdIn: new Date().getHours().toString().padStart(2,'0')+':'+new Date().getMinutes().toString().padStart(2,'0'),
-    datum: new Date().toISOString().split('T')[0],
+    datum: nlDatum(),
   };
   // CIOP mag niet in dienst gaan
   if(user && user.rol === 'ciop') return;
@@ -2764,7 +2764,10 @@ function rachelVoegToe(){
     parseInt(rachelPopup.style.top)-10);
   buildDienstVisualisatie();
   fetch(GASWA,{method:'POST',headers:{'Content-Type':'text/plain'},
-    body:JSON.stringify({action:'pushDienst',record})});
+    body:JSON.stringify({action:'pushDienst',record})})
+    .then(r=>r.json())
+    .then(d=>{ if(!d.ok) console.warn('pushDienst fout:', d.error); else { fetchDienst(); updateChatSelect(); } })
+    .catch(e=>console.warn('pushDienst netwerk fout:', e));
 }
 
 function rachelVerwijder(id, ev){
