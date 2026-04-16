@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kerkzaal — Twin G5</title>
+<style>
+  :root {
+    --bg: #0a0705;
+    --gold: #d4a04a;
+    --gold-dim: #8a6a30;
+    --gold-glow: #ffc878;
+    --red: #c44a3a;
+    --red-dim: #7a2a1e;
+    --text: #c8a878;
+    --text-dim: #6a5838;
+    --wood: #3a1f14;
+    --wood-dark: #1f110a;
+    --stone: #2a2520;
+    --curtain: #8a6a30;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    letter-spacing: 0.1em;
+  }
+
+  /* Top bar */
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .topbar a {
+    color: var(--text-dim);
+    text-decoration: none;
+    pointer-events: auto;
+    transition: color 0.3s;
+  }
+  .topbar a:hover { color: var(--gold); }
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* Main stage - perspective view of the church */
+  .stage {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    padding-top: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .church-scene {
+    position: relative;
+    width: 100%;
+    max-width: 1400px;
+    aspect-ratio: 16 / 9;
+    margin: 20px auto 0;
+    background: radial-gradient(ellipse at center 70%, #1a0f08 0%, #0a0705 70%);
+    overflow: hidden;
+  }
+
+  /* === CEILING === */
+  /* Red-brown wooden ceiling with cross-beams, vanishing toward the back */
+  .ceiling {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 32%;
+    background: linear-gradient(
+      to bottom,
+      #2a1208 0%,
+      #3a1a0c 40%,
+      #1f0f08 100%
+    );
+    clip-path: polygon(0 0, 100% 0, 85% 100%, 15% 100%);
+  }
+  /* Wood plank texture */
+  .ceiling::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 6px,
+      rgba(0,0,0,0.25) 6px,
+      rgba(0,0,0,0.25) 7px
+    );
+  }
+  /* Cross-beams running across */
+  .ceiling::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 80px,
+      rgba(0,0,0,0.5) 80px,
+      rgba(0,0,0,0.5) 84px
+    );
+    clip-path: polygon(0 0, 100% 0, 85% 100%, 15% 100%);
+  }
+
+  /* Ceiling spotlights */
+  .spotlight {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold-glow);
+    box-shadow:
+      0 0 12px var(--gold-glow),
+      0 0 24px var(--gold);
+  }
+  .spot-1 { top: 4%; left: 10%; }
+  .spot-2 { top: 8%; left: 22%; }
+  .spot-3 { top: 3%; left: 37%; }
+  .spot-4 { top: 6%; left: 52%; }
+  .spot-5 { top: 4%; left: 65%; }
+  .spot-6 { top: 8%; left: 78%; }
+
+  /* === BACK WALL (stone/concrete) === */
+  .back-wall {
+    position: absolute;
+    top: 18%;
+    left: 15%;
+    right: 15%;
+    height: 50%;
+    background: linear-gradient(
+      to bottom,
+      #2e2821 0%,
+      #3a3228 50%,
+      #2a241c 100%
+    );
+  }
+  .back-wall::after {
+    /* subtle stone texture */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.02) 0%, transparent 50%),
+      radial-gradient(circle at 70% 60%, rgba(0,0,0,0.2) 0%, transparent 40%);
+  }
+
+  /* === LEFT: BALCONY & STAIRCASE === */
+  .balcony {
+    position: absolute;
+    top: 22%;
+    left: 0;
+    width: 22%;
+    height: 30%;
+    background: linear-gradient(to right, #1a0f08 0%, #2a1a10 100%);
+    border-right: 1px solid var(--gold-dim);
+    border-bottom: 2px solid var(--gold-dim);
+  }
+  .balcony-rail {
+    position: absolute;
+    top: 48%;
+    left: 0;
+    width: 25%;
+    height: 2px;
+    background: var(--gold-dim);
+  }
+  .balcony-posts {
+    position: absolute;
+    top: 45%;
+    left: 0;
+    width: 25%;
+    height: 8%;
+    background: repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 12px,
+      var(--gold-dim) 12px,
+      var(--gold-dim) 13px
+    );
+  }
+  .staircase {
+    position: absolute;
+    top: 50%;
+    left: 14%;
+    width: 8%;
+    height: 22%;
+    background: repeating-linear-gradient(
+      -20deg,
+      #2a1a10 0,
+      #2a1a10 5px,
+      #4a3220 5px,
+      #4a3220 6px
+    );
+    clip-path: polygon(0 0, 100% 30%, 100% 100%, 0 70%);
+  }
+
+  /* === CURTAIN (yellow/gold, left of organ) === */
+  .curtain {
+    position: absolute;
+    top: 18%;
+    left: 27%;
+    width: 5%;
+    height: 48%;
+    background: linear-gradient(
+      to right,
+      #5a4418 0%,
+      #8a6a30 30%,
+      #a87c3c 50%,
+      #8a6a30 70%,
+      #5a4418 100%
+    );
+    background-size: 8px 100%;
+    background-repeat: repeat-x;
+  }
+  .curtain::before {
+    /* vertical folds */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 6px,
+      rgba(0,0,0,0.3) 6px,
+      rgba(0,0,0,0.3) 7px
+    );
+  }
+
+  /* === ORGAN (center) === */
+  .organ-housing {
+    position: absolute;
+    top: 26%;
+    left: 37%;
+    width: 14%;
+    height: 28%;
+    background: linear-gradient(
+      to bottom,
+      #3a2814 0%,
+      #5a3e20 40%,
+      #3a2814 100%
+    );
+    border: 1px solid #2a1a08;
+    border-radius: 2px 2px 0 0;
+  }
+  /* Organ pipes */
+  .organ-pipes {
+    position: absolute;
+    top: 10%;
+    left: 8%;
+    right: 8%;
+    bottom: 30%;
+    background: repeating-linear-gradient(
+      to right,
+      #6a5838 0px,
+      #8a7040 2px,
+      #a88858 3px,
+      #6a5838 4px,
+      #4a3820 5px,
+      #2a1808 6px
+    );
+  }
+  /* Pipe tops - graduated heights */
+  .organ-pipes::before {
+    content: '';
+    position: absolute;
+    top: -8%;
+    left: 0;
+    right: 0;
+    height: 15%;
+    background: var(--bg);
+    clip-path: polygon(
+      0% 100%, 0% 50%,
+      10% 30%, 20% 40%,
+      30% 20%, 40% 35%,
+      50% 10%, 60% 35%,
+      70% 20%, 80% 40%,
+      90% 30%, 100% 50%,
+      100% 100%
+    );
+  }
+  .organ-console {
+    position: absolute;
+    bottom: 2%;
+    left: 10%;
+    right: 10%;
+    height: 25%;
+    background: linear-gradient(to bottom, #2a1808 0%, #4a3018 100%);
+    border: 1px solid #1a0f08;
+  }
+
+  /* === CROSS (illuminated, right of organ) === */
+  .cross-wrap {
+    position: absolute;
+    top: 22%;
+    left: 54%;
+    width: 8%;
+    height: 28%;
+  }
+  .cross-vert {
+    position: absolute;
+    top: 0;
+    left: 42%;
+    width: 16%;
+    height: 100%;
+    background: linear-gradient(
+      to right,
+      #d4a04a 0%,
+      #ffe5a0 50%,
+      #d4a04a 100%
+    );
+    box-shadow:
+      0 0 15px var(--gold-glow),
+      0 0 30px var(--gold),
+      0 0 50px rgba(212, 160, 74, 0.4);
+  }
+  .cross-horiz {
+    position: absolute;
+    top: 28%;
+    left: 20%;
+    width: 60%;
+    height: 14%;
+    background: linear-gradient(
+      to bottom,
+      #d4a04a 0%,
+      #ffe5a0 50%,
+      #d4a04a 100%
+    );
+    box-shadow:
+      0 0 15px var(--gold-glow),
+      0 0 30px var(--gold),
+      0 0 50px rgba(212, 160, 74, 0.4);
+  }
+
+  /* === PROJECTION SCREEN (right of cross) — INTERACTIVE === */
+  .screen-frame {
+    position: absolute;
+    top: 24%;
+    left: 64%;
+    width: 18%;
+    height: 20%;
+    background: #1a1510;
+    border: 2px solid var(--gold);
+    box-shadow:
+      0 0 20px rgba(212, 160, 74, 0.3),
+      inset 0 0 10px rgba(0,0,0,0.8);
+    cursor: pointer;
+    transition: box-shadow 0.3s;
+    overflow: hidden;
+  }
+  .screen-frame:hover {
+    box-shadow:
+      0 0 30px var(--gold-glow),
+      0 0 60px rgba(212, 160, 74, 0.5),
+      inset 0 0 10px rgba(0,0,0,0.8);
+  }
+  .screen-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gold-dim);
+    font-size: 9px;
+    text-align: center;
+    background:
+      radial-gradient(ellipse at center, #2a2520 0%, #0f0a05 100%);
+  }
+  .screen-content video,
+  .screen-content iframe {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border: 0;
+  }
+  .screen-play-icon {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--gold-dim);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+  .screen-play-icon::after {
+    content: '';
+    width: 0;
+    height: 0;
+    border-left: 7px solid var(--gold-dim);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    margin-left: 2px;
+  }
+
+  /* Small monitor/speaker on far right wall */
+  .wall-monitor {
+    position: absolute;
+    top: 36%;
+    right: 15.5%;
+    width: 2.5%;
+    height: 5%;
+    background: #1a1510;
+    border: 1px solid var(--gold-dim);
+  }
+
+  /* === PULPIT / LEZENAAR (right, beside screen) === */
+  .pulpit {
+    position: absolute;
+    top: 46%;
+    left: 72%;
+    width: 6%;
+    height: 14%;
+    background: linear-gradient(to bottom, #5a3e20 0%, #3a2814 100%);
+    border: 1px solid #2a1a08;
+    clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%);
+  }
+
+  /* === ALTAR TABLE (center, lower) === */
+  .altar {
+    position: absolute;
+    top: 58%;
+    left: 44%;
+    width: 16%;
+    height: 10%;
+    background: linear-gradient(to bottom, #2a1f14 0%, #1a120a 100%);
+    border-top: 2px solid var(--gold-dim);
+  }
+  .altar::before {
+    /* white altar cloth */
+    content: '';
+    position: absolute;
+    top: 15%;
+    left: 10%;
+    right: 10%;
+    height: 30%;
+    background: linear-gradient(to bottom, #c8a878 0%, #8a7448 100%);
+    opacity: 0.6;
+  }
+  .altar-step {
+    position: absolute;
+    top: 66%;
+    left: 38%;
+    width: 28%;
+    height: 6%;
+    background: #1a1208;
+    border-top: 1px solid var(--gold-dim);
+  }
+  .altar-step-2 {
+    position: absolute;
+    top: 70%;
+    left: 34%;
+    width: 36%;
+    height: 5%;
+    background: #0f0a05;
+    border-top: 1px solid var(--gold-dim);
+  }
+
+  /* === TREE / BRANCH DECORATION (right of altar) === */
+  .branch-deco {
+    position: absolute;
+    top: 44%;
+    left: 79%;
+    width: 5%;
+    height: 18%;
+    opacity: 0.6;
+  }
+  .branch-deco::before,
+  .branch-deco::after {
+    content: '';
+    position: absolute;
+    background: var(--gold-dim);
+  }
+  .branch-deco::before {
+    left: 50%;
+    top: 0;
+    width: 1px;
+    height: 100%;
+  }
+  .branch-deco::after {
+    top: 20%;
+    left: 20%;
+    width: 60%;
+    height: 1px;
+    transform: rotate(-30deg);
+  }
+
+  /* === FLOOR (parquet) === */
+  .floor {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 32%;
+    background: linear-gradient(
+      to bottom,
+      #2a1808 0%,
+      #4a2e18 40%,
+      #6a4220 100%
+    );
+    perspective: 600px;
+  }
+  .floor::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        to right,
+        transparent 0,
+        transparent 40px,
+        rgba(0,0,0,0.3) 40px,
+        rgba(0,0,0,0.3) 41px
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 20px,
+        rgba(0,0,0,0.25) 20px,
+        rgba(0,0,0,0.25) 21px
+      );
+    transform: perspective(400px) rotateX(55deg);
+    transform-origin: top;
+    opacity: 0.6;
+  }
+
+  /* === SIDE TABLE (far right, red/green cloth) === */
+  .side-table {
+    position: absolute;
+    top: 62%;
+    right: 3%;
+    width: 11%;
+    height: 8%;
+    background: linear-gradient(to bottom, #2a3a1a 0%, #1a2a10 100%);
+    border-top: 1px solid var(--gold-dim);
+  }
+
+  /* === DOORS (far left) === */
+  .doors {
+    position: absolute;
+    top: 40%;
+    left: 2%;
+    width: 6%;
+    height: 22%;
+    background: linear-gradient(
+      to right,
+      #d4a878 0%,
+      #8a6a48 50%,
+      #d4a878 100%
+    );
+    opacity: 0.3;
+    border: 1px solid var(--gold-dim);
+  }
+
+  /* === FIRE EXIT SIGN === */
+  .exit-sign {
+    position: absolute;
+    top: 42%;
+    left: 22%;
+    width: 1.5%;
+    height: 2%;
+    background: #2a5a3a;
+    box-shadow: 0 0 4px #4a8a5a;
+  }
+
+  /* === EMPTY CHAIRS (indication of seating, sparse) === */
+  .chairs-left {
+    position: absolute;
+    top: 70%;
+    left: 32%;
+    width: 10%;
+    height: 3%;
+    background: repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 8px,
+      rgba(80,60,30,0.4) 8px,
+      rgba(80,60,30,0.4) 11px
+    );
+    border-radius: 2px;
+  }
+  .chairs-right {
+    position: absolute;
+    top: 70%;
+    right: 20%;
+    width: 12%;
+    height: 3%;
+    background: repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent 8px,
+      rgba(80,60,30,0.4) 8px,
+      rgba(80,60,30,0.4) 11px
+    );
+    border-radius: 2px;
+  }
+
+  /* === CONTROL PANEL (bottom, like cinema.html) === */
+  .control-panel {
+    width: 320px;
+    margin: 30px auto 40px;
+    padding: 20px;
+    background: linear-gradient(
+      to bottom,
+      rgba(60, 40, 20, 0.3) 0%,
+      rgba(30, 20, 10, 0.5) 100%
+    );
+    border: 1px solid var(--gold-dim);
+    border-radius: 4px;
+    box-shadow:
+      0 0 20px rgba(212, 160, 74, 0.1),
+      inset 0 0 10px rgba(0,0,0,0.5);
+  }
+
+  .panel-title {
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    padding: 4px 8px;
+    border: 1px solid var(--gold-dim);
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+
+  .power-btn {
+    display: block;
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    border: 2px solid var(--red);
+    background: transparent;
+    color: var(--red);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .power-btn:hover {
+    background: rgba(196, 74, 58, 0.1);
+    box-shadow: 0 0 15px var(--red-dim);
+  }
+  .power-btn.active {
+    background: var(--red);
+    color: var(--bg);
+    box-shadow: 0 0 20px var(--red);
+  }
+
+  .panel-label {
+    text-align: center;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    margin-bottom: 15px;
+  }
+
+  .channels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .channel-btn {
+    padding: 10px 6px;
+    background: rgba(20, 14, 8, 0.6);
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .channel-btn:hover {
+    background: rgba(212, 160, 74, 0.15);
+    border-color: var(--gold);
+    box-shadow: 0 0 10px rgba(212, 160, 74, 0.3);
+  }
+  .channel-btn.active {
+    background: rgba(212, 160, 74, 0.25);
+    border-color: var(--gold-glow);
+    color: var(--gold-glow);
+  }
+  .channel-btn .ch-num {
+    display: block;
+    font-size: 11px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  .channel-btn .ch-label {
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+  }
+
+  /* === CAPTION === */
+  .caption {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    margin: 10px 0 0;
+    text-transform: uppercase;
+  }
+  .caption-sub {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    margin-top: 4px;
+    opacity: 0.6;
+    font-style: italic;
+  }
+
+  /* === KERKKAARSEN === */
+  /* Twee grote kaarsen op de vloer, op 4 tegels vanaf achter (monitor), 2.5 tegels uit de zijkanten */
+  .candle {
+    position: absolute;
+    width: 18px;
+    height: 90px;
+    z-index: 5;
+  }
+  /* Afstanden afgestemd op de parket-grid (40px tegels horizontaal, 20px diep) */
+  /* 4 tegels vanaf de monitor/scherm-lijn = ongeveer 78% vanaf bovenkant scene */
+  /* 2.5 tegels uit de zijkanten = ongeveer 10% uit links en rechts */
+  .candle-left  { top: 76%; left: 10%; }
+  .candle-right { top: 76%; right: 10%; }
+
+  .candle-body {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 75px;
+    background: linear-gradient(
+      to right,
+      #6a5030 0%,
+      #a88868 20%,
+      #e8d4a8 50%,
+      #a88868 80%,
+      #6a5030 100%
+    );
+    border-radius: 2px 2px 0 0;
+    box-shadow:
+      inset 0 2px 4px rgba(255,240,200,0.3),
+      inset 0 -10px 8px rgba(0,0,0,0.3);
+  }
+  /* Subtiele wasdruppels langs de zijkant */
+  .candle-body::before {
+    content: '';
+    position: absolute;
+    top: 20%;
+    left: 20%;
+    width: 2px;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(255,240,200,0.4), transparent);
+    border-radius: 1px;
+  }
+  /* Kaarsenstandaard (metalen voet) */
+  .candle-base {
+    position: absolute;
+    bottom: -6px;
+    left: -4px;
+    right: -4px;
+    height: 8px;
+    background: linear-gradient(to bottom, #8a6a30 0%, #3a2810 100%);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+  /* Pit (altijd zichtbaar, donker wanneer uit) */
+  .candle-wick {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 6px;
+    background: #1a0f08;
+    z-index: 2;
+  }
+  /* Vlam - alleen zichtbaar wanneer aangestoken */
+  .candle-flame {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 22px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease-in;
+  }
+  .candle.lit .candle-flame {
+    opacity: 1;
+    animation: flameFlicker 0.15s infinite alternate;
+  }
+  .flame-outer {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 50% 70%,
+      #ffc878 0%,
+      #ff9030 40%,
+      #d04010 70%,
+      transparent 100%
+    );
+    border-radius: 50% 50% 45% 45% / 70% 70% 30% 30%;
+    filter: blur(0.5px);
+  }
+  .flame-inner {
+    position: absolute;
+    top: 20%;
+    left: 25%;
+    width: 50%;
+    height: 60%;
+    background: radial-gradient(
+      ellipse at 50% 70%,
+      #ffffff 0%,
+      #ffe8a0 40%,
+      #ff9040 80%,
+      transparent 100%
+    );
+    border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+  }
+  @keyframes flameFlicker {
+    0%   { transform: translateX(-50%) scale(1, 1)       skewX(-1deg); }
+    100% { transform: translateX(-50%) scale(1.05, 0.95) skewX(1deg); }
+  }
+
+  /* Lichtgloed rond de kaars - wakkerend licht dat zich verspreidt */
+  .candle-glow {
+    position: absolute;
+    top: -80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at center,
+      rgba(255, 180, 80, 0.25) 0%,
+      rgba(255, 140, 60, 0.15) 20%,
+      rgba(255, 120, 40, 0.08) 40%,
+      transparent 70%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.2s ease-in;
+    mix-blend-mode: screen;
+    z-index: 1;
+  }
+  .candle.lit .candle-glow {
+    opacity: 1;
+    animation: glowBreath 3.5s ease-in-out infinite;
+  }
+  @keyframes glowBreath {
+    0%, 100% { transform: translateX(-50%) scale(1);    opacity: 1; }
+    50%      { transform: translateX(-50%) scale(1.08); opacity: 0.85; }
+  }
+
+  /* Kleine hint in de topbar voor toetscombinatie */
+  .keyhint {
+    font-size: 9px;
+    color: var(--text-dim);
+    opacity: 0.5;
+  }
+
+  /* === TUIMELSCHAKELAAR (cinema / kerk) === */
+  .toggle-wrap {
+    position: fixed;
+    top: 40px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 200;
+  }
+  .toggle-label {
+    font-size: 8px;
+    letter-spacing: 0.25em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 70px;
+    background: linear-gradient(to bottom, #2a1f14 0%, #1a120a 100%);
+    border: 1px solid var(--gold-dim);
+    border-radius: 4px;
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,0.6),
+      0 0 8px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  .toggle-lever {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 30px;
+    background: linear-gradient(
+      to bottom,
+      #a88858 0%,
+      #d4a87a 30%,
+      #8a6a40 70%,
+      #5a4020 100%
+    );
+    border: 1px solid #2a1a08;
+    border-radius: 3px;
+    box-shadow:
+      inset 0 2px 2px rgba(255,220,180,0.3),
+      0 2px 4px rgba(0,0,0,0.6);
+    transition: top 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  }
+  /* Boven = KERK (huidig) */
+  .toggle-switch[data-pos="up"] .toggle-lever { top: 4px; }
+  /* Onder = CINEMA */
+  .toggle-switch[data-pos="down"] .toggle-lever { top: 36px; }
+
+  .toggle-markers {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 7px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .church-scene { aspect-ratio: 4 / 3; }
+    .control-panel { width: 90%; max-width: 320px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="#">← TWIN</a>
+  <span><span class="status-dot"></span>KERKZAAL · ARCHIEF <span class="keyhint" id="keyhint">· DRUK K OM AAN TE STEKEN</span></span>
+</div>
+
+<!-- Tuimelschakelaar: boven = kerk (huidig), onder = cinema -->
+<div class="toggle-wrap">
+  <div class="toggle-label">ZAAL</div>
+  <div class="toggle-switch" id="toggleSwitch" data-pos="up" title="Wissel tussen kerk en cinema">
+    <div class="toggle-lever"></div>
+    <div class="toggle-markers">
+      <span>KERK</span>
+      <span>CIN</span>
+    </div>
+  </div>
+</div>
+
+<main class="stage">
+
+  <!-- The church scene -->
+  <div class="church-scene" id="scene">
+
+    <!-- Ceiling -->
+    <div class="ceiling"></div>
+
+    <!-- Ceiling spotlights -->
+    <div class="spotlight spot-1"></div>
+    <div class="spotlight spot-2"></div>
+    <div class="spotlight spot-3"></div>
+    <div class="spotlight spot-4"></div>
+    <div class="spotlight spot-5"></div>
+    <div class="spotlight spot-6"></div>
+
+    <!-- Back wall -->
+    <div class="back-wall"></div>
+
+    <!-- Balcony (left) -->
+    <div class="balcony">
+      <div class="balcony-posts"></div>
+      <div class="balcony-rail"></div>
+    </div>
+    <div class="staircase"></div>
+    <div class="exit-sign"></div>
+
+    <!-- Doors (far left, entrance) -->
+    <div class="doors"></div>
+
+    <!-- Curtain (yellow/gold fabric, left of organ) -->
+    <div class="curtain"></div>
+
+    <!-- Organ (center) -->
+    <div class="organ-housing">
+      <div class="organ-pipes"></div>
+      <div class="organ-console"></div>
+    </div>
+
+    <!-- Illuminated cross -->
+    <div class="cross-wrap">
+      <div class="cross-vert"></div>
+      <div class="cross-horiz"></div>
+    </div>
+
+    <!-- Projection screen (INTERACTIVE) -->
+    <div class="screen-frame" id="screen">
+      <div class="screen-content" id="screenContent">
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <div class="screen-play-icon"></div>
+          <div>GEEN SIGNAAL</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Small wall monitor -->
+    <div class="wall-monitor"></div>
+
+    <!-- Pulpit / lezenaar -->
+    <div class="pulpit"></div>
+
+    <!-- Altar and steps -->
+    <div class="altar"></div>
+    <div class="altar-step"></div>
+    <div class="altar-step-2"></div>
+
+    <!-- Branch decoration -->
+    <div class="branch-deco"></div>
+
+    <!-- Side table (far right) -->
+    <div class="side-table"></div>
+
+    <!-- Floor -->
+    <div class="floor"></div>
+
+    <!-- Empty chairs (sparse indication) -->
+    <div class="chairs-left"></div>
+    <div class="chairs-right"></div>
+
+    <!-- Kerkkaarsen (aan te steken met K, uit met L, of klik) -->
+    <div class="candle candle-left" id="candleLeft" title="Klik of druk K om aan te steken">
+      <div class="candle-glow"></div>
+      <div class="candle-body">
+        <div class="candle-base"></div>
+      </div>
+      <div class="candle-wick"></div>
+      <div class="candle-flame">
+        <div class="flame-outer"></div>
+        <div class="flame-inner"></div>
+      </div>
+    </div>
+    <div class="candle candle-right" id="candleRight" title="Klik of druk K om aan te steken">
+      <div class="candle-glow"></div>
+      <div class="candle-body">
+        <div class="candle-base"></div>
+      </div>
+      <div class="candle-wick"></div>
+      <div class="candle-flame">
+        <div class="flame-outer"></div>
+        <div class="flame-inner"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Caption -->
+  <p class="caption">Voormalig kerkgebouw · Instellingsterrein SEIN</p>
+  <p class="caption-sub">afgebroken — archief herinnering</p>
+
+  <!-- Control panel -->
+  <div class="control-panel">
+    <div class="panel-title">· KIES WAT OP HET SCHERM STAAT ·</div>
+    <button class="power-btn" id="powerBtn" title="Aan/uit">⏻</button>
+    <div class="panel-label">KANAAL SELECTIE</div>
+    <div class="channels">
+      <button class="channel-btn" data-channel="preek">
+        <span class="ch-num">KRK-1</span>
+        <span class="ch-label">PREEK</span>
+      </button>
+      <button class="channel-btn" data-channel="werkster">
+        <span class="ch-num">KRK-2</span>
+        <span class="ch-label">WERKSTER</span>
+      </button>
+      <button class="channel-btn" data-channel="orgel">
+        <span class="ch-num">KRK-3</span>
+        <span class="ch-label">ORGEL</span>
+      </button>
+      <button class="channel-btn" data-channel="stilte">
+        <span class="ch-num">KRK-4</span>
+        <span class="ch-label">STILTE</span>
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const powerBtn = document.getElementById('powerBtn');
+  const screenContent = document.getElementById('screenContent');
+  const screen = document.getElementById('screen');
+  const channelBtns = document.querySelectorAll('.channel-btn');
+
+  let isOn = false;
+  let currentChannel = null;
+
+  const channelContent = {
+    preek: {
+      title: 'KRK-1 · PREEK',
+      desc: 'dominee (video)',
+      placeholder: 'VIDEO SLOT'
+    },
+    werkster: {
+      title: 'KRK-2 · WERKSTER',
+      desc: 'schoonmaak in zaal',
+      placeholder: 'VIDEO SLOT'
+    },
+    orgel: {
+      title: 'KRK-3 · ORGEL',
+      desc: 'audio + beeld',
+      placeholder: 'AUDIO/VIDEO SLOT'
+    },
+    stilte: {
+      title: 'KRK-4 · STILTE',
+      desc: 'lege zaal, ambient',
+      placeholder: 'AMBIENT SLOT'
+    }
+  };
+
+  function updateScreen() {
+    if (!isOn) {
+      screenContent.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <div class="screen-play-icon"></div>
+          <div>GEEN SIGNAAL</div>
+        </div>`;
+      return;
+    }
+    if (!currentChannel) {
+      screenContent.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <div class="screen-play-icon"></div>
+          <div>KIES EEN KANAAL</div>
+        </div>`;
+      return;
+    }
+    const c = channelContent[currentChannel];
+    screenContent.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; padding: 4px;">
+        <div style="font-size: 10px; color: var(--gold); margin-bottom: 4px; letter-spacing: 0.2em;">${c.title}</div>
+        <div style="font-size: 8px; color: var(--text-dim); margin-bottom: 6px;">${c.desc}</div>
+        <div style="font-size: 7px; color: var(--gold-dim); border: 1px dashed var(--gold-dim); padding: 3px 6px;">${c.placeholder}</div>
+      </div>`;
+  }
+
+  powerBtn.addEventListener('click', () => {
+    isOn = !isOn;
+    powerBtn.classList.toggle('active', isOn);
+    if (!isOn) {
+      currentChannel = null;
+      channelBtns.forEach(b => b.classList.remove('active'));
+    }
+    updateScreen();
+  });
+
+  channelBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!isOn) {
+        isOn = true;
+        powerBtn.classList.add('active');
+      }
+      channelBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentChannel = btn.dataset.channel;
+      updateScreen();
+    });
+  });
+
+  // Click on screen itself also triggers power
+  screen.addEventListener('click', () => {
+    if (!isOn) {
+      powerBtn.click();
+    }
+  });
+
+  // === KAARSEN ===
+  const candleLeft  = document.getElementById('candleLeft');
+  const candleRight = document.getElementById('candleRight');
+  const keyhint     = document.getElementById('keyhint');
+  let candlesLit = false;
+
+  function lightCandles() {
+    if (candlesLit) return;
+    candlesLit = true;
+    // licht met een korte vertraging tussen de twee voor organisch effect
+    candleLeft.classList.add('lit');
+    setTimeout(() => candleRight.classList.add('lit'), 400);
+    if (keyhint) keyhint.textContent = '· DRUK L OM TE DOVEN';
+  }
+  function extinguishCandles() {
+    if (!candlesLit) return;
+    candlesLit = false;
+    candleRight.classList.remove('lit');
+    setTimeout(() => candleLeft.classList.remove('lit'), 200);
+    if (keyhint) keyhint.textContent = '· DRUK K OM AAN TE STEKEN';
+  }
+  function toggleCandles() {
+    candlesLit ? extinguishCandles() : lightCandles();
+  }
+
+  // Klik op kaars
+  candleLeft.addEventListener('click',  toggleCandles);
+  candleRight.addEventListener('click', toggleCandles);
+
+  // Toetscombinatie: K = aansteken, L = doven, Ctrl+K = toggle
+  document.addEventListener('keydown', (e) => {
+    // negeer als gebruiker in een input bezig is
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const key = e.key.toLowerCase();
+    if (key === 'k') {
+      e.preventDefault();
+      lightCandles();
+    } else if (key === 'l') {
+      e.preventDefault();
+      extinguishCandles();
+    }
+  });
+
+  // === TUIMELSCHAKELAAR: kerk <-> cinema ===
+  const toggleSwitch = document.getElementById('toggleSwitch');
+  toggleSwitch.addEventListener('click', () => {
+    const pos = toggleSwitch.dataset.pos;
+    if (pos === 'up') {
+      // omlaag = cinema
+      toggleSwitch.dataset.pos = 'down';
+      setTimeout(() => { window.location.href = 'cinema.html'; }, 350);
+    } else {
+      toggleSwitch.dataset.pos = 'up';
+    }
+  });
+</script>
+
+</body>
+</html>
